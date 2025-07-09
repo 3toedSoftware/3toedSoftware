@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapping Slayer - PDF Sign Mapping Software</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Cambria, serif;
+            background-color: #1B1C1D;
+            color: #ffffff;
+            line-height: 1.6;
+        }
+        
+        /* --- START: Demo-Specific Styles --- */
+        .demo-area {
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10+ */
+            user-select: none; /* Standard syntax */
+            padding: 15px;
+            background-color: #1B1C1D;
+            /* border: 1px solid #555; */ /* Border removed as requested */
+        }
+
+        .demo-header {
+            font-size: 18px;
+            color: #ff6600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .demo-disclaimer {
+            text-align: center;
+            font-style: italic;
+            color: #ccc;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .demo-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .demo-map-column {
+            position: relative; /* For positioning controls */
+            flex-shrink: 0;
+        }
+        
+        .demo-map-controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1002;
+        }
+
+        .demo-map-controls .btn {
+            padding: 5px 10px;
+            font-size: 12px;
+            background-color: #6c757d;
+            border: 1px solid #888;
+        }
+        .demo-map-controls .btn.active {
+            background-color: #007acc;
+        }
+
+
+        .demo-controls-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 215px;
+        }
+
+        .demo-pdf-page {
+            position: relative;
+            width: 500px;
+            height: 300px;
+            border: 1px solid #888; /* Hairline */
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect width="20" height="20" fill="%231B1C1D"/><rect width="1" height="20" fill="%23333537"/><rect width="20" height="1" fill="%23333537"/></svg>');
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .demo-room-text {
+            position: absolute;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            padding: 2px 4px;
+            pointer-events: none;
+        }
+        
+        .demo-project-legend {
+            border: 1px solid #555; /* Hairline */
+            padding: 10px;
+            background-color: #333537;
+        }
+        
+        .demo-legend-header {
+            font-weight: bold;
+            color: #ff6600;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .demo-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        .demo-legend-dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 1px solid #fff;
+            flex-shrink: 0;
+        }
+
+        .demo-legend-text {
+            font-size: 18px;
+            flex-grow: 1;
+        }
+        .demo-legend-count {
+            font-size: 18px;
+        }
+
+        .demo-instructions {
+            text-align: left;
+            font-size: 14px;
+            color: #aaa;
+            font-style: italic;
+            line-height: 1.5;
+        }
+
+        .demo-reset-btn {
+            display: block;
+            padding: 8px 16px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            align-self: flex-start; /* Left-aligned */
+        }
+        .demo-reset-btn:hover {
+            background-color: #5a6268;
+        }
+        
+        .selection-box, .scrape-box {
+            position: absolute;
+            background: rgba(255, 102, 0, 0.1);
+            pointer-events: none;
+            z-index: 1001;
+        }
+        .scrape-box {
+            border: 2px dashed #ff6600;
+        }
+        .selection-box {
+             border: 2px dashed #00ff88;
+             background: rgba(0, 255, 136, 0.1);
+        }
+        
+        .demo-dot {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            color: white;
+            border: 1px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 1000;
+        }
+        
+        .demo-dot-message {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            white-space: nowrap;
+            margin-top: 5px;
+            display: none;
+        }
+        .demo-dot-message.visible {
+            display: block;
+        }
+
+        .demo-dot.selected {
+            box-shadow: 0 0 12px #ff6600, 0 0 6px #ff6600;
+            border-color: #ff6600;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .demo-footer-note {
+            font-size: 14px; /* Updated size */
+            color: #aaa;
+            font-style: italic;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        /* --- Automation/Operations Demo Styles --- */
+        .automap-demo-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .automap-demo-btn {
+            padding: 10px 20px;
+            font-family: Cambria, serif;
+            font-size: 16px;
+            cursor: pointer;
+            border: 1px solid #888;
+            background-color: #6c757d;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .automap-demo-btn:disabled {
+            background-color: #4a4a4a;
+            color: #888;
+            cursor: not-allowed;
+        }
+        .automap-demo-btn:not(:disabled):hover {
+            background-color: #5a6268;
+        }
+        .automap-demo-btn.glow {
+            background-color: #00b360;
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+        }
+
+        .automap-modal-overlay, .automap-alert-modal, .edit-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .automap-alert-modal, .edit-modal-overlay { z-index: 3000; }
+
+        .automap-modal-content {
+            background-color: #f0f0f0;
+            color: #000;
+            font-family: 'Segoe UI', sans-serif;
+            width: 600px;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .automap-modal-header {
+            padding: 10px;
+            background-color: #e1e1e1;
+            border-bottom: 1px solid #ccc;
+            font-size: 14px;
+        }
+        .automap-modal-body { padding: 20px; border-bottom: 1px solid #ccc; }
+        .automap-modal-body input { width: 100%; padding: 5px; border: 1px solid #999; }
+        .automap-modal-footer { padding: 10px; background-color: #f0f0f0; text-align: right; }
+        .automap-modal-footer button { padding: 5px 15px; margin-left: 10px; border: 1px solid #999; background-color: #e1e1e1; cursor: pointer; }
+
+        .automap-notification {
+            display: none;
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background-color: rgba(42, 42, 42, 0.9);
+            color: #fff;
+            padding: 15px 20px;
+            border-radius: 5px;
+            border-left: 5px solid #00ff88;
+            z-index: 2001;
+            font-size: 16px;
+            align-items: center;
+            gap: 15px;
+        }
+        .automap-notification.visible { display: flex; }
+        .automap-notification .check { font-size: 24px; color: #00ff88; }
+        
+        .automap-alert-content, .edit-modal-content {
+            background-color: #333537;
+            padding: 30px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        .automap-alert-content p { margin-bottom: 20px; }
+        .automap-alert-content button { padding: 10px 20px; }
+
+        .edit-modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #00ff88;
+        }
+        .edit-modal-subheader {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+        .edit-modal-form .form-group {
+            text-align: left;
+            margin-bottom: 15px;
+        }
+        .edit-modal-form .form-label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+        .edit-modal-form .form-input {
+            width: 100%;
+            padding: 8px;
+            background: #444;
+            border: 1px solid #888;
+            color: white;
+            border-radius: 4px;
+        }
+        .edit-modal-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 25px;
+        }
+        .edit-modal-buttons .btn-danger { background-color: #dc3545; }
+        .edit-modal-buttons .right-buttons { display: flex; gap: 10px; flex-grow: 1;}
+        .edit-modal-buttons .right-buttons .btn { flex-grow: 1; }
+        .edit-modal-buttons .btn-secondary { background-color: #6c757d; }
+        .edit-modal-buttons .btn-primary { background-color: #007acc; }
+
+
+        .sign-type-selector .demo-legend-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .sign-type-selector .demo-legend-item:hover {
+            background-color: #444648;
+        }
+        .sign-type-selector .demo-legend-item.active {
+            background-color: #ff6600;
+            color: white;
+        }
+        
+        /* --- END: Demo-Specific Styles --- */
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            padding: 20px 0;
+            border-bottom: 1px solid #555; /* Hairline */
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff6600;
+        }
+
+        .logo-svg {
+            width: 280px; /* Change this value to your desired width */
+            height: auto; /* 'auto' maintains the aspect ratio */
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background-color: transparent;
+            color: #ffffff;
+            border: 1px solid #e6e6e6; /* Hairline */
+            font-family: Cambria, serif;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: #444648;
+        }
+
+        .btn-primary {
+            background-color: #ff6600;
+            border-color: #ff6600;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: #e55a00;
+        }
+
+        .hero {
+            padding: 60px 0;
+            text-align: center;
+        }
+
+        .hero h1, .section-title {
+            font-size: 72px;
+            color: #ff6600;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .hero-subtitle {
+            font-size: 36px;
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        .hero p:not(.hero-subtitle) {
+            font-size: 24px;
+            margin-bottom: 40px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .hero .btn {
+            font-size: 18px;
+            padding: 15px 30px;
+        }
+
+        .testimonials-banner {
+            background-color: #333537;
+            padding: 20px 0;
+            overflow: hidden;
+            position: relative;
+            margin: 40px 0;
+        }
+
+        .testimonials-scroll {
+            display: flex;
+            animation: scroll 80s linear infinite;
+            gap: 80px;
+            min-width: fit-content;
+        }
+
+        .testimonials-scroll:hover {
+            animation-play-state: paused;
+        }
+
+        .testimonial {
+            white-space: nowrap;
+            font-size: 18px;
+            font-style: italic;
+            flex-shrink: 0;
+        }
+
+        @keyframes scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .main-content {
+            padding: 60px 0;
+        }
+
+        .section {
+            margin-bottom: 60px;
+        }
+
+        .section h2 {
+            text-align: center;
+        }
+        
+        .section h3 {
+            color: #ff6600;
+            font-size: 24px;
+            margin-bottom: 15px;
+            font-weight: normal;
+        }
+
+        .section p {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .arsenal-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        .arsenal-box {
+            background-color: transparent;
+            padding: 40px;
+            border: none;
+            border-top: 1px solid #555;
+            border-bottom: 1px solid #555;
+            width: 100%;
+            max-width: none;
+        }
+
+        .arsenal-box:first-child {
+            border-top: none;
+        }
+        .arsenal-box:last-child {
+            border-bottom: none;
+        }
+
+
+        .arsenal-box h4 {
+            color: #ff6600;
+            font-size: 32px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .arsenal-box ul {
+            list-style: none;
+            padding-left: 0;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .arsenal-box li {
+            margin-bottom: 12px;
+            position: relative;
+            padding-left: 0;
+            font-size: 20px;
+            line-height: 1.4;
+        }
+
+        .pricing {
+            text-align: center;
+            background-color: #333537;
+            padding: 60px 40px;
+            margin: 60px 0;
+            border: 1px solid #555; /* Hairline */
+        }
+
+        .pricing h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        .price {
+            font-size: 48px;
+            color: #ff6600;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .pricing-features {
+            max-width: 600px;
+            margin: 30px auto;
+            text-align: left;
+        }
+
+        .pricing-features ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .pricing-features li {
+            margin: 10px 0;
+            position: relative;
+            padding-left: 0;
+        }
+
+        .pricing-features li:before {
+            content: "✓";
+            color: #ff6600;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        footer {
+            border-top: 1px solid #555; /* Hairline */
+            padding: 40px 0;
+            text-align: center;
+        }
+
+        footer p {
+            color: #e6e6e6;
+            font-size: 16px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+
+        .modal-content {
+            background-color: #333537;
+            margin: 10% auto;
+            padding: 40px;
+            border: 1px solid #e6e6e6; /* Hairline */
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .close {
+            color: #e6e6e6;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #ff6600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ff6600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            background-color: #2A2C2E;
+            border: 1px solid #e6e6e6; /* Hairline */
+            color: #ffffff;
+            font-family: Cambria, serif;
+            font-size: 16px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #ff6600;
+        }
+
+        .gallery-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .gallery-modal-content {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 90%;
+            height: 90%;
+        }
+
+        #galleryImage {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+        }
+
+        .gallery-prev, .gallery-next {
+            cursor: pointer;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 16px;
+            color: white;
+            font-weight: bold;
+            font-size: 30px;
+            transition: 0.3s ease;
+            user-select: none;
+            background-color: rgba(0,0,0,0.3);
+        }
+
+        .gallery-prev {
+            left: 0;
+            border-radius: 0 3px 3px 0;
+        }
+
+        .gallery-next {
+            right: 0;
+            border-radius: 3px 0 0 3px;
+        }
+
+        .gallery-prev:hover, .gallery-next:hover {
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        @media (max-width: 768px) {
+            .hero h1, .section-title { font-size: 48px; }
+            .hero p { font-size: 20px; }
+            .hero-buttons { flex-direction: column; align-items: center; }
+            .header-content { flex-direction: column; gap: 20px; }
+            .nav-buttons { justify-content: center; }
+            .testimonial { font-size: 16px; }
+            .demo-pdf-page { width: 100%; max-width: 500px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="app-title">
+                    <img src="MSLogo.svg" alt="Mapping Slayer" class="logo-svg">
+                </div>
+                <div class="nav-buttons">
+                    <button class="btn" onclick="window.location.href='mapping_slayer.html'">Free Demo in Browser</button>
+                    <button class="btn" onclick="openModal('login')">Login</button>
+                    <button class="btn btn-primary" onclick="openModal('signup')">Sign Up</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1>MAPPING SUCKS!</h1>
+            <p class="hero-subtitle">Slay it! with Mapping Slayer</p>
+            <p>Transform static floor plans into interactive signage layouts. Plan, document, and manage sign placement with precision and efficiency <strong style="color: #ff6600;">in record time</strong>.</p>
+            <div class="hero-buttons">
+                <button class="btn btn-primary" onclick="window.location.href='mapping_slayer.html'">Free Demo in Browser</button>
+                <button class="btn" onclick="openModal('signup')">Start Subscription - $10/month</button>
+            </div>
+            <p style="font-size: 16px; margin-top: 20px; font-style: italic;">There is only one tier: SLAY!</p>
+            <p style="font-size: 16px; margin-top: 5px;">No hidden fees. No long-term commitment. All functionality. All future updates.</p>
+            <button class="btn" id="gallery-btn" style="margin-top: 20px;">INSPIRING IMAGES FROM ACTUAL USERS</button>
+        </div>
+    </section>
+
+    <!-- Testimonials Banner -->
+    <div class="testimonials-banner">
+        <div class="testimonials-scroll">
+            <div class="testimonial">"That little program turned a typical sixteen-hour takeoff into two hours."</div>
+            <div class="testimonial">"We automatically mapped 80% of the job. Incredible."</div>
+            <div class="testimonial">"We got our ADA sign counts in an hour for a twelve-story building."</div>
+            <div class="testimonial">"It makes mapping fun."</div>
+            <div class="testimonial">"That scrape function is really cool! It makes my job so much easier."</div>
+            <div class="testimonial">"I love using the Slayer!"</div>
+            <div class="testimonial">"The ROI is incredible!"</div>
+            <div class="testimonial">"Fastest program I've used for takeoffs, hands down."</div>
+            <div class="testimonial">"Mapping Slayer is a beast!"</div>
+            <!-- Duplicate set for seamless loop -->
+            <div class="testimonial">"That little program turned a typical sixteen-hour takeoff into two hours."</div>
+            <div class="testimonial">"We automatically mapped 80% of the job. Incredible."</div>
+            <div class="testimonial">"We got our ADA sign counts in an hour for a twelve-story building."</div>
+            <div class="testimonial">"It makes mapping fun."</div>
+            <div class="testimonial">"That scrape function is really cool! It makes my job so much easier."</div>
+            <div class="testimonial">"I love using the Slayer!"</div>
+            <div class="testimonial">"The ROI is incredible!"</div>
+            <div class="testimonial">"Fastest program I've used for takeoffs, hands down."</div>
+            <div class="testimonial">"Mapping Slayer is a beast!"</div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Features Section -->
+            <section class="section">
+                <h2 class="section-title">THE SLAYER'S ARSENAL</h2>
+                <div class="arsenal-stack">
+                    <div class="arsenal-box">
+                        <h4>Scrape Function = Turbo Speed</h4>
+                        <ul>
+                            <li>Shift + right-drag over text block to instantly create a map marker, add it to the sign list and update the quantities.</li>
+                        </ul>
+                        <div class="demo-header">Try it yourself:</div>
+                        <p class="demo-disclaimer">This demo is to showcase the Scrape function only.</p>
+                        <div class="demo-area">
+                            <div class="demo-container">
+                                <div class="demo-map-column">
+                                    <div class="demo-pdf-page" id="demo-pdf-page-scrape">
+                                        <div class="demo-room-text" style="top: 15%; left: 15%;">Conference Room A</div>
+                                        <div class="demo-room-text" style="top: 35%; left: 55%;">Men's Restroom</div>
+                                        <div class="demo-room-text" style="top: 15%; left: 75%;">Exit</div>
+                                        <div class="demo-room-text" style="top: 55%; left: 25%;">Office 101</div>
+                                        <div class="demo-room-text" style="top: 75%; left: 65%;">Office 102</div>
+                                        <div class="demo-room-text" style="top: 75%; left: 15%;">Women</div>
+                                    </div>
+                                </div>
+                                <div class="demo-controls-column">
+                                    <div class="demo-project-legend">
+                                        <div class="demo-legend-header">PROJECT LEGEND</div>
+                                        <div class="demo-legend-item">
+                                            <div class="demo-legend-dot" style="background-color: #F72020;"></div>
+                                            <span class="demo-legend-text">I.1</span>
+                                            <span class="demo-legend-count" id="scrape-legend-count">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="demo-instructions">
+                                        <div>*Shift + right-drag over text to scrape</div>
+                                        <div>*Left click dots to select</div>
+                                        <div>*Delete key to remove selected</div>
+                                        <div>*Click reset button below to remove dots...</div>
+                                    </div>
+                                    <button class="demo-reset-btn" onclick="scrapeDemo.reset()">Reset</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="arsenal-box">
+                        <h4>Mapping Automation</h4>
+                        <ul>
+                            <li>Import room lists to automatically map those locations and assign sign types.</li>
+                        </ul>
+                        <div class="demo-header">Try it yourself:</div>
+                        <p class="demo-disclaimer">This demo is to showcase the Automap function only.</p>
+                        <div class="demo-area">
+                            <div class="automap-demo-controls">
+                                <button class="automap-demo-btn" id="import-roomlist-btn">IMPORT ROOM LIST</button>
+                                <button class="automap-demo-btn" id="automap-it-btn" disabled>AUTOMAP IT!</button>
+                            </div>
+                            <div class="demo-container">
+                                <div class="demo-map-column">
+                                    <div class="demo-pdf-page" id="demo-pdf-page-automap">
+                                        <div class="demo-room-text" data-sign-type="Conference" style="top: 15%; left: 15%;">Conference Room A</div>
+                                        <div class="demo-room-text" data-sign-type="Restroom" style="top: 35%; left: 55%;">Men's Restroom</div>
+                                        <div class="demo-room-text" data-sign-type="Exit" style="top: 15%; left: 75%;">Exit</div>
+                                        <div class="demo-room-text" data-sign-type="Office" style="top: 55%; left: 25%;">Office 101</div>
+                                        <div class="demo-room-text" data-sign-type="Office" style="top: 75%; left: 65%;">Office 102</div>
+                                        <div class="demo-room-text" data-sign-type="Restroom" style="top: 75%; left: 15%;">Women</div>
+                                    </div>
+                                </div>
+                                <div class="demo-controls-column">
+                                    <div class="demo-project-legend" id="automap-legend-container">
+                                        <div class="demo-legend-header">PROJECT LEGEND</div>
+                                        <div id="automap-legend-items"></div>
+                                    </div>
+                                    <div class="demo-instructions">
+                                        <div>*Left click dots to select</div>
+                                        <div>*Delete key to remove selected</div>
+                                    </div>
+                                    <button class="demo-reset-btn" onclick="automapDemo.reset()">Reset</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="arsenal-box">
+                        <h4>Simple Bulk Operations</h4>
+                        <ul>
+                            <li>Click to add dots, shift-drag to select multiple, and right-click to edit in bulk.</li>
+                        </ul>
+                         <div class="demo-header">Try it yourself:</div>
+                        <p class="demo-disclaimer">This demo showcases manual dot placement and bulk changes.</p>
+                        <div class="demo-area">
+                            <div class="demo-container">
+                                <div class="demo-map-column">
+                                    <div class="demo-map-controls">
+                                        <button class="btn" id="operations-toggle-msg-btn">SHOW MSG</button>
+                                    </div>
+                                    <div class="demo-pdf-page" id="demo-pdf-page-operations">
+                                        <!-- This map is intentionally blank -->
+                                    </div>
+                                </div>
+                                <div class="demo-controls-column">
+                                    <div class="demo-project-legend sign-type-selector">
+                                        <div class="demo-legend-header">SELECT SIGN TYPE</div>
+                                        <div id="operations-legend-items"></div>
+                                    </div>
+                                    <div class="demo-instructions">
+                                        <div>*Click a sign type on the right</div>
+                                        <div>*Click the map to place a dot</div>
+                                        <div>*Shift+click a dot to add/remove from selection</div>
+                                        <div>*Right-click dot(s) to edit</div>
+                                    </div>
+                                    <button class="demo-reset-btn" onclick="operationsDemo.reset()">Reset</button>
+                                </div>
+                            </div>
+                            <p class="demo-footer-note">*The number inside each dot is its unique Location ID. New dots get the next available ID, and deleting a dot removes its ID permanently.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="arsenal-box">
+                        <h4>Spreadsheet Power Integration</h4>
+                        <ul>
+                            <li>Export to CSV for bulk editing.</li>
+                            <li>Work faster in Excel/Google Sheets if you prefer.</li>
+                            <li>Import back to update all dots at once.</li>
+                            <li>Bulk updates for hundreds of signs in seconds!</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <!-- Footer, Modals etc. -->
+    <div id="footer-and-modals">
+        
+        <!-- System Requirements Section -->
+        <section class="section">
+            <div class="container">
+                <h3 style="text-align: center;">System Requirements</h3>
+                <ul style="list-style: none; padding: 0; text-align: center; font-size: 16px; line-height: 1.8;">
+                    <li>✓ Modern web browser (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)</li>
+                    <li>✓ JavaScript enabled</li>
+                    <li>✓ Minimum 4GB RAM recommended for large PDF files</li>
+                    <li>✓ Stable internet connection for initial loading</li>
+                    <li>✓ Local file access permissions (for PDF upload/download)</li>
+                </ul>
+            </div>
+        </section>
+        
+        <!-- Footer -->
+        <footer>
+            <div class="container">
+                <p>&copy; 2025 Mapping Slayer. Questions? Ideas for new features? Email me directly - I'm building this to make your job easier and I read every customer message.</p>
+            </div>
+        </footer>
+
+        <div id="imageGalleryModal" class="gallery-modal">
+            <div class="gallery-modal-content">
+                <span class="gallery-prev">&#10094;</span>
+                <img id="galleryImage" src="" alt="Inspiring user images">
+                <span class="gallery-next">&#10095;</span>
+            </div>
+        </div>
+
+        <!-- Login Modal -->
+        <div id="loginModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal('login')">&times;</span>
+                <h2 style="color: #ff6600; margin-bottom: 30px;">Login</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Login</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Signup Modal -->
+        <div id="signupModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal('signup')">&times;</span>
+                <h2 style="color: #ff6600; margin-bottom: 30px;">Sign Up</h2>
+                <form id="signupForm">
+                    <div class="form-group">
+                        <label for="signupEmail">Email</label>
+                        <input type="email" id="signupEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signupPassword">Password</label>
+                        <input type="password" id="signupPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signupConfirmPassword">Confirm Password</label>
+                        <input type="password" id="signupConfirmPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Start $10/month Subscription</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Automap Demo Modals -->
+    <div class="automap-modal-overlay" id="automap-modal-overlay">
+        <div class="automap-modal-content">
+            <div class="automap-modal-header">Open</div>
+            <div class="automap-modal-body">
+                <label for="fake-filename">File name:</label>
+                <input type="text" id="fake-filename" value="ROOMLIST.json" readonly>
+            </div>
+            <div class="automap-modal-footer">
+                <button id="automap-modal-open">Open</button>
+                <button id="automap-modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div class="automap-notification" id="automap-notification">
+        <span class="check">✓</span>
+        <span id="automap-notification-text"></span>
+    </div>
+    <div class="automap-alert-modal" id="automap-alert-modal">
+        <div class="automap-alert-content">
+            <p id="automap-alert-text"></p>
+            <button class="btn btn-primary" id="automap-alert-ok">OK</button>
+        </div>
+    </div>
+
+    <!-- Operations Demo Edit Modals -->
+    <div class="edit-modal-overlay" id="edit-location-modal">
+        <div class="edit-modal-content">
+            <div class="edit-modal-header">Edit Location</div>
+            <form class="edit-modal-form" id="edit-location-form">
+                <div class="form-group">
+                    <label class="form-label">Sign Type</label>
+                    <select class="form-input" id="edit-sign-type"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message</label>
+                    <input type="text" class="form-input" id="edit-message" placeholder="Enter message">
+                </div>
+                <div class="edit-modal-buttons">
+                    <button type="button" class="btn btn-danger" id="edit-delete-btn">DELETE</button>
+                    <div class="right-buttons">
+                        <button type="button" class="btn btn-secondary" id="edit-cancel-btn">CANCEL</button>
+                        <button type="submit" class="btn btn-primary">UPDATE</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="edit-modal-overlay" id="group-edit-modal">
+        <div class="edit-modal-content">
+            <div class="edit-modal-header">Edit Multiple Locations</div>
+            <div class="edit-modal-subheader" id="group-edit-subheader"></div>
+            <form class="edit-modal-form" id="group-edit-form">
+                <div class="form-group">
+                    <label class="form-label">Sign Type (will apply to all selected)</label>
+                    <select class="form-input" id="group-edit-sign-type"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message (will apply to all selected)</label>
+                    <input type="text" class="form-input" id="group-edit-message" placeholder="Enter message for all selected dots">
+                </div>
+                <div class="edit-modal-buttons">
+                    <button type="button" class="btn btn-danger" id="group-delete-btn">DELETE ALL</button>
+                     <div class="right-buttons">
+                        <button type="button" class="btn btn-secondary" id="group-cancel-btn">CANCEL</button>
+                        <button type="submit" class="btn btn-primary">UPDATE ALL</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        // General Modal Logic
+        function openModal(type) {
+            if (type === 'login') document.getElementById('loginModal').style.display = 'block';
+            else if (type === 'signup') document.getElementById('signupModal').style.display = 'block';
+        }
+        function closeModal(type) {
+            if (type === 'login') document.getElementById('loginModal').style.display = 'none';
+            else if (type === 'signup') document.getElementById('signupModal').style.display = 'none';
+        }
+        window.onclick = function(event) {
+            const loginModal = document.getElementById('loginModal');
+            const signupModal = document.getElementById('signupModal');
+            if (event.target === loginModal) loginModal.style.display = 'none';
+            if (event.target === signupModal) signupModal.style.display = 'none';
+        }
+        // Placeholder Form Submission
+        document.getElementById('loginForm').addEventListener('submit', (e) => { e.preventDefault(); alert('Login functionality is a placeholder.'); });
+        document.getElementById('signupForm').addEventListener('submit', (e) => { e.preventDefault(); alert('Signup functionality is a placeholder.'); });
+
+        // --- REFACTORED DEMO LOGIC ---
+        class Demo {
+            constructor(mapId, legendContainerId, signTypes = null) {
+                this.mapPage = document.getElementById(mapId);
+                // Correctly get the legend container element by its ID string
+                this.legendContainer = typeof legendContainerId === 'string' ? document.getElementById(legendContainerId) : legendContainerId;
+                this.signTypes = signTypes;
+                this.state = {
+                    dots: [],
+                    selectedDots: new Set(),
+                    nextId: 1,
+                    isScraping: false,
+                    isSelecting: false,
+                    boxEl: null,
+                    boxStart: { x: 0, y: 0 },
+                    activeSignType: null,
+                    messagesVisible: false,
+                    editingDotId: null
+                };
+
+                this.mapPage.addEventListener('contextmenu', e => e.preventDefault());
+                if (this.signTypes) {
+                    this.initializeLegend();
+                }
+            }
+
+            initializeLegend() {
+                if (!this.legendContainer) return; // Guard clause
+                this.legendContainer.innerHTML = ''; // Clear existing
+                let isFirst = true;
+                for (const typeKey in this.signTypes) {
+                    const type = this.signTypes[typeKey];
+                    const item = document.createElement('div');
+                    item.className = 'demo-legend-item';
+                    item.dataset.signTypeKey = typeKey;
+                    item.innerHTML = `
+                        <div class="demo-legend-dot" style="background-color: ${type.color};"></div>
+                        <span class="demo-legend-text">${type.name}</span>
+                        <span class="demo-legend-count" id="legend-count-${this.mapPage.id}-${type.name}">0</span>
+                    `;
+                    this.legendContainer.appendChild(item);
+
+                    if (this.mapPage.id.includes('operations')) { // Add click listener only for operations demo
+                        if (isFirst) {
+                            item.classList.add('active');
+                            this.state.activeSignType = type;
+                            isFirst = false;
+                        }
+                        item.addEventListener('click', () => this.setActiveSignType(item, type));
+                    }
+                }
+            }
+
+            setActiveSignType(selectedItem, type) {
+                this.legendContainer.querySelectorAll('.demo-legend-item').forEach(item => item.classList.remove('active'));
+                selectedItem.classList.add('active');
+                this.state.activeSignType = type;
+            }
+
+            isCollision(newX, newY) {
+                const minDistance = 25;
+                for (const dot of this.state.dots) {
+                    const distance = Math.sqrt(Math.pow(dot.x - newX, 2) + Math.pow(dot.y - newY, 2));
+                    if (distance < minDistance) return true;
+                }
+                return false;
+            }
+
+            addDot(x, y, signType = null) {
+                const dotId = this.state.nextId++;
+                if (this.isCollision(x, y)) return null;
+
+                const dot = { id: dotId, x, y, signType, message: 'NEW LOCATION' };
+                this.state.dots.push(dot);
+
+                const dotEl = document.createElement('div');
+                dotEl.className = 'demo-dot';
+                dotEl.dataset.id = dotId;
+                dotEl.style.left = `${x}px`;
+                dotEl.style.top = `${y}px`;
+                
+                const dotColor = (signType && signType.color) ? signType.color : '#F72020';
+                dotEl.style.backgroundColor = dotColor;
+
+                dotEl.innerHTML = `
+                    ${dotId}
+                    <div class="demo-dot-message" style="color: ${dotColor};">${dot.message}</div>
+                `;
+                
+                dotEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.handleDotClick(e, dotId, dotEl);
+                });
+
+                dotEl.addEventListener('contextmenu', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (this.mapPage.id.includes('operations')) {
+                        operationsDemo.handleRightClick(dotId);
+                    }
+                });
+                
+                this.mapPage.appendChild(dotEl);
+                this.updateLegend();
+                this.toggleMessages(this.state.messagesVisible); // Ensure new dot respects current message visibility
+                return dotEl;
+            }
+
+            handleDotClick(e, id, el) {
+                if (e.shiftKey) {
+                    this.toggleDotSelection(id, el);
+                } else {
+                    this.clearSelection();
+                    this.toggleDotSelection(id, el);
+                }
+            }
+
+            toggleDotSelection(id, el) {
+                if (this.state.selectedDots.has(id)) {
+                    this.state.selectedDots.delete(id);
+                    el.classList.remove('selected');
+                } else {
+                    this.state.selectedDots.add(id);
+                    el.classList.add('selected');
+                }
+            }
+
+            deleteSelectedDots() {
+                if (this.state.selectedDots.size === 0) return;
+                this.state.selectedDots.forEach(id => {
+                    const dotEl = this.mapPage.querySelector(`.demo-dot[data-id='${id}']`);
+                    if (dotEl) dotEl.remove();
+                });
+                this.state.dots = this.state.dots.filter(dot => !this.state.selectedDots.has(dot.id));
+                this.state.selectedDots.clear();
+                this.updateLegend();
+            }
+            
+            clearSelection() {
+                 this.state.selectedDots.forEach(id => {
+                    const dotEl = this.mapPage.querySelector(`.demo-dot[data-id='${id}']`);
+                    if (dotEl) dotEl.classList.remove('selected');
+                });
+                this.state.selectedDots.clear();
+            }
+
+            updateLegend() {
+                if (this.signTypes) {
+                    for (const typeKey in this.signTypes) {
+                        const type = this.signTypes[typeKey];
+                        const count = this.state.dots.filter(d => d.signType && d.signType.name === type.name).length;
+                        const countEl = document.getElementById(`legend-count-${this.mapPage.id}-${type.name}`);
+                        if (countEl) countEl.textContent = count;
+                    }
+                } else {
+                    if (this.legendContainer && this.legendContainer.id === 'scrape-legend-count') {
+                        this.legendContainer.textContent = this.state.dots.length;
+                    }
+                }
+            }
+
+            reset() {
+                this.mapPage.querySelectorAll('.demo-dot').forEach(el => el.remove());
+                this.state.dots = [];
+                this.state.selectedDots.clear();
+                this.state.nextId = 1;
+                this.updateLegend();
+                if (this.signTypes && this.mapPage.id.includes('operations')) {
+                    this.initializeLegend();
+                }
+            }
+
+            startBox(e, type) {
+                if (this.state.isScraping || this.state.isSelecting) return;
+                
+                if (type === 'scrape') this.state.isScraping = true;
+                if (type === 'select') this.state.isSelecting = true;
+
+                const rect = this.mapPage.getBoundingClientRect();
+                this.state.boxStart.x = e.clientX - rect.left;
+                this.state.boxStart.y = e.clientY - rect.top;
+
+                this.state.boxEl = document.createElement('div');
+                this.state.boxEl.className = type === 'scrape' ? 'scrape-box' : 'selection-box';
+                this.state.boxEl.style.left = `${this.state.boxStart.x}px`;
+                this.state.boxEl.style.top = `${this.state.boxStart.y}px`;
+                this.mapPage.appendChild(this.state.boxEl);
+            }
+
+            updateBox(e) {
+                if (!this.state.isScraping && !this.state.isSelecting) return;
+                const rect = this.mapPage.getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+                const left = Math.min(this.state.boxStart.x, currentX);
+                const top = Math.min(this.state.boxStart.y, currentY);
+                const width = Math.abs(currentX - this.state.boxStart.x);
+                const height = Math.abs(currentY - this.state.boxStart.y);
+                Object.assign(this.state.boxEl.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+            }
+
+            finishScrape() {
+                if (!this.state.isScraping) return;
+                const scrapeRect = this.state.boxEl.getBoundingClientRect();
+                const textElements = this.mapPage.querySelectorAll('.demo-room-text');
+
+                for (const textEl of textElements) {
+                    const textRect = textEl.getBoundingClientRect();
+                    const overlap = !(scrapeRect.right < textRect.left || scrapeRect.left > textRect.right || scrapeRect.bottom < textRect.top || scrapeRect.top > textRect.bottom);
+                    if (overlap) {
+                        const dotX = textEl.offsetLeft + textEl.offsetWidth / 2;
+                        const dotY = textEl.offsetTop + textEl.offsetHeight / 2;
+                        this.addDot(dotX, dotY);
+                        break; // Stop after finding the first match
+                    }
+                }
+                
+                this.state.boxEl.remove();
+                this.state.isScraping = false;
+            }
+
+            finishSelection() {
+                if (!this.state.isSelecting) return;
+                const selectRect = this.state.boxEl.getBoundingClientRect();
+                this.mapPage.querySelectorAll('.demo-dot').forEach(dotEl => {
+                    const dotRect = dotEl.getBoundingClientRect();
+                    const overlap = !(selectRect.right < dotRect.left || selectRect.left > dotRect.right || selectRect.bottom < dotRect.top || selectRect.top > dotRect.bottom);
+                    if (overlap) {
+                        const dotId = parseInt(dotEl.dataset.id);
+                        if (!this.state.selectedDots.has(dotId)) {
+                            this.toggleDotSelection(dotId, dotEl);
+                        }
+                    }
+                });
+                this.state.boxEl.remove();
+                this.state.isSelecting = false;
+            }
+
+            toggleMessages(forceState) {
+                this.state.messagesVisible = forceState !== undefined ? forceState : !this.state.messagesVisible;
+                this.mapPage.querySelectorAll('.demo-dot-message').forEach(msg => {
+                    msg.classList.toggle('visible', this.state.messagesVisible);
+                });
+                const btn = document.getElementById('operations-toggle-msg-btn');
+                if (btn) {
+                    btn.textContent = this.state.messagesVisible ? 'HIDE MSG' : 'SHOW MSG';
+                    btn.classList.toggle('active', this.state.messagesVisible);
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const automapSignTypes = {
+                'Exit':       { name: 'I.1', color: '#F72020' },
+                'Restroom':   { name: 'I.2', color: '#4DA1B3' },
+                'Conference': { name: 'I.4', color: '#FF9500' },
+                'Office':     { name: 'I.5', color: '#F8E677' }
+            };
+
+            // --- Initialize Demos ---
+            const scrapeDemo = new Demo('demo-pdf-page-scrape', 'scrape-legend-count');
+            const automapDemo = new Demo('demo-pdf-page-automap', document.getElementById('automap-legend-items'), automapSignTypes);
+            const operationsDemo = new Demo('demo-pdf-page-operations', document.getElementById('operations-legend-items'), automapSignTypes);
+            window.scrapeDemo = scrapeDemo;
+            window.automapDemo = automapDemo;
+            window.operationsDemo = operationsDemo;
+
+            // --- Scrape Demo Listeners ---
+            scrapeDemo.mapPage.addEventListener('mousedown', (e) => {
+                if (e.shiftKey && e.button === 2) {
+                    e.preventDefault();
+                    scrapeDemo.startBox(e, 'scrape');
+                } else if (e.target === scrapeDemo.mapPage) {
+                    scrapeDemo.clearSelection();
+                }
+            });
+            document.addEventListener('mousemove', (e) => scrapeDemo.updateBox(e));
+            document.addEventListener('mouseup', () => scrapeDemo.finishScrape());
+
+            // --- Automap Demo Listeners & Logic ---
+            setupAutomapDemo();
+
+            // --- Operations Demo Listeners ---
+            setupOperationsDemo();
+
+            // --- Global Keydown Listener for Deletion ---
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    scrapeDemo.deleteSelectedDots();
+                    automapDemo.deleteSelectedDots();
+                    operationsDemo.deleteSelectedDots();
+                }
+            });
+
+            function setupAutomapDemo() {
+                const importBtn = document.getElementById('import-roomlist-btn');
+                const automapBtn = document.getElementById('automap-it-btn');
+                const modalOverlay = document.getElementById('automap-modal-overlay');
+                const modalOpenBtn = document.getElementById('automap-modal-open');
+                const modalCancelBtn = document.getElementById('automap-modal-cancel');
+                const notification = document.getElementById('automap-notification');
+                const notificationText = document.getElementById('automap-notification-text');
+                const alertModal = document.getElementById('automap-alert-modal');
+                const alertText = document.getElementById('automap-alert-text');
+                const alertOkBtn = document.getElementById('automap-alert-ok');
+
+                let roomlistImported = false;
+
+                importBtn.addEventListener('click', () => modalOverlay.style.display = 'flex');
+                modalCancelBtn.addEventListener('click', () => modalOverlay.style.display = 'none');
+                alertOkBtn.addEventListener('click', () => alertModal.style.display = 'none');
+
+                modalOpenBtn.addEventListener('click', () => {
+                    modalOverlay.style.display = 'none';
+                    roomlistImported = true;
+                    automapBtn.disabled = false;
+                    automapBtn.classList.add('glow');
+                    
+                    notificationText.textContent = 'Room List imported successfully. 6 total entries.';
+                    notification.classList.add('visible');
+                    setTimeout(() => notification.classList.remove('visible'), 5000);
+                });
+
+                automapBtn.addEventListener('click', () => {
+                    if (!roomlistImported) return;
+
+                    const textElements = automapDemo.mapPage.querySelectorAll('.demo-room-text');
+                    let unmappedLocations = [];
+
+                    textElements.forEach(textEl => {
+                        const targetX = textEl.offsetLeft + textEl.offsetWidth / 2;
+                        const targetY = textEl.offsetTop + textEl.offsetHeight / 2;
+                        
+                        let isMapped = automapDemo.state.dots.some(dot => Math.sqrt(Math.pow(dot.x - targetX, 2) + Math.pow(dot.y - targetY, 2)) < 1);
+                        if (!isMapped) unmappedLocations.push(textEl);
+                    });
+
+                    if (unmappedLocations.length === 0) {
+                        alertText.textContent = "All locations are already mapped. Try deleting some first.";
+                        alertModal.style.display = 'flex';
+                        return;
+                    }
+
+                    unmappedLocations.forEach(textEl => {
+                        const dotX = textEl.offsetLeft + textEl.offsetWidth / 2;
+                        const dotY = textEl.offsetTop + textEl.offsetHeight / 2;
+                        const signTypeKey = textEl.dataset.signType;
+                        automapDemo.addDot(dotX, dotY, automapSignTypes[signTypeKey]);
+                    });
+                });
+                
+                automapDemo.mapPage.addEventListener('mousedown', (e) => {
+                     if (e.target === automapDemo.mapPage) automapDemo.clearSelection();
+                });
+                
+                automapDemo.reset = function() {
+                    Demo.prototype.reset.call(this); // Call parent reset
+                    roomlistImported = false;
+                    automapBtn.disabled = true;
+                    automapBtn.classList.remove('glow');
+                }
+            }
+
+            function setupOperationsDemo() {
+                const toggleMsgBtn = document.getElementById('operations-toggle-msg-btn');
+                toggleMsgBtn.addEventListener('click', () => operationsDemo.toggleMessages());
+
+                operationsDemo.mapPage.addEventListener('mousedown', (e) => {
+                    if (e.shiftKey && !e.target.classList.contains('demo-dot')) { // Shift + Left Click for selection box
+                        e.preventDefault();
+                        operationsDemo.startBox(e, 'select');
+                    } else if (e.target === operationsDemo.mapPage) {
+                        if (operationsDemo.state.selectedDots.size > 0) {
+                            operationsDemo.clearSelection();
+                        } else {
+                            const rect = operationsDemo.mapPage.getBoundingClientRect();
+                            const x = e.clientX - rect.left;
+                            const y = e.clientY - rect.top;
+                            operationsDemo.addDot(x, y, operationsDemo.state.activeSignType);
+                        }
+                    }
+                });
+                document.addEventListener('mousemove', (e) => operationsDemo.updateBox(e));
+                document.addEventListener('mouseup', () => operationsDemo.finishSelection());
+
+                // --- Edit Modal Logic ---
+                const editModal = document.getElementById('edit-location-modal');
+                const groupEditModal = document.getElementById('group-edit-modal');
+
+                operationsDemo.handleRightClick = function(dotId) {
+                    const isMultiSelect = this.state.selectedDots.size > 1 && this.state.selectedDots.has(dotId);
+                    if (isMultiSelect) {
+                        this.openGroupEditModal();
+                    } else {
+                        this.clearSelection();
+                        const dotEl = this.mapPage.querySelector(`.demo-dot[data-id='${dotId}']`);
+                        this.toggleDotSelection(dotId, dotEl);
+                        this.openEditModal(dotId);
+                    }
+                }
+
+                operationsDemo.openEditModal = function(dotId) {
+                    this.state.editingDotId = dotId;
+                    const dot = this.state.dots.find(d => d.id === dotId);
+                    if (!dot || !dot.signType) return; // Add guard for corrupted dot
+
+                    const select = document.getElementById('edit-sign-type');
+                    select.innerHTML = Object.values(this.signTypes).map(t => `<option value="${t.name}" ${t.name === dot.signType.name ? 'selected' : ''}>${t.name}</option>`).join('');
+                    document.getElementById('edit-message').value = dot.message;
+                    editModal.style.display = 'flex';
+                }
+                
+                operationsDemo.openGroupEditModal = function() {
+                    document.getElementById('group-edit-subheader').textContent = `(${this.state.selectedDots.size} selected)`;
+                    const select = document.getElementById('group-edit-sign-type');
+                    select.innerHTML = '<option value="">-- Keep Individual Types --</option>' + Object.values(this.signTypes).map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+                    document.getElementById('group-edit-message').value = '';
+                    groupEditModal.style.display = 'flex';
+                }
+
+                document.getElementById('edit-location-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const dotId = operationsDemo.state.editingDotId;
+                    const dot = operationsDemo.state.dots.find(d => d.id === dotId);
+                    if (!dot) return; // Exit if dot not found
+
+                    const newSignTypeName = document.getElementById('edit-sign-type').value;
+                    const newSignType = Object.values(operationsDemo.signTypes).find(t => t.name === newSignTypeName);
+                    
+                    dot.message = document.getElementById('edit-message').value;
+
+                    // Only update the signType if a valid new one was found
+                    if (newSignType) {
+                        dot.signType = newSignType;
+                    }
+                    
+                    operationsDemo.updateDotVisuals(dot);
+                    editModal.style.display = 'none';
+                });
+
+                document.getElementById('group-edit-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const newSignTypeName = document.getElementById('group-edit-sign-type').value;
+                    const newSignType = newSignTypeName ? Object.values(operationsDemo.signTypes).find(t => t.name === newSignTypeName) : null;
+                    const newMessage = document.getElementById('group-edit-message').value;
+
+                    operationsDemo.state.selectedDots.forEach(dotId => {
+                        const dot = operationsDemo.state.dots.find(d => d.id === dotId);
+                        if (!dot) return;
+                        if (newSignType) dot.signType = newSignType;
+                        if (newMessage) dot.message = newMessage;
+                        operationsDemo.updateDotVisuals(dot);
+                    });
+                    groupEditModal.style.display = 'none';
+                });
+                
+                operationsDemo.updateDotVisuals = function(dot) {
+                    const dotEl = this.mapPage.querySelector(`.demo-dot[data-id='${dot.id}']`);
+                    if (!dotEl || !dot.signType) return; // Add guard for corrupted dot
+                    const msgEl = dotEl.querySelector('.demo-dot-message');
+                    dotEl.style.backgroundColor = dot.signType.color;
+                    msgEl.style.color = dot.signType.color;
+                    msgEl.textContent = dot.message;
+                    this.updateLegend();
+                }
+
+                // Modal Cancel/Delete Buttons
+                document.getElementById('edit-cancel-btn').addEventListener('click', () => editModal.style.display = 'none');
+                document.getElementById('group-cancel-btn').addEventListener('click', () => groupEditModal.style.display = 'none');
+                document.getElementById('edit-delete-btn').addEventListener('click', () => {
+                    operationsDemo.deleteSelectedDots();
+                    editModal.style.display = 'none';
+                });
+                document.getElementById('group-delete-btn').addEventListener('click', () => {
+                    operationsDemo.deleteSelectedDots();
+                    groupEditModal.style.display = 'none';
+                });
+                
+                // Add initial dot
+                operationsDemo.addDot(100, 150, operationsDemo.state.activeSignType);
+            }
+        });
+
+        // --- START: Image Gallery Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const galleryBtn = document.getElementById('gallery-btn');
+            const modal = document.getElementById('imageGalleryModal');
+            const modalContent = document.querySelector('.gallery-modal-content');
+            const galleryImage = document.getElementById('galleryImage');
+            const prevBtn = document.querySelector('.gallery-prev');
+            const nextBtn = document.querySelector('.gallery-next');
+
+            // Replace these with your actual image paths
+            const images = [
+                'inspiringimages/1.jpg',
+                'inspiringimages/2.jpg',
+                'inspiringimages/3.jpg',
+                'inspiringimages/4.jpg',
+                'inspiringimages/5.jpg'
+            ];
+            let currentIndex = 0;
+
+            function showImage(index) {
+                galleryImage.src = images[index];
+                currentIndex = index;
+            }
+
+            function openGallery() {
+                modal.style.display = 'flex';
+                showImage(0);
+            }
+
+            function closeGallery() {
+                modal.style.display = 'none';
+            }
+
+            galleryBtn.addEventListener('click', openGallery);
+            
+            modal.addEventListener('click', (e) => {
+                // Closes the modal if the click is on the background, not the content
+                if (e.target === modal) {
+                    closeGallery();
+                }
+            });
+
+            prevBtn.addEventListener('click', () => {
+                const newIndex = (currentIndex - 1 + images.length) % images.length;
+                showImage(newIndex);
+            });
+
+            nextBtn.addEventListener('click', () => {
+                const newIndex = (currentIndex + 1) % images.length;
+                showImage(newIndex);
+            });
+        });
+        // --- END: Image Gallery Logic ---
+
+    </script>
+</body>
+</html>
