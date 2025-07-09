@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/mapping-slayer/:path*",
-      "destination": "https://mapping-slayer-8x62zn89b-3toed-software-projects.vercel.app/:path*"
-    }
-  ]
-}
