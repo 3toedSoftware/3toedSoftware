@@ -917,9 +917,9 @@ function setupEventListeners() {
     const mapContainer = document.getElementById('map-container');
     mapContainer.addEventListener('click', handleMapClick);
     mapContainer.addEventListener('contextmenu', handleMapRightClick);
-    mapContainer.addEventListener('mousedown', handleMapMouseDown);
-    mapContainer.addEventListener('mousemove', handleMapMouseMove);
-    mapContainer.addEventListener('mouseup', handleMapMouseUp);
+    mapContainer.addEventListener('mousedown', handleMapMouseDown); // Keep mousedown on the container
+    document.addEventListener('mousemove', handleMapMouseMove);    // Move mousemove to the document
+    document.addEventListener('mouseup', handleMapMouseUp);      // Move mouseup to the document
     mapContainer.addEventListener('wheel', handleMapWheel);
     mapContainer.addEventListener('mouseleave', () => { appState.isPanning = false; });
 
@@ -1564,25 +1564,26 @@ function finishSelectionBox() {
 
 async function finishOCRScrape() {
     if (!appState.scrapeBox) return;
-    
-    // Start timer for delayed spinner
-    const spinnerTimeout = setTimeout(() => {
-        showScrapeSpinner("OCR SCANNING...");
-    }, 2000); // Show spinner only if operation takes more than 2 seconds
-    
+
+    // Immediately capture the box geometry and then remove the visual element.
+    const boxRect = appState.scrapeBox.getBoundingClientRect();
+    appState.scrapeBox.remove();
+    appState.scrapeBox = null;
+    appState.isScraping = false; // Also reset this flag immediately
+    document.removeEventListener('contextmenu', preventContextMenu);
+
+    // Use the status notification system.
+    showCSVStatus("Starting OCR Scan...", true, 20000); // Use a long duration, it will be replaced.
+
     try {
-        // Get scrape box coordinates
-        const boxRect = appState.scrapeBox.getBoundingClientRect();
         const mapRect = document.getElementById('map-container').getBoundingClientRect();
         const { x: mapX, y: mapY, scale } = appState.mapTransform;
         
-        // Convert to canvas coordinates
         const canvasX1 = (boxRect.left - mapRect.left - mapX) / scale;
         const canvasY1 = (boxRect.top - mapRect.top - mapY) / scale;
         const canvasX2 = (boxRect.right - mapRect.left - mapX) / scale;
         const canvasY2 = (boxRect.bottom - mapRect.top - mapY) / scale;
         
-        // Create canvas from PDF region
         const canvas = document.getElementById('pdf-canvas');
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
@@ -1592,29 +1593,25 @@ async function finishOCRScrape() {
         tempCanvas.width = width;
         tempCanvas.height = height;
         
-        // Extract image data from the scrape region
         tempCtx.drawImage(canvas, 
             Math.min(canvasX1, canvasX2), Math.min(canvasY1, canvasY2), width, height,
             0, 0, width, height
         );
         
-        // Run Tesseract OCR
         const { data: { text } } = await Tesseract.recognize(tempCanvas, 'eng', {
             logger: m => {
                 if (m.status === 'recognizing text') {
                     const progress = Math.round(m.progress * 100);
-                    updateScrapeSpinner(`OCR SCANNING: ${progress}%`);
+                    showCSVStatus(`OCR SCANNING: ${progress}%`, true, 20000);
                 }
             }
         });
         
-        // Clean up extracted text
         const cleanText = text.trim().replace(/\n+/g, ' ').replace(/\s+/g, ' ');
         
         if (cleanText.length > 0) {
-            // Create dot with OCR text
-            const centerX = (Math.min(canvasX1, canvasX2) + Math.abs(canvasX2 - canvasX1) / 2);
-            const centerY = (Math.min(canvasY1, canvasY2) + Math.abs(canvasY2 - canvasY1) / 2);
+            const centerX = (Math.min(canvasX1, canvasX2) + width / 2);
+            const centerY = (Math.min(canvasY1, canvasY2) + height / 2);
             
             if (!isCollision(centerX, centerY)) {
                 addDot(centerX, centerY, appState.activeMarkerType, cleanText);
@@ -1632,15 +1629,6 @@ async function finishOCRScrape() {
     } catch (error) {
         console.error('OCR failed:', error);
         showCSVStatus("❌ OCR processing failed", false, 4000);
-    } finally {
-        // Always clean up
-        clearTimeout(spinnerTimeout);
-        hideScrapeSpinner();
-        if (appState.scrapeBox) {
-            appState.scrapeBox.remove();
-            appState.scrapeBox = null;
-        }
-        document.removeEventListener('contextmenu', preventContextMenu);
     }
 }
 
@@ -3224,7 +3212,7 @@ async function createAnnotatedPDF() {
             for (const dot of dotsToDraw) {
                 // Record the actual page number where this detail page will be
                 const detailPageNum = outputPdf.internal.getNumberOfPages() + 1;
-                detailPageNumbers.set(`${pageNum}-${dot.id}`, detailPageNum);
+                detailPageNumbers.set(dot.internalId, detailPageNum);
                 
                 // Create the detail page
                 createDetailPage(outputPdf, dot, pageNum, originalToNewPageMap);
@@ -3246,7 +3234,7 @@ async function createAnnotatedPDF() {
                 dotsToDraw.forEach(dot => {
                     const effectiveMultiplier = appState.dotSize * 2;
                     const radius = (20 * effectiveMultiplier) / 2;
-                    const detailPageNum = detailPageNumbers.get(`${pageNum}-${dot.id}`);
+                    const detailPageNum = detailPageNumbers.get(dot.internalId);
                     
                     if (detailPageNum) {
                         outputPdf.link(
@@ -3373,7 +3361,7 @@ function drawDotsWithJsPDF(pdf, dotsOnPage, messagesVisible) {
         }
 
         pdf.setFont('helvetica', 'bold'); pdf.setFontSize(fontSize); pdf.setTextColor(markerTypeInfo.textColor);
-        pdf.text(String(dot.id), pdfX, pdfY, { align: 'center', baseline: 'middle' });
+        pdf.text(dot.locationNumber, pdfX, pdfY, { align: 'center', baseline: 'middle' });
         
         if (messagesVisible && dot.message) {
             pdf.setFont('helvetica', 'bold'); pdf.setFontSize(fontSize * 1.1); pdf.setTextColor(markerTypeInfo.color);
@@ -3539,7 +3527,7 @@ function createDetailPage(pdf, dot, sourcePageNum, originalToNewPageMap) {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(36);
     pdf.setTextColor(0, 0, 0);
-    pdf.text(`LOC# ${dot.id}`, margin + contentInnerMargin, contentY);
+    pdf.text(`LOC# ${dot.locationNumber}`, margin + contentInnerMargin, contentY);
     contentY += 20;
 
     // Marker Type
