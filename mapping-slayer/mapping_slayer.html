@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -23,14 +24,9 @@
                     <span id="find-count"></span>
                 </div>
                 <span style="color: #444;">|</span>
-                <div class="undo-controls">
-                    <button class="btn btn-secondary btn-compact" id="undo-btn" disabled>UNDO</button>
-                    <button class="btn btn-secondary btn-compact" id="redo-btn" disabled>REDO</button>
-                </div>
-                <span style="color: #444;">|</span>
                 <div class="save-load-group">
                     <div class="save-load-buttons">
-                        <button class="btn btn-primary btn-compact" id="save-project-btn" disabled>SAVE PROJECT (.mslay)</button>
+                        <button class="btn btn-primary btn-compact" id="save-project-btn" disabled="">SAVE PROJECT (.mslay)</button>
                         <button class="btn btn-primary btn-compact" id="load-project-btn">LOAD PROJECT</button>
                     </div>
                     <div id="map-filename-display">MAP FILE NAME: <span id="map-file-name">No file loaded</span></div>
@@ -41,8 +37,8 @@
         <div class="left-panel">
             <div class="panel-section filter-section">
                 <div class="panel-header">
-                    <span>SIGN TYPES</span>
-                    <button class="btn btn-small btn-primary" id="add-sign-type-btn">+</button>
+                    <span>MARKER TYPES</span>
+                    <button class="btn btn-small btn-primary" id="add-marker-type-btn">+</button>
                 </div>
                 <div class="panel-content">
                     <div class="filter-checkboxes" id="filter-checkboxes"></div>
@@ -53,8 +49,11 @@
                 <div class="panel-header">
                     <span>LIST</span>
                     <div id="list-header-controls">
-                        <button class="btn btn-secondary btn-compact" id="renumber-btn">RENUMBER</button>
-                        <button class="btn btn-secondary btn-compact" id="toggle-view-btn">SIGN TYPE</button>
+                        <button class="btn btn-secondary btn-compact" id="toggle-view-btn">CHANGE TO MARKER TYPE</button>
+                        <div class="all-pages-container">
+                            <input type="checkbox" id="all-pages-checkbox">
+                            <label for="all-pages-checkbox">All Pages</label>
+                        </div>
                     </div>
                 </div>
                 <div class="panel-content" id="list-content">
@@ -70,8 +69,10 @@
 
         <div class="map-section">
             <div class="map-overlay-controls-top-left">
+                <button class="btn btn-secondary btn-compact" id="controls-btn">CONTROLS</button>
                 <button class="btn btn-secondary btn-compact" id="toggle-messages-btn">SHOW MSG</button>
-                </div>
+                <button class="btn btn-secondary btn-compact" id="renumber-btn">RENUMBER</button>
+            </div>
             
             <div class="legends-container">
                 <div class="legend-box" id="project-legend">
@@ -91,24 +92,10 @@
             </div>
 
             <div class="map-overlay-controls">
-                <div class="tooltip-dropdown" id="controls-dropdown">
-                    <div class="controls-header">
-                        <span>CONTROLS</span>
-                        <span class="tooltip-arrow">▼</span>
-                    </div>
-                    <ul class="controls-list">
-                        <li><strong>Pan:</strong> Middle-click + drag</li>
-                        <li><strong>Zoom:</strong> Scroll wheel</li>
-                        <li><strong>Add Dot:</strong> Click on map</li>
-                        <li><strong>Edit Dot:</strong> Right-click on dot</li>
-                        <li><strong>Select Multiple:</strong> Shift + Left-drag</li>
-                        <li><strong>Scrape Text:</strong> Shift + Right-drag</li>
-                        <li><strong>Delete Selected:</strong> Delete key</li>
-                        <li><strong>Undo/Redo:</strong> Ctrl/Cmd + Z / Ctrl/Cmd + Y</li>
-                        <li><strong>Change Page:</strong> Page Up / Page Down</li>
-                        <li><strong>Change Sign Type:</strong> Up / Down Arrows</li>
-                        <li><strong>Clear All:</strong> Escape</li>
-                    </ul>
+                <div class="page-nav">
+                    <button class="nav-btn" id="prev-page">&lt;</button>
+                    <span id="page-info">PAGE 1 OF 1</span>
+                    <button class="nav-btn" id="next-page">&gt;</button>
                 </div>
             </div>
             
@@ -119,6 +106,10 @@
                     <div class="upload-area-note">For Automap & Scrape functions, please use a PDF with live text.</div>
                     <input type="file" id="file-input" accept=".pdf,.mslay" style="display: none;">
                 </div>
+
+                <div id="scrape-controls" class="scrape-controls">
+                    <button id="train-scrape-btn" class="btn btn-success btn-compact">TRAIN SCRAPE</button>
+                </div>
                 
                 <div id="map-content">
                     <canvas id="pdf-canvas"></canvas>
@@ -128,14 +119,14 @@
 
         <div class="footer-controls">
             <div class="automap-container" id="single-automap-container">
-                <select class="form-input automap-select" id="automap-sign-type-select" disabled></select>
-                <input type="text" class="form-input automap-input" id="automap-text-input" placeholder="Enter room name..." list="recent-searches-datalist" disabled>
+                <select class="form-input automap-select" id="automap-marker-type-select" disabled=""></select>
+                <input type="text" class="form-input automap-input" id="automap-text-input" placeholder="Enter text to find..." list="recent-searches-datalist" disabled="">
                 <datalist id="recent-searches-datalist"></datalist>
                 <div class="automap-checkbox-group">
-                    <input type="checkbox" id="automap-exact-phrase" checked>
+                    <input type="checkbox" id="automap-exact-phrase" checked="">
                     <label for="automap-exact-phrase">Exact Phrase</label>
                 </div>
-                <button class="btn btn-success" id="single-automap-btn" disabled>AUTOMAP IT!</button>
+                <button class="btn btn-success" id="single-automap-btn" disabled="">AUTOMAP IT!</button>
                 <span class="automap-status" id="automap-status"></span>
             </div>
             
@@ -145,15 +136,10 @@
                     <input type="range" class="size-slider" id="dot-size-slider" min="0.5" max="3" step="0.1" value="1">
                 </div>
                 
-                <button class="btn btn-primary btn-compact" id="create-pdf-btn" disabled>CREATE PDF</button>
-                <button class="btn btn-primary btn-compact" id="create-schedule-btn" disabled>CREATE MESSAGE SCHEDULE</button>
-                <button class="btn btn-primary btn-compact" id="update-from-schedule-btn" disabled>UPDATE FROM MESSAGE SCHEDULE</button>
+                <button class="btn btn-primary btn-compact" id="create-pdf-btn" disabled="">CREATE PDF</button>
+                <button class="btn btn-primary btn-compact" id="create-schedule-btn" disabled="">CREATE MESSAGE SCHEDULE</button>
+                <button class="btn btn-primary btn-compact" id="update-from-schedule-btn" disabled="">UPDATE FROM MESSAGE SCHEDULE</button>
                 
-                <div class="page-nav">
-                    <button class="nav-btn" id="prev-page">&lt;</button>
-                    <span id="page-info">PAGE 1 OF 1</span>
-                    <button class="nav-btn" id="next-page">&gt;</button>
-                </div>
             </div>
         </div>
     </div>
@@ -198,8 +184,8 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">Sign Type (will apply to all selected)</label>
-                    <select class="form-input" id="group-edit-sign-type">
+                    <label class="form-label">Marker Type (will apply to all selected)</label>
+                    <select class="form-input" id="group-edit-marker-type">
                         <option value="">-- Keep Individual Types --</option>
                     </select>
                 </div>
@@ -239,12 +225,12 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">Sign Type</label>
-                    <select class="form-input" id="edit-sign-type"></select>
+                    <label class="form-label">Marker Type</label>
+                    <select class="form-input" id="edit-marker-type"></select>
                 </div>
                 <div class="form-group" id="edit-location-group">
-                    <label class="form-label">Location</label>
-                    <span id="edit-location-display"></span>
+                    <label class="form-label">Location Number</label>
+                    <input type="text" class="form-input" id="edit-location-number" placeholder="Enter location number">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Message</label>
@@ -299,6 +285,32 @@
 
     <input type="file" id="update-csv-input" accept=".csv" style="display: none;">
     <input type="file" id="import-roomlist-input" accept=".json" style="display: none;">
+    <div class="modal" id="controls-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Controls</span>
+            </div>
+            <ul class="controls-list-modal">
+                <li><strong>Pan:</strong> Middle-click + drag</li>
+                <li><strong>Zoom:</strong> Scroll wheel</li>
+                <li><strong>Add Dot:</strong> Click on map</li>
+                <li><strong>Edit Dot:</strong> Right-click on dot</li>
+                <li><strong>Select Multiple:</strong> Shift + Left-drag</li>
+                <li><strong>Scrape Live Text:</strong> Shift + Right-drag</li>
+                <li><strong>OCR Scrape:</strong> Ctrl + Shift + Right-drag</li>
+                <li><strong>Delete Selected:</strong> Delete key</li>
+                <li><strong>Copy Dot:</strong> Ctrl/Cmd + C</li>
+                <li><strong>Paste at Cursor:</strong> Ctrl/Cmd + V</li>
+                <li><strong>Undo/Redo:</strong> Ctrl/Cmd + Z / Ctrl/Cmd + Y</li>
+                <li><strong>Change Page:</strong> Page Up / Page Down</li>
+                <li><strong>Change Marker Type:</strong> Up / Down Arrows</li>
+                <li><strong>Clear Selection:</strong> Escape</li>
+            </ul>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" id="close-controls-modal-btn">CLOSE</button>
+            </div>
+        </div>
+    </div>
     <div class="modal" id="disclaimer-modal" style="display: block;">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">

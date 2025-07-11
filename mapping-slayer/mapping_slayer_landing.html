@@ -247,6 +247,28 @@
         .automap-demo-btn:not(:disabled):hover {
             background-color: #5a6268;
         }
+
+        .automap-input {
+            padding: 8px 12px;
+            border: 1px solid #888;
+            background-color: #444;
+            color: white;
+            font-family: Cambria, serif;
+            font-size: 16px;
+            width: 200px;
+        }
+
+        .automap-status {
+            font-size: 14px;
+            color: #00ff88;
+            min-width: 150px;
+            text-align: left;
+        }
+
+        .automap-status.error {
+            color: #ff6b6b;
+        }
+
         .automap-demo-btn.glow {
             background-color: #00b360;
             animation: pulse-green 2s infinite;
@@ -828,7 +850,7 @@
                     <div class="arsenal-box">
                         <h4>Scrape Function = Turbo Speed</h4>
                         <ul>
-                            <li>Shift + right-drag over text block to instantly create a map marker, add it to the sign list and update the quantities.</li>
+                            <li>Shift + right-mouse then drag a box around text to instantly create a map marker,<br>add it to the sign list and update the quantities, all in one movement.</li>
                         </ul>
                         <div class="demo-header">Try it yourself:</div>
                         <p class="demo-disclaimer">This demo is to showcase the Scrape function only.</p>
@@ -854,7 +876,6 @@
                                         </div>
                                     </div>
                                     <div class="demo-instructions">
-                                        <div>*Shift + right-drag over text to scrape</div>
                                         <div>*Left click dots to select</div>
                                         <div>*Delete key to remove selected</div>
                                         <div>*Click reset button below to remove dots...</div>
@@ -868,36 +889,68 @@
                     <div class="arsenal-box">
                         <h4>Mapping Automation</h4>
                         <ul>
-                            <li>Import room lists to automatically map those locations and assign sign types.</li>
+                            <li>Enter a room name, then click automap to search for that term and place dots automatically.</li>
                         </ul>
                         <div class="demo-header">Try it yourself:</div>
                         <p class="demo-disclaimer">This demo is to showcase the Automap function only.</p>
                         <div class="demo-area">
                             <div class="automap-demo-controls">
-                                <button class="automap-demo-btn" id="import-roomlist-btn">IMPORT ROOM LIST</button>
-                                <button class="automap-demo-btn" id="automap-it-btn" disabled>AUTOMAP IT!</button>
+                                <input type="text" class="automap-input" id="automap-text-input" placeholder="Enter room name...">
+                                <button class="automap-demo-btn" id="automap-it-btn">AUTOMAP IT!</button>
+                                <span class="automap-status" id="automap-status"></span>
                             </div>
                             <div class="demo-container">
                                 <div class="demo-map-column">
                                     <div class="demo-pdf-page" id="demo-pdf-page-automap">
-                                        <div class="demo-room-text" data-sign-type="Conference" style="top: 15%; left: 15%;">Conference Room A</div>
-                                        <div class="demo-room-text" data-sign-type="Restroom" style="top: 35%; left: 55%;">Men's Restroom</div>
-                                        <div class="demo-room-text" data-sign-type="Exit" style="top: 15%; left: 75%;">Exit</div>
-                                        <div class="demo-room-text" data-sign-type="Office" style="top: 55%; left: 25%;">Office 101</div>
-                                        <div class="demo-room-text" data-sign-type="Office" style="top: 75%; left: 65%;">Office 102</div>
-                                        <div class="demo-room-text" data-sign-type="Restroom" style="top: 75%; left: 15%;">Women</div>
+                                        <!-- Office -->
+                                        <div class="demo-room-text" data-category="office" style="top: 5%; left: 10%;">Office</div>
+                                        <div class="demo-room-text" data-category="office" style="top: 5%; left: 30%;">Office</div>
+                                        <div class="demo-room-text" data-category="office" style="top: 5%; left: 50%;">Office</div>
+                                        <div class="demo-room-text" data-category="office" style="top: 5%; left: 70%;">Office</div>
+                                        <div class="demo-room-text" data-category="office" style="top: 20%; left: 15%;">Office</div>
+                                        <div class="demo-room-text" data-category="office" style="top: 20%; left: 45%;">Office</div>
+                                        <div class="demo-room-text" data-category="office" style="top: 20%; left: 75%;">Office</div>
+                                        
+                                        <!-- Restroom -->
+                                        <div class="demo-room-text" data-category="restroom" style="top: 35%; left: 10%;">Restroom</div>
+                                        <div class="demo-room-text" data-category="restroom" style="top: 35%; left: 30%;">Restroom</div>
+                                        <div class="demo-room-text" data-category="restroom" style="top: 35%; left: 50%;">Restroom</div>
+                                        <div class="demo-room-text" data-category="restroom" style="top: 35%; left: 70%;">Restroom</div>
+                                        <div class="demo-room-text" data-category="restroom" style="top: 50%; left: 20%;">Restroom</div>
+                                        
+                                        <!-- Electrical -->
+                                        <div class="demo-room-text" data-category="electrical" style="top: 65%; left: 10%;">Electrical</div>
+                                        <div class="demo-room-text" data-category="electrical" style="top: 65%; left: 30%;">Electrical</div>
+                                        <div class="demo-room-text" data-category="electrical" style="top: 65%; left: 50%;">Electrical</div>
+                                        <div class="demo-room-text" data-category="electrical" style="top: 65%; left: 70%;">Electrical</div>
+                                        <div class="demo-room-text" data-category="electrical" style="top: 80%; left: 15%;">Electrical</div>
+                                        
+                                        <!-- Exit -->
+                                        <div class="demo-room-text" data-category="exit" style="top: 90%; left: 20%;">Exit</div>
+                                        <div class="demo-room-text" data-category="exit" style="top: 90%; left: 40%;">Exit</div>
+                                        <div class="demo-room-text" data-category="exit" style="top: 90%; left: 60%;">Exit</div>
                                     </div>
                                 </div>
                                 <div class="demo-controls-column">
-                                    <div class="demo-project-legend" id="automap-legend-container">
+                                    <div class="demo-project-legend">
                                         <div class="demo-legend-header">PROJECT LEGEND</div>
-                                        <div id="automap-legend-items"></div>
+                                        <div class="demo-legend-item">
+                                            <div class="demo-legend-dot" style="background-color: #F72020;"></div>
+                                            <span class="demo-legend-text">I.1</span>
+                                            <span class="demo-legend-count" id="automap-legend-count">0</span>
+                                        </div>
                                     </div>
                                     <div class="demo-instructions">
+                                        <div><strong>Try searching for:</strong></div>
+                                        <div>• "Office"</div>
+                                        <div>• "Restroom"</div>
+                                        <div>• "Electrical"</div>
+                                        <div>• "Exit"</div>
+                                        <br>
                                         <div>*Left click dots to select</div>
                                         <div>*Delete key to remove selected</div>
                                     </div>
-                                    <button class="demo-reset-btn" onclick="automapDemo.reset()">Reset</button>
+                                    <button class="demo-reset-btn" onclick="newAutomapDemo.reset()">Reset</button>
                                 </div>
                             </div>
                         </div>
@@ -906,30 +959,20 @@
                     <div class="arsenal-box">
                         <h4>Simple Bulk Operations</h4>
                         <ul>
-                            <li>Click to add dots, shift-drag to select multiple, and right-click to edit in bulk.</li>
+                            <li>Select a sign type from the legend, click to add dots of that color, shift-drag to select multiple,<br>and right-click any dot in your selection to edit in bulk.</li>
                         </ul>
                          <div class="demo-header">Try it yourself:</div>
                         <p class="demo-disclaimer">This demo showcases manual dot placement and bulk changes.</p>
                         <div class="demo-area">
                             <div class="demo-container">
                                 <div class="demo-map-column">
-                                    <div class="demo-map-controls">
-                                        <button class="btn" id="operations-toggle-msg-btn">SHOW MSG</button>
-                                    </div>
                                     <div class="demo-pdf-page" id="demo-pdf-page-operations">
-                                        <!-- This map is intentionally blank -->
                                     </div>
                                 </div>
                                 <div class="demo-controls-column">
                                     <div class="demo-project-legend sign-type-selector">
                                         <div class="demo-legend-header">SELECT SIGN TYPE</div>
                                         <div id="operations-legend-items"></div>
-                                    </div>
-                                    <div class="demo-instructions">
-                                        <div>*Click a sign type on the right</div>
-                                        <div>*Click the map to place a dot</div>
-                                        <div>*Shift+click a dot to add/remove from selection</div>
-                                        <div>*Right-click dot(s) to edit</div>
                                     </div>
                                     <button class="demo-reset-btn" onclick="operationsDemo.reset()">Reset</button>
                                 </div>
@@ -1193,7 +1236,7 @@
                 const dotId = this.state.nextId++;
                 if (this.isCollision(x, y)) return null;
 
-                const dot = { id: dotId, x, y, signType, message: 'NEW LOCATION' };
+                const dot = { id: dotId, x, y, signType, message: 'Location Name' };
                 this.state.dots.push(dot);
 
                 const dotEl = document.createElement('div');
@@ -1207,7 +1250,7 @@
 
                 dotEl.innerHTML = `
                     ${dotId}
-                    <div class="demo-dot-message" style="color: ${dotColor};">${dot.message}</div>
+                    <div class="demo-dot-message visible" style="color: ${dotColor};">${dot.message}</div>
                 `;
                 
                 dotEl.addEventListener('click', (e) => {
@@ -1225,7 +1268,6 @@
                 
                 this.mapPage.appendChild(dotEl);
                 this.updateLegend();
-                this.toggleMessages(this.state.messagesVisible); // Ensure new dot respects current message visibility
                 return dotEl;
             }
 
@@ -1360,15 +1402,10 @@
             }
 
             toggleMessages(forceState) {
-                this.state.messagesVisible = forceState !== undefined ? forceState : !this.state.messagesVisible;
+                // Messages are always visible in operations demo
                 this.mapPage.querySelectorAll('.demo-dot-message').forEach(msg => {
-                    msg.classList.toggle('visible', this.state.messagesVisible);
+                    msg.classList.add('visible');
                 });
-                const btn = document.getElementById('operations-toggle-msg-btn');
-                if (btn) {
-                    btn.textContent = this.state.messagesVisible ? 'HIDE MSG' : 'SHOW MSG';
-                    btn.classList.toggle('active', this.state.messagesVisible);
-                }
             }
         }
 
@@ -1382,10 +1419,8 @@
 
             // --- Initialize Demos ---
             const scrapeDemo = new Demo('demo-pdf-page-scrape', 'scrape-legend-count');
-            const automapDemo = new Demo('demo-pdf-page-automap', document.getElementById('automap-legend-items'), automapSignTypes);
             const operationsDemo = new Demo('demo-pdf-page-operations', document.getElementById('operations-legend-items'), automapSignTypes);
             window.scrapeDemo = scrapeDemo;
-            window.automapDemo = automapDemo;
             window.operationsDemo = operationsDemo;
 
             // --- Scrape Demo Listeners ---
@@ -1410,84 +1445,188 @@
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Delete' || e.key === 'Backspace') {
                     scrapeDemo.deleteSelectedDots();
-                    automapDemo.deleteSelectedDots();
+                    if (window.newAutomapDemo) newAutomapDemo.deleteSelectedDots();
                     operationsDemo.deleteSelectedDots();
                 }
             });
 
             function setupAutomapDemo() {
-                const importBtn = document.getElementById('import-roomlist-btn');
-                const automapBtn = document.getElementById('automap-it-btn');
-                const modalOverlay = document.getElementById('automap-modal-overlay');
-                const modalOpenBtn = document.getElementById('automap-modal-open');
-                const modalCancelBtn = document.getElementById('automap-modal-cancel');
-                const notification = document.getElementById('automap-notification');
-                const notificationText = document.getElementById('automap-notification-text');
-                const alertModal = document.getElementById('automap-alert-modal');
-                const alertText = document.getElementById('automap-alert-text');
-                const alertOkBtn = document.getElementById('automap-alert-ok');
+                class NewAutomapDemo {
+                    constructor() {
+                        this.mapPage = document.getElementById('demo-pdf-page-automap');
+                        this.statusEl = document.getElementById('automap-status');
+                        this.legendCountEl = document.getElementById('automap-legend-count');
+                        this.state = {
+                            dots: [],
+                            selectedDots: new Set(),
+                            nextId: 1
+                        };
 
-                let roomlistImported = false;
-
-                importBtn.addEventListener('click', () => modalOverlay.style.display = 'flex');
-                modalCancelBtn.addEventListener('click', () => modalOverlay.style.display = 'none');
-                alertOkBtn.addEventListener('click', () => alertModal.style.display = 'none');
-
-                modalOpenBtn.addEventListener('click', () => {
-                    modalOverlay.style.display = 'none';
-                    roomlistImported = true;
-                    automapBtn.disabled = false;
-                    automapBtn.classList.add('glow');
-                    
-                    notificationText.textContent = 'Room List imported successfully. 6 total entries.';
-                    notification.classList.add('visible');
-                    setTimeout(() => notification.classList.remove('visible'), 5000);
-                });
-
-                automapBtn.addEventListener('click', () => {
-                    if (!roomlistImported) return;
-
-                    const textElements = automapDemo.mapPage.querySelectorAll('.demo-room-text');
-                    let unmappedLocations = [];
-
-                    textElements.forEach(textEl => {
-                        const targetX = textEl.offsetLeft + textEl.offsetWidth / 2;
-                        const targetY = textEl.offsetTop + textEl.offsetHeight / 2;
-                        
-                        let isMapped = automapDemo.state.dots.some(dot => Math.sqrt(Math.pow(dot.x - targetX, 2) + Math.pow(dot.y - targetY, 2)) < 1);
-                        if (!isMapped) unmappedLocations.push(textEl);
-                    });
-
-                    if (unmappedLocations.length === 0) {
-                        alertText.textContent = "All locations are already mapped. Try deleting some first.";
-                        alertModal.style.display = 'flex';
-                        return;
+                        this.setupEventListeners();
                     }
 
-                    unmappedLocations.forEach(textEl => {
-                        const dotX = textEl.offsetLeft + textEl.offsetWidth / 2;
-                        const dotY = textEl.offsetTop + textEl.offsetHeight / 2;
-                        const signTypeKey = textEl.dataset.signType;
-                        automapDemo.addDot(dotX, dotY, automapSignTypes[signTypeKey]);
-                    });
-                });
-                
-                automapDemo.mapPage.addEventListener('mousedown', (e) => {
-                     if (e.target === automapDemo.mapPage) automapDemo.clearSelection();
-                });
-                
-                automapDemo.reset = function() {
-                    Demo.prototype.reset.call(this); // Call parent reset
-                    roomlistImported = false;
-                    automapBtn.disabled = true;
-                    automapBtn.classList.remove('glow');
+                    setupEventListeners() {
+                        const automapBtn = document.getElementById('automap-it-btn');
+                        const textInput = document.getElementById('automap-text-input');
+
+                        automapBtn.addEventListener('click', () => this.performAutomap());
+                        textInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                this.performAutomap();
+                            }
+                        });
+
+                        this.mapPage.addEventListener('click', (e) => {
+                            if (e.target === this.mapPage) {
+                                this.clearSelection();
+                            }
+                        });
+                    }
+
+                    performAutomap() {
+                        const searchTerm = document.getElementById('automap-text-input').value.trim().toLowerCase();
+                        
+                        if (!searchTerm) {
+                            this.updateStatus('Please enter a room name to find.', true);
+                            return;
+                        }
+
+                        const textElements = this.mapPage.querySelectorAll('.demo-room-text');
+                        let matchesFound = 0;
+                        let collisionsFound = 0;
+                        let totalMatches = 0;
+
+                        textElements.forEach(textEl => {
+                            const roomText = textEl.textContent.toLowerCase();
+                            
+                            if (roomText.includes(searchTerm)) {
+                                totalMatches++;
+                                const centerX = textEl.offsetLeft + textEl.offsetWidth / 2;
+                                const centerY = textEl.offsetTop + textEl.offsetHeight / 2;
+                                
+                                if (!this.isCollision(centerX, centerY)) {
+                                    this.addDot(centerX, centerY, textEl.textContent);
+                                    matchesFound++;
+                                } else {
+                                    collisionsFound++;
+                                }
+                            }
+                        });
+
+                        if (matchesFound > 0) {
+                            this.updateStatus(`Found ${matchesFound} match(es) for "${searchTerm}"!`, false);
+                            document.getElementById('automap-text-input').value = '';
+                        } else if (collisionsFound > 0 && totalMatches > 0) {
+                            this.updateStatus(`Location markers are already placed within these bounds. Try selecting and deleting dots first.`, true);
+                        } else {
+                            this.updateStatus(`No matches found for "${searchTerm}".`, true);
+                        }
+                    }
+
+                    isCollision(newX, newY) {
+                        const minDistance = 25;
+                        for (const dot of this.state.dots) {
+                            const distance = Math.sqrt(Math.pow(dot.x - newX, 2) + Math.pow(dot.y - newY, 2));
+                            if (distance < minDistance) return true;
+                        }
+                        return false;
+                    }
+
+                    addDot(x, y, message) {
+                        const dotId = this.state.nextId++;
+                        const dot = { id: dotId, x, y, message };
+                        this.state.dots.push(dot);
+
+                        const dotEl = document.createElement('div');
+                        dotEl.className = 'demo-dot';
+                        dotEl.dataset.id = dotId;
+                        dotEl.style.left = `${x}px`;
+                        dotEl.style.top = `${y}px`;
+                        dotEl.style.backgroundColor = '#F72020';
+                        dotEl.textContent = dotId;
+
+                        dotEl.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.handleDotClick(dotId, dotEl, e.shiftKey);
+                        });
+
+                        this.mapPage.appendChild(dotEl);
+                        this.updateLegend();
+                    }
+
+                    handleDotClick(id, el, isShiftClick) {
+                        if (isShiftClick) {
+                            this.toggleDotSelection(id, el);
+                        } else {
+                            this.clearSelection();
+                            this.toggleDotSelection(id, el);
+                        }
+                    }
+
+                    toggleDotSelection(id, el) {
+                        if (this.state.selectedDots.has(id)) {
+                            this.state.selectedDots.delete(id);
+                            el.classList.remove('selected');
+                        } else {
+                            this.state.selectedDots.add(id);
+                            el.classList.add('selected');
+                        }
+                    }
+
+                    clearSelection() {
+                        this.state.selectedDots.forEach(id => {
+                            const dotEl = this.mapPage.querySelector(`.demo-dot[data-id='${id}']`);
+                            if (dotEl) dotEl.classList.remove('selected');
+                        });
+                        this.state.selectedDots.clear();
+                    }
+
+                    deleteSelectedDots() {
+                        if (this.state.selectedDots.size === 0) return;
+                        
+                        this.state.selectedDots.forEach(id => {
+                            const dotEl = this.mapPage.querySelector(`.demo-dot[data-id='${id}']`);
+                            if (dotEl) dotEl.remove();
+                        });
+                        
+                        this.state.dots = this.state.dots.filter(dot => !this.state.selectedDots.has(dot.id));
+                        this.state.selectedDots.clear();
+                        this.updateLegend();
+                    }
+
+                    updateLegend() {
+                        this.legendCountEl.textContent = this.state.dots.length;
+                    }
+
+                    updateStatus(message, isError = false) {
+                        this.statusEl.textContent = message;
+                        this.statusEl.className = isError ? 'automap-status error' : 'automap-status';
+
+                        if (message) {
+                            setTimeout(() => {
+                                if (this.statusEl.textContent === message) {
+                                    this.statusEl.textContent = '';
+                                }
+                            }, 5000);
+                        }
+                    }
+
+                    reset() {
+                        this.mapPage.querySelectorAll('.demo-dot').forEach(el => el.remove());
+                        this.state.dots = [];
+                        this.state.selectedDots.clear();
+                        this.state.nextId = 1;
+                        this.updateLegend();
+                        this.statusEl.textContent = '';
+                        document.getElementById('automap-text-input').value = '';
+                    }
                 }
+
+                window.newAutomapDemo = new NewAutomapDemo();
             }
 
             function setupOperationsDemo() {
-                const toggleMsgBtn = document.getElementById('operations-toggle-msg-btn');
-                toggleMsgBtn.addEventListener('click', () => operationsDemo.toggleMessages());
-
                 operationsDemo.mapPage.addEventListener('mousedown', (e) => {
                     if (e.shiftKey && !e.target.classList.contains('demo-dot')) { // Shift + Left Click for selection box
                         e.preventDefault();
@@ -1584,6 +1723,7 @@
                     dotEl.style.backgroundColor = dot.signType.color;
                     msgEl.style.color = dot.signType.color;
                     msgEl.textContent = dot.message;
+                    msgEl.classList.add('visible');
                     this.updateLegend();
                 }
 

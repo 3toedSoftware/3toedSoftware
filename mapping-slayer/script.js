@@ -1,18 +1,19 @@
 // Initialize PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// --- Default Sign Types for New Projects ---
-const DEFAULT_SIGN_TYPES = [
-    { code: 'NEW', name: 'Sign Type Name', color: '#F72020', textColor: '#FFFFFF' },
+// --- Default Marker Types for New Projects ---
+const DEFAULT_MARKER_TYPES = [
+    { code: 'NEW', name: 'Marker Type Name', color: '#F72020', textColor: '#FFFFFF' },
 ];
 
 // --- Global Application State ---
 var appState = {
     isDirty: false,
     dotsByPage: new Map(), 
+    nextInternalId: 1,
     dotSize: 1,
-    signTypes: {}, // Now a map of { 'I.1': { code, name, color, textColor, designReference } }
-    activeSignType: null, // This will be the sign type CODE
+    markerTypes: {}, // Now a map of { 'I.1': { code, name, color, textColor, designReference } }
+    activeMarkerType: null, // This will be the marker type CODE
     isPanning: false, 
     dragTarget: null,
     dragStart: { x: 0, y: 0 },
@@ -22,6 +23,7 @@ var appState = {
     searchResults: [],
     currentSearchIndex: -1,
     editingDot: null,
+    pdfRenderTask: null, // Add this line
     pdfDoc: null,
     sourcePdfBuffer: null, 
     currentPdfPage: 1,
@@ -33,11 +35,13 @@ var appState = {
     selectionBox: null,
     selectionStart: { x: 0, y: 0 },
     justFinishedSelecting: false,
-    isScraping: false,
+    justFinishedScraping: false,
+    isOCRScraping: false,
     scrapeBox: null,
     scrapeStart: { x: 0, y: 0 },
     listViewMode: 'flat',
-    expandedSignTypes: new Set(),
+    isAllPagesView: false,
+    expandedMarkerTypes: new Set(),
     projectLegendCollapsed: false,
     pageLegendCollapsed: false,
     // New state for single automap
@@ -47,7 +51,16 @@ var appState = {
     undoHistory: [],
     undoIndex: -1,
     maxUndoHistory: 50,
-    isUndoing: false,
+    // Copy/Paste system
+    copiedDot: null,
+    lastMousePosition: { x: 0, y: 0 },
+    scrapeHorizontalTolerance: 1,
+    scrapeVerticalTolerance: 25,
+    isTrainingScrape: false,
+    trainingBigBox: null, // {x1, y1, x2, y2}
+    trainingSmallBoxes: [], // Array of {x1, y1, x2, y2}
+    trainingCounterElement: null,
+    trainingCancelElement: null,
 };
 
 let previewTimeout = null;
@@ -91,8 +104,437 @@ function clearActivityFeed() {
 // Utility to pause execution without blocking the main thread
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 
+// --- Smart Text Clustering (adapted from Python automapper logic) ---
+function clusterTextItems(textItems) {
+    if (textItems.length === 0) return [];
+    
+    const HORIZONTAL_TOLERANCE = appState.scrapeHorizontalTolerance; // Pixels between words to group them
+    const VERTICAL_TOLERANCE = appState.scrapeVerticalTolerance;   // Pixels between lines to merge them
+    
+    // Step 1: Sort all text by Y position to find horizontal lines
+    const sortedItems = [...textItems].sort((a, b) => a.y - b.y);
+    
+    // Step 2: Group items into horizontal lines
+    const lines = [];
+    let currentLine = [];
+    
+    for (const item of sortedItems) {
+        if (currentLine.length === 0) {
+            currentLine = [item];
+        } else {
+            const lastItem = currentLine[currentLine.length - 1];
+            if (Math.abs(item.y - lastItem.y) <= VERTICAL_TOLERANCE) {
+                currentLine.push(item); // Same line
+            } else {
+                lines.push(currentLine); // Start new line
+                currentLine = [item];
+            }
+        }
+    }
+    if (currentLine.length > 0) {
+        lines.push(currentLine);
+    }
+    
+    // Step 3: Within each line, cluster words by horizontal proximity
+    const clusters = [];
+    
+    for (const line of lines) {
+        // Sort line by X position (left to right)
+        line.sort((a, b) => a.x - b.x);
+        
+        // Group words in this line by horizontal gaps
+        let currentCluster = [];
+        
+        for (const item of line) {
+            if (currentCluster.length === 0) {
+                currentCluster = [item];
+            } else {
+                const lastItem = currentCluster[currentCluster.length - 1];
+                const gap = item.x - (lastItem.x + lastItem.width);
+                
+                if (gap <= HORIZONTAL_TOLERANCE) {
+                    currentCluster.push(item); // Add to current cluster
+                } else {
+                    clusters.push(currentCluster); // Finish current cluster
+                    currentCluster = [item]; // Start new cluster
+                }
+            }
+        }
+        if (currentCluster.length > 0) {
+            clusters.push(currentCluster);
+        }
+    }
+    
+    // Step 4: Try to merge vertically adjacent clusters (multi-line text)
+    const finalClusters = [];
+    
+    for (const cluster of clusters) {
+        let merged = false;
+        
+        // Try to merge with an existing cluster that's vertically close AND horizontally overlapping
+        for (const existingCluster of finalClusters) {
+            const clusterY = Math.min(...cluster.map(item => item.y));
+            const existingY = Math.max(...existingCluster.map(item => item.y));
+            const verticalGap = Math.abs(clusterY - existingY);
+            
+            // Check if vertically close
+            if (verticalGap <= VERTICAL_TOLERANCE) {
+                // Also check for horizontal overlap/proximity
+                const clusterLeft = Math.min(...cluster.map(item => item.x));
+                const clusterRight = Math.max(...cluster.map(item => item.x + item.width));
+                const existingLeft = Math.min(...existingCluster.map(item => item.x));
+                const existingRight = Math.max(...existingCluster.map(item => item.x + item.width));
+                
+                // Only merge if they overlap horizontally or are very close horizontally
+                const horizontalGap = Math.max(0, Math.max(clusterLeft - existingRight, existingLeft - clusterRight));
+                
+                if (horizontalGap <= HORIZONTAL_TOLERANCE) {
+                    // Add this cluster's items to existing cluster (bottom line after top)
+                    existingCluster.push(...cluster);
+                    merged = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!merged) {
+            finalClusters.push([...cluster]);
+        }
+    }
+    
+    // Step 5: Calculate center points for each final cluster
+    return finalClusters.map(cluster => {
+        const bounds = cluster.reduce((bbox, item) => ({
+            left: Math.min(bbox.left, item.x),
+            right: Math.max(bbox.right, item.x + item.width),
+            top: Math.min(bbox.top, item.y),
+            bottom: Math.max(bbox.bottom, item.y + item.height)
+        }), {
+            left: cluster[0].x,
+            right: cluster[0].x + cluster[0].width,
+            top: cluster[0].y,
+            bottom: cluster[0].y + cluster[0].height
+        });
+        
+        return {
+            items: cluster,
+            centerX: (bounds.left + bounds.right) / 2,
+            centerY: bounds.top - 10,
+            text: cluster.map(item => item.text).join(' ').trim()
+        };
+    }).filter(cluster => cluster.text.length > 0); // Only return clusters with actual text
+}
+
+// --- Copy/Paste System ---
+function copySelectedDot() {
+    if (appState.selectedDots.size !== 1) {
+        showCSVStatus("Please select exactly one dot to copy", false, 3000);
+        return;
+    }
+    
+    const internalId = Array.from(appState.selectedDots)[0];
+    const dot = getCurrentPageDots().get(internalId);
+    if (!dot) return;
+    
+    // Create a copy of the dot data
+    appState.copiedDot = {
+        markerType: dot.markerType,
+        message: dot.message,
+        isCodeRequired: dot.isCodeRequired,
+        notes: dot.notes,
+        installed: dot.installed
+    };
+    
+    showCSVStatus(`📋 Copied dot ${dot.locationNumber}`, true, 2000);
+}
+
+function pasteDotAtCursor() {
+    if (!appState.copiedDot) {
+        showCSVStatus("No dot copied. Select a dot and press Ctrl+C first.", false, 3000);
+        return;
+    }
+    
+    const x = appState.lastMousePosition.x;
+    const y = appState.lastMousePosition.y;
+    
+    if (!isCollision(x, y)) {
+        addDot(x, y, appState.copiedDot.markerType, appState.copiedDot.message, appState.copiedDot.isCodeRequired);
+        
+        // Apply the copied properties to the new dot
+        const pageData = getCurrentPageData();
+        const newInternalId = String(appState.nextInternalId - 1).padStart(7, '0'); // Last created dot
+        const newDot = pageData.dots.get(newInternalId);
+        if (newDot) {
+            newDot.notes = appState.copiedDot.notes;
+            newDot.installed = appState.copiedDot.installed;
+        }
+        
+        captureUndoState('Paste dot');
+        showCSVStatus(`✅ Pasted dot at cursor`, true, 2000);
+    } else {
+        showCSVStatus("Cannot paste - collision detected at cursor position", false, 3000);
+    }
+}
+
 
 // --- Undo/Redo System ---
+
+function toggleTrainingMode(e) {
+    e.stopPropagation();
+    appState.isTrainingScrape = !appState.isTrainingScrape;
+    const btn = document.getElementById('train-scrape-btn');
+    btn.textContent = appState.isTrainingScrape ? 'TRAINING SCRAPE' : 'TRAIN SCRAPE';
+    btn.classList.toggle('glowing', appState.isTrainingScrape);
+    if (!appState.isTrainingScrape) {
+        resetTrainingUI();
+    }
+}
+
+function resetTrainingUI() {
+    if (appState.trainingBigBox) {
+        removeTrainingElements();
+        appState.trainingBigBox = null;
+        appState.trainingSmallBoxes = [];
+    }
+}
+
+function removeTrainingElements() {
+    document.querySelectorAll('.train-big-box, .train-small-box, .train-counter-btn, .train-cancel-btn').forEach(el => el.remove());
+    appState.trainingCounterElement = null;
+    appState.trainingCancelElement = null;
+}
+
+function startTrainingBigBox(e) {
+    const rect = document.getElementById('map-container').getBoundingClientRect();
+    appState.isScraping = true; 
+    appState.scrapeStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const bigBox = document.createElement('div');
+    bigBox.className = 'train-big-box';
+    Object.assign(bigBox.style, { left: `${appState.scrapeStart.x}px`, top: `${appState.scrapeStart.y}px`, width: '0px', height: '0px' });
+    document.getElementById('map-container').appendChild(bigBox);
+    appState.scrapeBox = bigBox;
+}
+
+function updateTrainingBigBox(e) {
+    if (!appState.scrapeBox) return;
+    const rect = document.getElementById('map-container').getBoundingClientRect();
+    const currentX = e.clientX - rect.left; 
+    const currentY = e.clientY - rect.top;
+    
+    if (currentX < 0 || currentX > rect.width || currentY < 0 || currentY > rect.height) {
+        appState.scrapeBox.remove();
+        appState.scrapeBox = null;
+        appState.isScraping = false;
+        return;
+    }
+    
+    const left = Math.min(appState.scrapeStart.x, currentX); 
+    const top = Math.min(appState.scrapeStart.y, currentY);
+    const width = Math.abs(currentX - appState.scrapeStart.x); 
+    const height = Math.abs(currentY - appState.scrapeStart.y);
+    Object.assign(appState.scrapeBox.style, { 
+        left: `${left}px`, 
+        top: `${top}px`, 
+        width: `${width}px`, 
+        height: `${height}px` 
+    });
+}
+
+async function finishTrainingBigBox() {
+    if (!appState.scrapeBox) return;
+    
+    const boxRect = appState.scrapeBox.getBoundingClientRect();
+    const mapRect = document.getElementById('map-container').getBoundingClientRect();
+    
+    appState.trainingBigBox = {
+        x1: boxRect.left - mapRect.left,
+        y1: boxRect.top - mapRect.top,
+        x2: boxRect.right - mapRect.left,
+        y2: boxRect.bottom - mapRect.top
+    };
+    
+    // Add counter and cancel buttons
+    const counterBtn = document.createElement('div');
+    counterBtn.className = 'train-counter-btn';
+    counterBtn.textContent = '0/5';
+    counterBtn.style.left = '0px';
+    counterBtn.style.top = '-15px'; // Relative to big box
+    appState.scrapeBox.appendChild(counterBtn);
+    appState.trainingCounterElement = counterBtn;
+    counterBtn.addEventListener('click', handleCounterClick);
+
+    const cancelBtn = document.createElement('div');
+    cancelBtn.className = 'train-cancel-btn';
+    cancelBtn.textContent = 'X';
+    // No left positioning needed; use CSS right: 0
+    cancelBtn.style.top = '-15px';
+    appState.scrapeBox.appendChild(cancelBtn);
+    appState.trainingCancelElement = cancelBtn;
+    cancelBtn.addEventListener('click', () => {
+        toggleTrainingMode();
+        resetTrainingUI();
+    });
+
+    appState.scrapeBox = null;
+    appState.isScraping = false;
+}
+
+function startTrainingSmallBox(e) {
+    if (!appState.trainingBigBox) return;
+    
+    const rect = document.getElementById('map-container').getBoundingClientRect();
+    const startX = e.clientX - rect.left;
+    const startY = e.clientY - rect.top;
+    
+    // Check if start is inside big box
+    if (startX < appState.trainingBigBox.x1 || startX > appState.trainingBigBox.x2 ||
+        startY < appState.trainingBigBox.y1 || startY > appState.trainingBigBox.y2) {
+        return; // Not inside, ignore
+    }
+    
+    appState.isScraping = true; 
+    appState.scrapeStart = { x: startX, y: startY };
+    const smallBox = document.createElement('div');
+    smallBox.className = 'train-small-box';
+    Object.assign(smallBox.style, { left: `${startX}px`, top: `${startY}px`, width: '0px', height: '0px' });
+    document.getElementById('map-container').appendChild(smallBox);
+    appState.scrapeBox = smallBox;
+}
+
+function updateTrainingSmallBox(e) {
+    if (!appState.scrapeBox) return;
+    const rect = document.getElementById('map-container').getBoundingClientRect();
+    let currentX = e.clientX - rect.left; 
+    let currentY = e.clientY - rect.top;
+    
+    // Clamp to big box bounds
+    currentX = Math.max(appState.trainingBigBox.x1, Math.min(currentX, appState.trainingBigBox.x2));
+    currentY = Math.max(appState.trainingBigBox.y1, Math.min(currentY, appState.trainingBigBox.y2));
+    
+    const left = Math.min(appState.scrapeStart.x, currentX); 
+    const top = Math.min(appState.scrapeStart.y, currentY);
+    const width = Math.abs(currentX - appState.scrapeStart.x); 
+    const height = Math.abs(currentY - appState.scrapeStart.y);
+    Object.assign(appState.scrapeBox.style, { 
+        left: `${left}px`, 
+        top: `${top}px`, 
+        width: `${width}px`, 
+        height: `${height}px` 
+    });
+}
+
+async function finishTrainingSmallBox() {
+    if (!appState.scrapeBox) return;
+    
+    const boxRect = appState.scrapeBox.getBoundingClientRect();
+    const mapRect = document.getElementById('map-container').getBoundingClientRect();
+    
+    appState.trainingSmallBoxes.push({
+        x1: boxRect.left - mapRect.left,
+        y1: boxRect.top - mapRect.top,
+        x2: boxRect.right - mapRect.left,
+        y2: boxRect.bottom - mapRect.top
+    });
+    
+    updateTrainingCounter();
+    
+    appState.scrapeBox = null;
+    appState.isScraping = false;
+}
+
+function updateTrainingCounter() {
+    const count = appState.trainingSmallBoxes.length;
+    const counterEl = appState.trainingCounterElement;
+    if (counterEl) {
+        counterEl.textContent = `${count}/5`;
+        if (count >= 5) {
+            counterEl.classList.add('ready');
+            counterEl.textContent = 'PRESS ME WHEN READY!';
+            const bigBoxEl = document.querySelector('.train-big-box');
+            if (bigBoxEl) {
+                bigBoxEl.classList.add('glowing');
+            }
+        }
+    }
+}
+
+async function handleCounterClick() {
+    if (appState.trainingSmallBoxes.length < 5) return;
+    
+    showCSVStatus("Computing tolerances from training...", true);
+    
+    const tolerances = await computeTolerancesFromTraining();
+    
+    if (tolerances) {
+        appState.scrapeHorizontalTolerance = tolerances.avgH;
+        appState.scrapeVerticalTolerance = tolerances.avgV;
+        setDirtyState();
+        showCSVStatus(`Updated tolerances: H=${tolerances.avgH.toFixed(1)}, V=${tolerances.avgV.toFixed(1)}`, true);
+    } else {
+        showCSVStatus("No valid text found in training boxes.", false);
+    }
+    
+    toggleTrainingMode();
+    resetTrainingUI();
+}
+
+async function computeTolerancesFromTraining() {
+    if (!appState.pdfDoc || !appState.trainingSmallBoxes.length) return null;
+    
+    const page = await appState.pdfDoc.getPage(appState.currentPdfPage);
+    const textContent = await page.getTextContent();
+    const viewport = page.getViewport({ scale: appState.pdfScale });
+    
+    let allMaxH = [];
+    let allMaxV = [];
+    
+    for (const smallBox of appState.trainingSmallBoxes) {
+        const textInBox = textContent.items.filter(item => {
+            const [canvasX, canvasY] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+            const canvasXEnd = canvasX + (item.width * viewport.scale);
+            const canvasYEnd = canvasY + (item.height * viewport.scale);
+            return canvasX >= smallBox.x1 && canvasXEnd <= smallBox.x2 &&
+                   canvasY >= smallBox.y1 && canvasYEnd <= smallBox.y2;
+        });
+        
+        if (textInBox.length < 2) continue; // Need at least 2 items to compute gaps
+        
+        // Group into lines (similar to clusterTextItems)
+        const lines = groupTextIntoLines(textInBox);
+        
+        // Compute max V: max gap between lines
+        let maxV = 0;
+        if (lines.length > 1) {
+            lines.sort((a,b) => a[0].transform[5] - b[0].transform[5]);
+            for (let i = 1; i < lines.length; i++) {
+                const gapV = Math.abs(lines[i][0].transform[5] - lines[i-1][0].transform[5] - lines[i-1][0].height);
+                maxV = Math.max(maxV, gapV);
+            }
+        }
+        
+        // Compute max H: max gap within lines
+        let maxH = 0;
+        for (const line of lines) {
+            if (line.length > 1) {
+                line.sort((a,b) => a.transform[4] - b.transform[4]);
+                for (let j = 1; j < line.length; j++) {
+                    const gapH = line[j].transform[4] - (line[j-1].transform[4] + line[j-1].width);
+                    maxH = Math.max(maxH, gapH);
+                }
+            }
+        }
+        
+        if (maxH > 0) allMaxH.push(maxH * viewport.scale); // Scale to canvas pixels
+        if (maxV > 0) allMaxV.push(maxV * viewport.scale);
+    }
+    
+    if (!allMaxH.length || !allMaxV.length) return null;
+    
+    const avgH = allMaxH.reduce((a,b) => a+b, 0) / allMaxH.length;
+    const avgV = allMaxV.reduce((a,b) => a+b, 0) / allMaxV.length;
+    
+    return { avgH, avgV };
+}
 
 function initializeUndoHistory() {
     clearUndoHistory();
@@ -232,7 +674,7 @@ function init() {
     }
     
     setupEventListeners();
-    initializeNewProjectSignTypes();
+    initializeNewProjectMarkerTypes();
     updateAllSectionsForCurrentPage();
     updateAutomapControls(); // Add this line to populate the automap dropdown on init
 }
@@ -249,7 +691,7 @@ function serializeDotsByPage(dotsByPageMap) {
     for (const [pageNum, pageData] of dotsByPageMap.entries()) {
         obj[pageNum] = {
             dots: Array.from(pageData.dots.values()).map(dot => ({ ...dot })),
-            nextDotNumber: pageData.nextDotNumber
+            nextLocationNumber: pageData.nextLocationNumber
         };
     }
     return obj;
@@ -260,10 +702,10 @@ function deserializeDotsByPage(dotsObject) {
     for (const pageNum in dotsObject) {
         if (dotsObject.hasOwnProperty(pageNum)) {
             const pageData = dotsObject[pageNum];
-            const dotsMap = new Map(pageData.dots.map(dot => [dot.id, dot]));
+            const dotsMap = new Map(pageData.dots.map(dot => [dot.internalId, dot]));
             map.set(parseInt(pageNum, 10), {
                 dots: dotsMap,
-                nextDotNumber: pageData.nextDotNumber
+                nextLocationNumber: pageData.nextLocationNumber
             });
         }
     }
@@ -273,7 +715,7 @@ function deserializeDotsByPage(dotsObject) {
 // --- State Management & Backward Compatibility ---
 function migrateOldProjectData(projectData) {
     console.log("Migrating old project format...");
-    const newSignTypes = {};
+    const newMarkerTypes = {};
 
     const isV2Format = !!projectData.signTypeData;
     const oldTypes = isV2Format ? projectData.signTypeData : projectData.signTypes;
@@ -295,23 +737,25 @@ function migrateOldProjectData(projectData) {
         
         let finalCode = code;
         let counter = 1;
-        while (newSignTypes[finalCode]) {
+        while (newMarkerTypes[finalCode]) {
             finalCode = `${code} (${counter++})`;
         }
 
-        newSignTypes[finalCode] = { code: finalCode, name, color, textColor, designReference: null };
+        newMarkerTypes[finalCode] = { code: finalCode, name, color, textColor, designReference: null };
 
         for (const pageNum in projectData.dotsByPage) {
             projectData.dotsByPage[pageNum].dots.forEach(dot => {
                 if (dot.signType === key) {
-                    dot.signType = finalCode;
+                    dot.markerType = finalCode;
+                    delete dot.signType;
                 }
             });
         }
     }
     
-    projectData.signTypes = newSignTypes;
+    projectData.markerTypes = newMarkerTypes;
 
+    delete projectData.signTypes;
     delete projectData.signTypeData;
     delete projectData.signTypeNames;
     delete projectData.manuallyAddedSignTypes;
@@ -323,17 +767,22 @@ function migrateOldProjectData(projectData) {
 
 function restoreStateFromData(projectData) {
     // Migrate very old project structures first
-    if (!projectData.version || projectData.version < "4.0.0") {
+    if (!projectData.version || projectData.version < "4.0.0" || projectData.signTypes) {
         projectData = migrateOldProjectData(projectData);
     }
 
     appState.dotsByPage = deserializeDotsByPage(projectData.dotsByPage);
-    appState.signTypes = projectData.signTypes;
+    appState.markerTypes = projectData.markerTypes;
+    appState.nextInternalId = projectData.nextInternalId || 1;
 
     // --- MIGRATION FOR NOTES AND INSTALLED FIELDS ---
     // This ensures that projects saved before these fields were added will still work.
     for (const pageData of appState.dotsByPage.values()) {
         for (const dot of pageData.dots.values()) {
+            if (dot.signType) {
+                dot.markerType = dot.signType;
+                delete dot.signType;
+            }
             if (dot.notes === undefined) {
                 dot.notes = ''; // Add notes field with a default empty string
             }
@@ -348,9 +797,9 @@ function restoreStateFromData(projectData) {
     }
 
     // Ensure designReference property exists
-    for (const code in appState.signTypes) {
-        if (!appState.signTypes[code].hasOwnProperty('designReference')) {
-            appState.signTypes[code].designReference = null;
+    for (const code in appState.markerTypes) {
+        if (!appState.markerTypes[code].hasOwnProperty('designReference')) {
+            appState.markerTypes[code].designReference = null;
         }
     }
 
@@ -358,13 +807,32 @@ function restoreStateFromData(projectData) {
     appState.totalPages = projectData.totalPages;
     appState.recentSearches = projectData.recentSearches || [];
     appState.automapExactPhrase = projectData.automapExactPhrase !== undefined ? projectData.automapExactPhrase : true;
+    appState.scrapeHorizontalTolerance = projectData.scrapeHorizontalTolerance !== undefined ? projectData.scrapeHorizontalTolerance : 1;
+    appState.scrapeVerticalTolerance = projectData.scrapeVerticalTolerance !== undefined ? projectData.scrapeVerticalTolerance : 25;
+    // No need to restore training UI/state as it's transient
+    resetTrainingUI();
 
-    const signTypeKeys = Object.keys(appState.signTypes);
-    appState.activeSignType = signTypeKeys.length > 0 ? signTypeKeys[0] : null;
+    const markerTypeKeys = Object.keys(appState.markerTypes);
+    appState.activeMarkerType = markerTypeKeys.length > 0 ? markerTypeKeys[0] : null;
 
     document.getElementById('project-name').textContent = projectData.projectName;
     document.getElementById('map-file-name').textContent = projectData.sourcePdfName;
     document.getElementById('dot-size-slider').value = appState.dotSize;
+
+    // Set slider values on load
+    const scrapeHTolSlider = document.getElementById('scrape-h-tol');
+    const scrapeHTolValue = document.getElementById('scrape-h-value');
+    if (scrapeHTolSlider && scrapeHTolValue) {
+        scrapeHTolSlider.value = appState.scrapeHorizontalTolerance;
+        scrapeHTolValue.textContent = appState.scrapeHorizontalTolerance;
+    }
+
+    const scrapeVTolSlider = document.getElementById('scrape-v-tol');
+    const scrapeVTolValue = document.getElementById('scrape-v-value');
+    if (scrapeVTolSlider && scrapeVTolValue) {
+        scrapeVTolSlider.value = appState.scrapeVerticalTolerance;
+        scrapeVTolValue.textContent = appState.scrapeVerticalTolerance;
+    }
 
     showCSVStatus(`✅ Project "${projectData.projectName}" loaded successfully.`, true);
     
@@ -375,7 +843,13 @@ function restoreStateFromData(projectData) {
 // --- PDF Rendering ---
 async function renderPDFPage(pageNum) {
     if (!appState.pdfDoc) return;
-    
+
+    // FIX: Cancel any pending render task
+    if (appState.pdfRenderTask) {
+        appState.pdfRenderTask.cancel();
+    }
+    // END FIX
+
     const page = await appState.pdfDoc.getPage(pageNum);
     const canvas = document.getElementById('pdf-canvas');
     const context = canvas.getContext('2d');
@@ -389,38 +863,50 @@ async function renderPDFPage(pageNum) {
         canvasContext: context,
         viewport: viewport
     };
-    await page.render(renderContext).promise;
+
+    // FIX: Store and await the new render task
+    appState.pdfRenderTask = page.render(renderContext);
+    try {
+        await appState.pdfRenderTask.promise;
+    } catch (error) {
+        if (error.name !== 'RenderingCancelledException') {
+            console.error("PDF rendering failed:", error);
+        }
+    } finally {
+        appState.pdfRenderTask = null;
+    }
+    // END FIX
     
     const mapContent = document.getElementById('map-content');
     mapContent.style.width = `${viewport.width}px`;
     mapContent.style.height = `${viewport.height}px`;
 }
 
-// --- Sign Type Cycling ---
-function selectNextSignType() {
-    const sortedCodes = Object.keys(appState.signTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+// --- Marker Type Cycling ---
+function selectNextMarkerType() {
+    const sortedCodes = Object.keys(appState.markerTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     if (sortedCodes.length === 0) return;
 
-    let currentIndex = sortedCodes.indexOf(appState.activeSignType);
+    let currentIndex = sortedCodes.indexOf(appState.activeMarkerType);
     currentIndex++;
     if (currentIndex >= sortedCodes.length) {
         currentIndex = 0; // Wrap around
     }
-    appState.activeSignType = sortedCodes[currentIndex];
+    appState.activeMarkerType = sortedCodes[currentIndex];
     updateFilterCheckboxes();
     updateAutomapControls();
 }
 
-function selectPreviousSignType() {
-    const sortedCodes = Object.keys(appState.signTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+function selectPreviousMarkerType() {
+    const sortedCodes = Object.keys(appState.markerTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     if (sortedCodes.length === 0) return;
 
-    let currentIndex = sortedCodes.indexOf(appState.activeSignType);
+    let currentIndex = sortedCodes.indexOf(appState.activeMarkerType);
     currentIndex--;
     if (currentIndex < 0) {
         currentIndex = sortedCodes.length - 1; // Wrap around
     }
-    appState.activeSignType = sortedCodes[currentIndex];
+    appState.activeMarkerType = sortedCodes[currentIndex];
     updateFilterCheckboxes();
     updateAutomapControls();
 }
@@ -477,12 +963,13 @@ function setupEventListeners() {
         });
     }
 
-    const controlsHeader = document.querySelector('#controls-dropdown .controls-header');
-    if (controlsHeader) {
-        controlsHeader.addEventListener('click', () => {
-            document.getElementById('controls-dropdown').classList.toggle('open');
-        });
-    }
+    document.getElementById('controls-btn').addEventListener('click', () => {
+        document.getElementById('controls-modal').style.display = 'block';
+    });
+
+    document.getElementById('close-controls-modal-btn').addEventListener('click', () => {
+        document.getElementById('controls-modal').style.display = 'none';
+    });
 
     const updateCsvInput = document.getElementById('update-csv-input');
     updateCsvInput.addEventListener('change', handleScheduleUpdate);
@@ -493,12 +980,16 @@ function setupEventListeners() {
     document.getElementById('create-pdf-btn').addEventListener('click', createAnnotatedPDF);
     document.getElementById('create-schedule-btn').addEventListener('click', createMessageSchedule);
     document.getElementById('update-from-schedule-btn').addEventListener('click', () => updateCsvInput.click());
-    document.getElementById('add-sign-type-btn').addEventListener('click', addNewSignType);
+    document.getElementById('add-marker-type-btn').addEventListener('click', addNewMarkerType);
     document.getElementById('prev-page').addEventListener('click', prevPage);
     document.getElementById('next-page').addEventListener('click', nextPage);
     document.getElementById('renumber-btn').addEventListener('click', renumberLocations);
     document.getElementById('toggle-messages-btn').addEventListener('click', toggleMessages);
     document.getElementById('toggle-view-btn').addEventListener('click', toggleListView);
+    document.getElementById('all-pages-checkbox').addEventListener('change', (e) => {
+        appState.isAllPagesView = e.target.checked;
+        updateLocationList();
+    });
     document.getElementById('delete-dot-btn').addEventListener('click', deleteDot);
     document.getElementById('cancel-modal-btn').addEventListener('click', closeModal);
     document.getElementById('update-dot-btn').addEventListener('click', updateDot);
@@ -513,9 +1004,6 @@ function setupEventListeners() {
         document.getElementById('ocr-info-modal').style.display = 'none';
     });
 
-    document.getElementById('undo-btn').addEventListener('click', undo);
-    document.getElementById('redo-btn').addEventListener('click', redo);
-
     document.getElementById('disclaimer-agree-btn').addEventListener('click', () => {
         document.getElementById('disclaimer-modal').style.display = 'none';
         try {
@@ -529,6 +1017,12 @@ function setupEventListeners() {
         window.location.href = 'mapping_slayer_landing.html';
     });
 
+    // Scrape tolerance sliders
+    const trainScrapeBtn = document.getElementById('train-scrape-btn');
+    if (trainScrapeBtn) {
+        trainScrapeBtn.addEventListener('click', (e) => toggleTrainingMode(e));
+    }
+
     document.addEventListener('keydown', (e) => { 
         if (isModalOpen()) return;
         const isTyping = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
@@ -537,6 +1031,7 @@ function setupEventListeners() {
             closeModal(); 
             closeGroupModal(); 
             document.getElementById('ocr-info-modal').style.display = 'none';
+            document.getElementById('controls-modal').style.display = 'none';
             clearSelection(); 
             clearSearchHighlights();
             document.getElementById('find-input').value = '';
@@ -554,6 +1049,12 @@ function setupEventListeners() {
             } else if ((e.key === 'y') || (e.key === 'z' && e.shiftKey)) {
                 e.preventDefault();
                 redo();
+            } else if (e.key === 'c') {
+                e.preventDefault();
+                copySelectedDot();
+            } else if (e.key === 'v') {
+                e.preventDefault();
+                pasteDotAtCursor();
             }
         } else if (!isTyping) {
             if (e.key === 'PageDown') {
@@ -564,10 +1065,10 @@ function setupEventListeners() {
                 prevPage();
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                selectNextSignType();
+                selectNextMarkerType();
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                selectPreviousSignType();
+                selectPreviousMarkerType();
             }
         }
     });
@@ -594,16 +1095,19 @@ function handleSaveProject() {
         return;
     }
     const projectDataToSave = {
-        version: '5.0.0', // Add this line
+        version: '5.0.0',
         sourcePdfBuffer: appState.sourcePdfBuffer,
         projectName: document.getElementById('project-name').textContent,
         sourcePdfName: document.getElementById('map-file-name').textContent,
         totalPages: appState.totalPages,
         dotsByPage: serializeDotsByPage(appState.dotsByPage),
-        signTypes: appState.signTypes,
+        markerTypes: appState.markerTypes,
         dotSize: appState.dotSize,
+        nextInternalId: appState.nextInternalId,
         recentSearches: appState.recentSearches,
-        automapExactPhrase: appState.automapExactPhrase
+        automapExactPhrase: appState.automapExactPhrase,
+        scrapeHorizontalTolerance: appState.scrapeHorizontalTolerance,
+        scrapeVerticalTolerance: appState.scrapeVerticalTolerance
         };
     ProjectIO.save(projectDataToSave);
     appState.isDirty = false;
@@ -649,7 +1153,7 @@ async function handleFileSelect(e) {
         restoreStateFromData(result.projectData);
     } else {
         appState.dotsByPage = new Map();
-        initializeNewProjectSignTypes();
+        initializeNewProjectMarkerTypes();
         document.getElementById('map-file-name').textContent = file.name;
         document.getElementById('project-name').textContent = file.name.replace(/\.pdf$/i, '');
         appState.recentSearches = [];
@@ -670,7 +1174,7 @@ async function handleFileSelect(e) {
     document.getElementById('update-from-schedule-btn').disabled = false;
     document.getElementById('single-automap-btn').disabled = false;
     document.getElementById('automap-text-input').disabled = false;
-    document.getElementById('automap-sign-type-select').disabled = false;
+    document.getElementById('automap-marker-type-select').disabled = false;
 
     clearSelection();
     appState.mapTransform = { x: 0, y: 0, scale: 1 };
@@ -689,10 +1193,10 @@ function handleFileDrop(e) {
     }
 }
 
-function initializeNewProjectSignTypes() {
-    appState.signTypes = {};
-    DEFAULT_SIGN_TYPES.forEach(st => {
-        appState.signTypes[st.code] = { 
+function initializeNewProjectMarkerTypes() {
+    appState.markerTypes = {};
+    DEFAULT_MARKER_TYPES.forEach(st => {
+        appState.markerTypes[st.code] = { 
             code: st.code,
             name: st.name,
             color: st.color, 
@@ -700,8 +1204,10 @@ function initializeNewProjectSignTypes() {
             designReference: null 
         };
     });
-    appState.activeSignType = DEFAULT_SIGN_TYPES.length > 0 ? DEFAULT_SIGN_TYPES[0].code : null;
+    appState.activeMarkerType = DEFAULT_MARKER_TYPES.length > 0 ? DEFAULT_MARKER_TYPES[0].code : null;
 }
+
+// Spinner functions are no longer needed and have been removed.
 
 function showCSVStatus(message, isSuccess = true, duration = 5000) {
     const statusDiv = document.getElementById('csv-status');
@@ -779,17 +1285,17 @@ async function automapSingleLocation() {
     }
 
     const textInput = document.getElementById('automap-text-input');
-    const signTypeSelect = document.getElementById('automap-sign-type-select');
+    const markerTypeSelect = document.getElementById('automap-marker-type-select');
     const exactMatchCheckbox = document.getElementById('automap-exact-phrase');
     const searchTerm = textInput.value.trim();
-    const signTypeCode = signTypeSelect.value;
+    const markerTypeCode = markerTypeSelect.value;
 
     if (!searchTerm) {
-        updateAutomapStatus('Please enter a room name to find.', true);
+        updateAutomapStatus('Please enter text to find.', true);
         return;
     }
-    if (!signTypeCode) {
-        updateAutomapStatus('Please select a sign type.', true);
+    if (!markerTypeCode) {
+        updateAutomapStatus('Please select a marker type.', true);
         return;
     }
     
@@ -837,69 +1343,72 @@ async function automapSingleLocation() {
         const searchTermNormalized = searchTerm.replace(/\s+/g, ' ').toLowerCase();
 
         const textItems = textContent.items;
-        const totalItems = textItems.length;
-        const updateInterval = Math.max(1, Math.floor(totalItems / 20)); // Update UI roughly 20 times
+        
+        const formattedTextItems = textItems.map(item => {
+            const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+            return {
+                x: x,
+                y: y,
+                width: item.width * viewport.scale,
+                height: item.height * viewport.scale,
+                text: item.str.trim()
+            };
+        });
 
         if (exactMatchCheckbox.checked) {
             addActivityFeedItem("Mode: Exact Phrase Matching");
-            const lines = groupTextIntoLines(textContent.items);
-            for (const line of lines) {
-                if (isAutomapCancelled) throw new Error("Operation cancelled");
-                const lineText = line.map(item => item.str).join('');
-                addActivityFeedItem(`Checking line: "${lineText.substring(0, 50)}..."`);
+            
+            const matchingItems = formattedTextItems.filter(item => 
+                item.text.toLowerCase().includes(searchTermNormalized)
+            );
+            
+            if (matchingItems.length > 0) {
+                // FIX: Await the result of the async function
+                const clusters = await clusterTextItems(matchingItems);
                 
-                if (lineText.replace(/\s+/g, ' ').toLowerCase().includes(searchTermNormalized)) {
-                    const firstItem = line[0];
-                    const lastItem = line[line.length - 1];
-                    const x0 = firstItem.transform[4];
-                    const x1 = lastItem.transform[4] + lastItem.width;
-                    const y_baseline = firstItem.transform[5];
+                for (const cluster of clusters) {
+                    if (isAutomapCancelled) throw new Error("Operation cancelled");
                     
-                    const [canvasX_start] = viewport.convertToViewportPoint(x0, y_baseline);
-                    const [canvasX_end] = viewport.convertToViewportPoint(x1, y_baseline);
-                    const [, canvasY] = viewport.convertToViewportPoint(0, y_baseline);
-                    
-                    const finalX = (canvasX_start + canvasX_end) / 2;
-                    const finalY = canvasY - (firstItem.height * viewport.scale * 0.8);
-
-                    if (!isCollision(finalX, finalY)) {
-                        dotsToAdd.push({ x: finalX, y: finalY, message: searchTerm });
-                        matchesFound++;
-                        addActivityFeedItem(`Found match: '${searchTerm}'`, 'success');
-                    } else {
-                        addActivityFeedItem(`Collision detected for '${searchTerm}', skipping.`, 'error');
+                    const fullText = cluster.text.toLowerCase();
+                    if (fullText.includes(searchTermNormalized)) {
+                        if (!isCollision(cluster.centerX, cluster.centerY)) {
+                            dotsToAdd.push({ x: cluster.centerX, y: cluster.centerY, message: searchTerm });
+                            matchesFound++;
+                            addActivityFeedItem(`Found match: '${searchTerm}'`, 'success');
+                        } else {
+                            addActivityFeedItem(`Collision detected for '${searchTerm}', skipping.`, 'error');
+                        }
                     }
+                    await sleep(10);
                 }
-                await sleep(10); // Small delay to keep UI responsive
             }
 
-        } else { // Not exact match
+        } else { // Individual word matching
             addActivityFeedItem("Mode: Contains Text Matching");
-            for (let i = 0; i < textItems.length; i++) {
+            
+            const matchingItems = formattedTextItems.filter(item => 
+                item.text.toLowerCase().includes(searchTermNormalized)
+            );
+            
+            // FIX: Await the result of the async function
+            const clusters = await clusterTextItems(matchingItems);
+            
+            for (let i = 0; i < clusters.length; i++) {
                 if (isAutomapCancelled) throw new Error("Operation cancelled");
-                const item = textItems[i];
+                const cluster = clusters[i];
                 
-                if (item.str.toLowerCase().includes(searchTermNormalized)) {
-                    const x_center = item.transform[4] + item.width / 2;
-                    const y_baseline = item.transform[5];
-
-                    const [canvasX, canvasY] = viewport.convertToViewportPoint(x_center, y_baseline);
-                    const finalY = canvasY - (item.height * viewport.scale * 0.8);
-
-                    if (!isCollision(canvasX, finalY)) {
-                        dotsToAdd.push({ x: canvasX, y: finalY, message: item.str.trim() });
-                        matchesFound++;
-                        addActivityFeedItem(`Found match: '${item.str.trim()}'`, 'success');
-                    } else {
-                        addActivityFeedItem(`Collision detected for '${item.str.trim()}', skipping.`, 'error');
-                    }
+                if (!isCollision(cluster.centerX, cluster.centerY)) {
+                    dotsToAdd.push({ x: cluster.centerX, y: cluster.centerY, message: cluster.text });
+                    matchesFound++;
+                    addActivityFeedItem(`Found match: '${cluster.text}'`, 'success');
+                } else {
+                    addActivityFeedItem(`Collision detected for '${cluster.text}', skipping.`, 'error');
                 }
                 
-                if (i % updateInterval === 0) {
-                    const progress = 20 + Math.round((i / totalItems) * 60); // Progress from 20% to 80%
+                if (i % 5 === 0) {
+                    const progress = 20 + Math.round((i / clusters.length) * 60);
                     showAutomapProgress("Finding matches...", progress);
-                    addActivityFeedItem(`Checking: "${item.str}"`);
-                    await sleep(1); // Yield to main thread
+                    await sleep(1);
                 }
             }
         }
@@ -911,7 +1420,7 @@ async function automapSingleLocation() {
 
         if (dotsToAdd.length > 0) {
             dotsToAdd.forEach(dotInfo => {
-                addDot(dotInfo.x, dotInfo.y, signTypeCode, dotInfo.message);
+                addDot(dotInfo.x, dotInfo.y, markerTypeCode, dotInfo.message);
             });
             captureUndoState(`Automap: ${searchTerm}`);
             updateRecentSearches(searchTerm);
@@ -951,13 +1460,14 @@ function isModalOpen() {
            document.getElementById('automap-progress-modal').style.display === 'block' ||
            document.getElementById('save-roomlist-modal').style.display === 'block' ||
            document.getElementById('ocr-info-modal').style.display === 'block' ||
+           document.getElementById('controls-modal').style.display === 'block' ||
            document.getElementById('disclaimer-modal').style.display === 'block';
 }
 
 function deleteSelectedDots() {
     if (appState.selectedDots.size === 0) return;
     
-    appState.selectedDots.forEach(dotId => { getCurrentPageDots().delete(dotId); });
+    appState.selectedDots.forEach(internalId => { getCurrentPageDots().delete(internalId); });
     captureUndoState(`Delete ${appState.selectedDots.size} dots`);
 
     clearSelection(); 
@@ -981,7 +1491,7 @@ function startScrapeBox(e) {
     const rect = document.getElementById('map-container').getBoundingClientRect();
     appState.isScraping = true; appState.scrapeStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     const scrapeBox = document.createElement('div');
-    scrapeBox.className = 'scrape-box';
+    scrapeBox.className = appState.isOCRScraping ? 'scrape-box ocr-scrape' : 'scrape-box';
     Object.assign(scrapeBox.style, { left: `${appState.scrapeStart.x}px`, top: `${appState.scrapeStart.y}px`, width: '0px', height: '0px' });
     document.getElementById('map-container').appendChild(scrapeBox);
     appState.scrapeBox = scrapeBox;
@@ -1052,45 +1562,175 @@ function finishSelectionBox() {
     updateSelectionUI();
 }
 
-async function finishScrape() {
+async function finishOCRScrape() {
     if (!appState.scrapeBox) return;
-    const boxRect = appState.scrapeBox.getBoundingClientRect();
-    const mapRect = document.getElementById('map-container').getBoundingClientRect();
-    const { x: mapX, y: mapY, scale } = appState.mapTransform;
-    const canvasX1 = (boxRect.left - mapRect.left - mapX) / scale; const canvasY1 = (boxRect.top - mapRect.top - mapY) / scale;
-    const canvasX2 = (boxRect.right - mapRect.left - mapX) / scale; const canvasY2 = (boxRect.bottom - mapRect.top - mapY) / scale;
-    const boxLeft = Math.min(canvasX1, canvasX2); const boxTop = Math.min(canvasY1, canvasY2);
-    const boxRight = Math.max(canvasX1, canvasX2); const boxBottom = Math.max(canvasY1, canvasY2);
-    const page = await appState.pdfDoc.getPage(appState.currentPdfPage);
-    const viewport = page.getViewport({ scale: appState.pdfScale });
-    const textContent = await page.getTextContent(); const capturedTextItems = [];
-    for (const item of textContent.items) {
-        const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
-        if (x >= boxLeft && x <= boxRight && y >= boxTop && y <= boxBottom) { capturedTextItems.push(item); }
-    }
-    if (capturedTextItems.length > 0) {
-        capturedTextItems.sort((a, b) => {
-            const yDiff = a.transform[5] - b.transform[5];
-            if (Math.abs(yDiff) < 2) { return a.transform[4] - b.transform[4]; }
-            return yDiff;
+    
+    // Start timer for delayed spinner
+    const spinnerTimeout = setTimeout(() => {
+        showScrapeSpinner("OCR SCANNING...");
+    }, 2000); // Show spinner only if operation takes more than 2 seconds
+    
+    try {
+        // Get scrape box coordinates
+        const boxRect = appState.scrapeBox.getBoundingClientRect();
+        const mapRect = document.getElementById('map-container').getBoundingClientRect();
+        const { x: mapX, y: mapY, scale } = appState.mapTransform;
+        
+        // Convert to canvas coordinates
+        const canvasX1 = (boxRect.left - mapRect.left - mapX) / scale;
+        const canvasY1 = (boxRect.top - mapRect.top - mapY) / scale;
+        const canvasX2 = (boxRect.right - mapRect.left - mapX) / scale;
+        const canvasY2 = (boxRect.bottom - mapRect.top - mapY) / scale;
+        
+        // Create canvas from PDF region
+        const canvas = document.getElementById('pdf-canvas');
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        const width = Math.abs(canvasX2 - canvasX1);
+        const height = Math.abs(canvasY2 - canvasY1);
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        
+        // Extract image data from the scrape region
+        tempCtx.drawImage(canvas, 
+            Math.min(canvasX1, canvasX2), Math.min(canvasY1, canvasY2), width, height,
+            0, 0, width, height
+        );
+        
+        // Run Tesseract OCR
+        const { data: { text } } = await Tesseract.recognize(tempCanvas, 'eng', {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    const progress = Math.round(m.progress * 100);
+                    updateScrapeSpinner(`OCR SCANNING: ${progress}%`);
+                }
+            }
         });
-        const message = capturedTextItems.map(item => item.str).join(' ');
-        const centerX = (boxLeft + boxRight) / 2; const centerY = (boxTop + boxBottom) / 2;
-        if (!isCollision(centerX, centerY)) {
-            addDot(centerX, centerY, appState.activeSignType, message);
-            captureUndoState('Scrape text');
+        
+        // Clean up extracted text
+        const cleanText = text.trim().replace(/\n+/g, ' ').replace(/\s+/g, ' ');
+        
+        if (cleanText.length > 0) {
+            // Create dot with OCR text
+            const centerX = (Math.min(canvasX1, canvasX2) + Math.abs(canvasX2 - canvasX1) / 2);
+            const centerY = (Math.min(canvasY1, canvasY2) + Math.abs(canvasY2 - canvasY1) / 2);
+            
+            if (!isCollision(centerX, centerY)) {
+                addDot(centerX, centerY, appState.activeMarkerType, cleanText);
+                captureUndoState('OCR scrape');
+                showCSVStatus(`✅ OCR found: "${cleanText}"`, true, 5000);
+            } else {
+                showCSVStatus("❌ Collision detected", false, 4000);
+            }
+        } else {
+            showCSVStatus("❌ OCR found no text", false, 4000);
         }
-    } else {
-        showCSVStatus("Live Text Not Found", false);
+        
+        tempCanvas.remove();
+        
+    } catch (error) {
+        console.error('OCR failed:', error);
+        showCSVStatus("❌ OCR processing failed", false, 4000);
+    } finally {
+        // Always clean up
+        clearTimeout(spinnerTimeout);
+        hideScrapeSpinner();
+        if (appState.scrapeBox) {
+            appState.scrapeBox.remove();
+            appState.scrapeBox = null;
+        }
+        document.removeEventListener('contextmenu', preventContextMenu);
     }
-    appState.scrapeBox.remove(); appState.scrapeBox = null;
-    appState.isScraping = false;
-    document.removeEventListener('contextmenu', preventContextMenu);
 }
 
-function selectDot(dotId) {
-    appState.selectedDots.add(dotId);
-    const dotElement = document.querySelector(`.map-dot[data-dot-id="${dotId}"]`);
+async function finishScrape() {
+    if (!appState.scrapeBox) return;
+
+    // Show a persistent "Scraping..." message immediately.
+    showCSVStatus("Scraping, please wait...", true, 20000); // Long duration
+
+    try {
+        // Yield to the event loop to ensure the message above is rendered.
+        await sleep(0);
+
+        const boxRect = appState.scrapeBox.getBoundingClientRect();
+        const mapRect = document.getElementById('map-container').getBoundingClientRect();
+        const { x: mapX, y: mapY, scale } = appState.mapTransform;
+        const canvasX1 = (boxRect.left - mapRect.left - mapX) / scale; const canvasY1 = (boxRect.top - mapRect.top - mapY) / scale;
+        const canvasX2 = (boxRect.right - mapRect.left - mapX) / scale; const canvasY2 = (boxRect.bottom - mapRect.top - mapY) / scale;
+        const boxLeft = Math.min(canvasX1, canvasX2); const boxTop = Math.min(canvasY1, canvasY2);
+        const boxRight = Math.max(canvasX1, canvasX2); const boxBottom = Math.max(canvasY1, canvasY2);
+        
+        const page = await appState.pdfDoc.getPage(appState.currentPdfPage);
+        const viewport = page.getViewport({ scale: appState.pdfScale });
+        const textContent = await page.getTextContent(); 
+        const capturedTextItems = [];
+        
+        for (const item of textContent.items) {
+            const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+            if (x >= boxLeft && x <= boxRight && y >= boxTop && y <= boxBottom) {
+                const text = item.str.trim();
+                if (text.length > 0 && item.height > 0) {
+                    capturedTextItems.push({
+                        x: x, y: y, width: item.width * viewport.scale, height: item.height * viewport.scale, text: text
+                    }); 
+                }
+            }
+        }
+        
+        if (capturedTextItems.length > 0) {
+            // This function is now synchronous again and will block the UI.
+            const clusters = clusterTextItems(capturedTextItems);
+
+            if (clusters.length === 1) {
+                const cluster = clusters[0];
+                const message = cluster.items.map(item => item.text).join(' ').trim();
+                if (!isCollision(cluster.centerX, cluster.centerY)) {
+                    addDot(cluster.centerX, cluster.centerY, appState.activeMarkerType, message);
+                    captureUndoState('Scrape text');
+                    showCSVStatus(`✅ Scraped: "${message}"`, true, 3000);
+                } else {
+                    showCSVStatus("❌ Collision detected", false, 4000);
+                }
+            } else {
+                let dotsPlaced = 0;
+                clusters.forEach(cluster => {
+                    const message = cluster.items.map(item => item.text).join(' ').trim();
+                    if (message.length > 0 && !isCollision(cluster.centerX, cluster.centerY)) {
+                        addDot(cluster.centerX, cluster.centerY, appState.activeMarkerType, message);
+                        dotsPlaced++;
+                    }
+                });
+                
+                if (dotsPlaced > 0) {
+                    captureUndoState('Batch scrape text');
+                    showCSVStatus(`✅ Scraped ${dotsPlaced} locations`, true, 3000);
+                } else if (clusters.length > 0) {
+                    showCSVStatus("❌ No valid locations found (all collided)", false, 4000);
+                } else {
+                    showCSVStatus("❌ No text clusters found in selection", false, 4000);
+                }
+            }
+        } else {
+            showCSVStatus("❌ No Live Text Found", false, 4000);
+        }
+    } catch (error) {
+        console.error("Scrape operation failed:", error);
+        showCSVStatus("❌ An error occurred during scrape.", false, 4000);
+    } finally {
+        if (appState.scrapeBox) {
+            appState.scrapeBox.remove();
+            appState.scrapeBox = null;
+        }
+        appState.isScraping = false;
+        document.removeEventListener('contextmenu', preventContextMenu);
+    }
+}
+
+function selectDot(internalId) {
+    appState.selectedDots.add(internalId);
+    const dotElement = document.querySelector(`.map-dot[data-dot-id="${internalId}"]`);
     if (dotElement) {
         dotElement.classList.add('selected');
         Object.assign(dotElement.style, {
@@ -1101,21 +1741,21 @@ function selectDot(dotId) {
     }
 }
 
-function deselectDot(dotId) {
-    appState.selectedDots.delete(dotId);
-    const dotElement = document.querySelector(`.map-dot[data-dot-id="${dotId}"]`);
+function deselectDot(internalId) {
+    appState.selectedDots.delete(internalId);
+    const dotElement = document.querySelector(`.map-dot[data-dot-id="${internalId}"]`);
     if (dotElement) {
         dotElement.classList.remove('selected');
         Object.assign(dotElement.style, { boxShadow: '', border: '', zIndex: '' });
     }
 }
 
-function toggleDotSelection(dotId) {
-    if (appState.selectedDots.has(dotId)) { deselectDot(dotId); } else { selectDot(dotId); }
+function toggleDotSelection(internalId) {
+    if (appState.selectedDots.has(internalId)) { deselectDot(internalId); } else { selectDot(internalId); }
 }
 
 function clearSelection() {
-    appState.selectedDots.forEach(dotId => { deselectDot(dotId); });
+    appState.selectedDots.forEach(internalId => { deselectDot(internalId); });
     appState.selectedDots.clear();
     document.querySelectorAll('.location-item.selected, .grouped-location-item.selected').forEach(item => {
         item.classList.remove('selected');
@@ -1129,51 +1769,64 @@ function updateSelectionUI() {
 
 function updateListHighlighting() {
     document.querySelectorAll('.location-item, .grouped-location-item').forEach(item => {
-        const dotId = item.dataset.dotId;
-        item.classList.toggle('selected', appState.selectedDots.has(dotId));
+        const internalId = item.dataset.dotId;
+        item.classList.toggle('selected', appState.selectedDots.has(internalId));
     });
 }
 
 function getCurrentPageData() {
     const pageNum = appState.currentPdfPage;
     if (!appState.dotsByPage.has(pageNum)) {
-        appState.dotsByPage.set(pageNum, { dots: new Map(), nextDotNumber: 1 });
+        appState.dotsByPage.set(pageNum, { dots: new Map(), nextLocationNumber: 1 });
     }
     return appState.dotsByPage.get(pageNum);
 }
 
 function getDotsForPage(pageNum) {
     if (!appState.dotsByPage.has(pageNum)) {
-        appState.dotsByPage.set(pageNum, { dots: new Map(), nextDotNumber: 1 });
+        appState.dotsByPage.set(pageNum, { dots: new Map(), nextLocationNumber: 1 });
     }
     return appState.dotsByPage.get(pageNum).dots;
 }
 
 function getCurrentPageDots() { return getDotsForPage(appState.currentPdfPage); }
 
-function addDot(x, y, signTypeCode, message, isCodeRequired = false) {
+function addDot(x, y, markerTypeCode, message, isCodeRequired = false) {
     const pageData = getCurrentPageData();
-    const effectiveSignTypeCode = signTypeCode || appState.activeSignType || Object.keys(appState.signTypes)[0];
-    if (!effectiveSignTypeCode) { 
-        showCSVStatus("Cannot add dot: No sign types exist. Please add one.", false);
+    const effectiveMarkerTypeCode = markerTypeCode || appState.activeMarkerType || Object.keys(appState.markerTypes)[0];
+    if (!effectiveMarkerTypeCode) { 
+        showCSVStatus("Cannot add dot: No marker types exist. Please add one.", false);
         return; 
     }
-    const dotId = String(pageData.nextDotNumber).padStart(4, '0');
     
-    // Create the dot object with all required fields, including the new ones
+    const internalId = String(appState.nextInternalId).padStart(7, '0');
+    
+    // Find the highest location number on this page and add 1
+    let highestLocationNum = 0;
+    for (const dot of pageData.dots.values()) {
+        const num = parseInt(dot.locationNumber, 10);
+        if (!isNaN(num) && num > highestLocationNum) {
+            highestLocationNum = num;
+        }
+    }
+    const locationNumber = String(highestLocationNum + 1).padStart(4, '0');
+    
+    // Create the dot object with all required fields
     const dot = { 
-        id: dotId, 
+        internalId: internalId,
+        locationNumber: locationNumber,
         x, 
         y, 
-        signType: effectiveSignTypeCode, 
+        markerType: effectiveMarkerTypeCode, 
         message: message || 'NEW LOCATION', 
         isCodeRequired: isCodeRequired,
-        notes: '',        // New field: default to empty string
-        installed: false  // New field: default to false
+        notes: '',
+        installed: false
     };
 
-    pageData.dots.set(dotId, dot);
-    pageData.nextDotNumber++;
+    pageData.dots.set(internalId, dot);
+    pageData.nextLocationNumber = highestLocationNum + 2; // Update for next time
+    appState.nextInternalId++;
 
     createDotElement(dot);
     updateAllSectionsForCurrentPage();
@@ -1185,21 +1838,21 @@ function createDotElement(dot) {
     if (!mapContent) return;
     const dotElement = document.createElement('div');
     dotElement.className = 'map-dot';
-    dotElement.dataset.dotId = dot.id;
+    dotElement.dataset.dotId = dot.internalId;
     Object.assign(dotElement.style, { left: `${dot.x}px`, top: `${dot.y}px` });
-    const signTypeInfo = appState.signTypes[dot.signType] || { color: '#ff0000', textColor: '#FFFFFF' };
-    Object.assign(dotElement.style, { backgroundColor: signTypeInfo.color, color: signTypeInfo.textColor });
+    const markerTypeInfo = appState.markerTypes[dot.markerType] || { color: '#ff0000', textColor: '#FFFFFF' };
+    Object.assign(dotElement.style, { backgroundColor: markerTypeInfo.color, color: markerTypeInfo.textColor });
 
     const effectiveMultiplier = appState.dotSize * 2;
     const size = 20 * effectiveMultiplier;
     Object.assign(dotElement.style, { width: `${size}px`, height: `${size}px`, fontSize: `${8 * effectiveMultiplier}px` });
 
-    if (appState.selectedDots.has(dot.id)) { dotElement.classList.add('selected'); }
+    if (appState.selectedDots.has(dot.internalId)) { dotElement.classList.add('selected'); }
     if (dot.isCodeRequired) { dotElement.classList.add('code-required-dot'); }
 
     const messageFontSize = 10 * effectiveMultiplier;
     const dotNumberDecoration = dot.installed ? 'text-decoration: underline;' : '';
-    dotElement.innerHTML = `<span class="dot-number" style="${dotNumberDecoration}">${dot.id}</span><div class="map-dot-message" style="color: ${signTypeInfo.color}; font-size: ${messageFontSize}px;">${dot.message}</div>`;
+    dotElement.innerHTML = `<span class="dot-number" style="${dotNumberDecoration}">${dot.locationNumber}</span><div class="map-dot-message" style="color: ${markerTypeInfo.color}; font-size: ${messageFontSize}px;">${dot.message}</div>`;
 
     if (dot.notes && dot.notes.trim()) {
         dotElement.setAttribute('title', dot.notes);
@@ -1221,15 +1874,15 @@ function handleMapClick(e) {
     
     const dotElement = e.target.closest('.map-dot');
     if (dotElement) {
-    const dotId = dotElement.dataset.dotId;
+    const internalId = dotElement.dataset.dotId;
     if (e.shiftKey) { 
-        toggleDotSelection(dotId); 
+        toggleDotSelection(internalId); 
     } else { 
-        if (appState.selectedDots.has(dotId) && appState.selectedDots.size === 1) {
+        if (appState.selectedDots.has(internalId) && appState.selectedDots.size === 1) {
             clearSelection();
         } else {
             clearSelection(); 
-            selectDot(dotId); 
+            selectDot(internalId); 
         }
     }
     updateSelectionUI(); return;
@@ -1251,17 +1904,26 @@ function handleMapClick(e) {
 
 function handleMapRightClick(e) {
     e.preventDefault(); 
+    
+    // Don't open edit modal if we just finished scraping
+    if (appState.justFinishedScraping) {
+        return;
+    }
+    
     const dotElement = e.target.closest('.map-dot');
     if (dotElement) {
-        const dotId = dotElement.dataset.dotId;
-        if (appState.selectedDots.has(dotId) && appState.selectedDots.size > 1) { openGroupEditModal(); } 
-        else { clearSelection(); selectDot(dotId); updateSelectionUI(); openEditModal(dotId); }
+        const internalId = dotElement.dataset.dotId;
+        if (appState.selectedDots.has(internalId) && appState.selectedDots.size > 1) { openGroupEditModal(); } 
+        else { clearSelection(); selectDot(internalId); updateSelectionUI(); openEditModal(internalId); }
     }
 }
 
 function handleMapMouseDown(e) {
+    console.log('=== MOUSE DOWN DEBUG ===');
+    console.log('Resetting hasMoved to false');
     appState.hasMoved = false;
     appState.dragStart = { x: e.clientX, y: e.clientY };
+    console.log('dragStart set to:', appState.dragStart);
 
     if (e.button === 1) {
         appState.isPanning = true;
@@ -1272,26 +1934,48 @@ function handleMapMouseDown(e) {
     if (e.button === 0) {
         const dotElement = e.target.closest('.map-dot');
         if (dotElement) {
+            console.log('Setting dragTarget to dot:', dotElement.dataset.dotId);
             appState.dragTarget = dotElement;
         } else if (e.shiftKey) {
             e.preventDefault();
             startSelectionBox(e);
         }
-    } else if (e.button === 2 && e.shiftKey) {
+    } else if (e.button === 2 && e.shiftKey) { // Right-click with Shift: Start scrape or training box
         e.preventDefault();
-        startScrapeBox(e);
-        document.addEventListener('contextmenu', preventContextMenu, { once: false });
+        e.stopPropagation();
+        if (appState.isTrainingScrape) {
+            if (!appState.trainingBigBox) {
+                startTrainingBigBox(e);
+            } else {
+                startTrainingSmallBox(e);
+            }
+        } else {
+            if (e.ctrlKey || e.metaKey) {
+                appState.isOCRScraping = true;
+            }
+            startScrapeBox(e);
+        }
+        document.addEventListener('contextmenu', preventContextMenu, { capture: true });
     }
 }
 
 function preventContextMenu(e) {
-    if (appState.isScraping) {
+    if (appState.isScraping || appState.isTrainingScrape) {
         e.preventDefault();
+        e.stopPropagation();
         return false;
     }
 }
 
 function handleMapMouseMove(e) {
+    // Track mouse position for paste functionality
+    const rect = document.getElementById('map-container').getBoundingClientRect();
+    const { x: mapX, y: mapY, scale } = appState.mapTransform;
+    appState.lastMousePosition = {
+        x: (e.clientX - rect.left - mapX) / scale,
+        y: (e.clientY - rect.top - mapY) / scale
+    };
+
     if (appState.isPanning) {
         appState.mapTransform.x += e.clientX - appState.dragStart.x;
         appState.mapTransform.y += e.clientY - appState.dragStart.y;
@@ -1301,24 +1985,38 @@ function handleMapMouseMove(e) {
     }
 
     if (!appState.hasMoved && (Math.abs(e.clientX - appState.dragStart.x) > 3 || Math.abs(e.clientY - appState.dragStart.y) > 3)) {
+        console.log('=== MOVEMENT DETECTED ===');
+        console.log('Setting hasMoved to true');
+        console.log('dragStart:', appState.dragStart);
+        console.log('current:', { x: e.clientX, y: e.clientY });
+        console.log('delta:', { x: Math.abs(e.clientX - appState.dragStart.x), y: Math.abs(e.clientY - appState.dragStart.y) });
         appState.hasMoved = true;
     }
 
     if (!e.buttons) return;
 
     if (appState.dragTarget && appState.hasMoved) {
+        console.log('=== DOT BEING MOVED ===');
+        console.log('dragTarget:', appState.dragTarget.dataset.dotId);
+        console.log('hasMoved:', appState.hasMoved);
+        
         setDirtyState();
         const moveDeltaX = (e.clientX - appState.dragStart.x) / appState.mapTransform.scale;
         const moveDeltaY = (e.clientY - appState.dragStart.y) / appState.mapTransform.scale;
-        const draggedDotId = appState.dragTarget.dataset.dotId;
-        const dotsToMove = appState.selectedDots.has(draggedDotId) && appState.selectedDots.size > 1 ? appState.selectedDots : [draggedDotId];
+        const draggedInternalId = appState.dragTarget.dataset.dotId;
+        const dotsToMove = appState.selectedDots.has(draggedInternalId) && appState.selectedDots.size > 1 ? appState.selectedDots : [draggedInternalId];
 
-        dotsToMove.forEach(dotId => {
-            const dot = getCurrentPageDots().get(dotId);
-            const dotElement = document.querySelector(`.map-dot[data-dot-id="${dotId}"]`);
+        console.log('Moving dots:', Array.from(dotsToMove));
+        console.log('moveDelta:', { x: moveDeltaX, y: moveDeltaY });
+
+        dotsToMove.forEach(internalId => {
+            const dot = getCurrentPageDots().get(internalId);
+            const dotElement = document.querySelector(`.map-dot[data-dot-id="${internalId}"]`);
             if (dot && dotElement) {
+                const oldPos = { x: dot.x, y: dot.y };
                 dot.x += moveDeltaX;
                 dot.y += moveDeltaY;
+                console.log(`Dot ${internalId}: ${oldPos.x},${oldPos.y} -> ${dot.x},${dot.y}`);
                 Object.assign(dotElement.style, { left: `${dot.x}px`, top: `${dot.y}px` });
                 dotElement.classList.add('dragging');
             }
@@ -1327,18 +2025,37 @@ function handleMapMouseMove(e) {
     } else if (appState.isSelecting) {
         updateSelectionBox(e);
     } else if (appState.isScraping) {
-        updateScrapeBox(e);
+        if (appState.isTrainingScrape) {
+            if (!appState.trainingBigBox) {
+                updateTrainingBigBox(e);
+            } else {
+                updateTrainingSmallBox(e);
+            }
+        } else {
+            updateScrapeBox(e);
+        }
     }
 }
 
 function handleMapMouseUp(e) {
+    // Flag to track if we just finished scraping (to prevent edit modal opening)
+    const justFinishedScraping = appState.isScraping;
+    
     if (appState.isPanning) {
         appState.isPanning = false;
         e.currentTarget.style.cursor = 'grab';
     }
     if (appState.dragTarget) {
+        console.log('=== DOT MOVE DEBUG ===');
+        console.log('dragTarget exists:', !!appState.dragTarget);
+        console.log('hasMoved:', appState.hasMoved);
+        console.log('dragTarget dotId:', appState.dragTarget.dataset.dotId);
+        
         if (appState.hasMoved) {
+            console.log('Capturing undo state for dot move');
             captureUndoState('Move dot');
+        } else {
+            console.log('NOT capturing undo - hasMoved is false');
         }
         document.querySelectorAll('.map-dot.dragging').forEach(dot => dot.classList.remove('dragging'));
     }
@@ -1347,9 +2064,29 @@ function handleMapMouseUp(e) {
         appState.isSelecting = false;
     }
     if (appState.isScraping) {
-        finishScrape();
-        appState.isScraping = false;
+    if (appState.isTrainingScrape) {
+        if (!appState.trainingBigBox) {
+            finishTrainingBigBox();
+        } else {
+            finishTrainingSmallBox();
+        }
+    } else {
+        // For async scrapes, we call the function and let its 'finally'
+        // block handle cleanup. The premature cleanup code is removed from here.
+        if (appState.isOCRScraping) {
+            finishOCRScrape();
+            appState.isOCRScraping = false;
+        } else {
+            finishScrape();
+        }
     }
+    
+    // Set flag to prevent edit modal from opening after scrape
+    appState.justFinishedScraping = true;
+    setTimeout(() => {
+        appState.justFinishedScraping = false;
+    }, 100);
+}
     appState.dragTarget = null;
 }
 
@@ -1385,7 +2122,7 @@ function handleFind(e) {
     const findCountEl = document.getElementById('find-count');
     clearSearchHighlights();
     if (!query) { findCountEl.textContent = ''; appState.searchResults = []; appState.currentSearchIndex = -1; return; }
-    appState.searchResults = Array.from(getCurrentPageDots().values()).filter(dot => dot.id.toLowerCase().includes(query) || dot.message.toLowerCase().includes(query));
+    appState.searchResults = Array.from(getCurrentPageDots().values()).filter(dot => dot.locationNumber.toLowerCase().includes(query) || dot.message.toLowerCase().includes(query));
     if (appState.searchResults.length > 0) { appState.currentSearchIndex = 0; updateFindUI(); } 
     else { appState.currentSearchIndex = -1; findCountEl.textContent = '0 found'; }
 }
@@ -1403,21 +2140,21 @@ function updateFindUI() {
     const findCountEl = document.getElementById('find-count');
     if (appState.searchResults.length > 0) {
         const dot = appState.searchResults[appState.currentSearchIndex];
-        const dotElement = document.querySelector(`.map-dot[data-dot-id="${dot.id}"]`);
-        if (dotElement) { dotElement.classList.add('search-highlight'); centerOnDot(dot.id); }
+        const dotElement = document.querySelector(`.map-dot[data-dot-id="${dot.internalId}"]`);
+        if (dotElement) { dotElement.classList.add('search-highlight'); centerOnDot(dot.internalId); }
         findCountEl.textContent = `${appState.currentSearchIndex + 1} of ${appState.searchResults.length} found`;
     } else { findCountEl.textContent = '0 found'; }
 }
 
-function isDotVisible(dotId) {
-    const dotElement = document.querySelector(`.map-dot[data-dot-id="${dotId}"]`); if (!dotElement) return false;
+function isDotVisible(internalId) {
+    const dotElement = document.querySelector(`.map-dot[data-dot-id="${internalId}"]`); if (!dotElement) return false;
     const mapRect = document.getElementById('map-container').getBoundingClientRect();
     const dotRect = dotElement.getBoundingClientRect();
     return !(dotRect.right < mapRect.left || dotRect.left > mapRect.right || dotRect.bottom < mapRect.top || dotRect.top > mapRect.bottom);
 }
 
-function centerOnDot(dotId, zoomLevel = 1.5) {
-    const dot = getCurrentPageDots().get(dotId); if (!dot) return;
+function centerOnDot(internalId, zoomLevel = 1.5) {
+    const dot = getCurrentPageDots().get(internalId); if (!dot) return;
     const containerRect = document.getElementById('map-container').getBoundingClientRect();
     appState.mapTransform.scale = zoomLevel;
     appState.mapTransform.x = (containerRect.width / 2) - (dot.x * zoomLevel);
@@ -1472,36 +2209,38 @@ function updatePageInfo() {
     document.getElementById('next-page').disabled = appState.currentPdfPage >= appState.totalPages;
 }
 
-// --- Sign Type Management ---
+// --- Marker Type Management ---
 function updateFilterCheckboxes() {
     const container = document.getElementById('filter-checkboxes');
-    container.innerHTML = '';
-    const sortedSignTypeCodes = Object.keys(appState.signTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const scrollPosition = container.scrollTop; // Store current scroll position
 
-    if (sortedSignTypeCodes.length === 0) {
-        container.innerHTML = '<div class="empty-state" style="font-size: 12px; padding: 10px;">No sign types exist. Click + to add one.</div>';
+    container.innerHTML = '';
+    const sortedMarkerTypeCodes = Object.keys(appState.markerTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    if (sortedMarkerTypeCodes.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="font-size: 12px; padding: 10px;">No marker types exist. Click + to add one.</div>';
         return;
     }
 
-    sortedSignTypeCodes.forEach(signTypeCode => {
-        const typeData = appState.signTypes[signTypeCode];
-        const count = Array.from(getCurrentPageDots().values()).filter(d => d.signType === signTypeCode).length;
+    sortedMarkerTypeCodes.forEach(markerTypeCode => {
+        const typeData = appState.markerTypes[markerTypeCode];
+        const count = Array.from(getCurrentPageDots().values()).filter(d => d.markerType === markerTypeCode).length;
         
         const item = document.createElement('div');
         item.className = 'filter-checkbox';
-        if (signTypeCode === appState.activeSignType) {
+        if (markerTypeCode === appState.activeMarkerType) {
             item.classList.add('legend-item-active');
         }
         
         item.innerHTML = `
-            <input type="checkbox" data-sign-type-code="${signTypeCode}" checked>
+            <input type="checkbox" data-marker-type-code="${markerTypeCode}" checked>
             <span class="checkbox-label">(${count})</span>
-            <div class="sign-type-inputs">
-                <input type="text" class="sign-type-code-input" placeholder="Enter code..." value="${typeData.code}" data-original-code="${typeData.code}">
-                <input type="text" class="sign-type-name-input" placeholder="Enter name..." value="${typeData.name}" data-original-name="${typeData.name}" data-code="${typeData.code}">
+            <div class="marker-type-inputs">
+                <input type="text" class="marker-type-code-input" placeholder="Enter code..." value="${typeData.code}" data-original-code="${typeData.code}">
+                <input type="text" class="marker-type-name-input" placeholder="Enter name..." value="${typeData.name}" data-original-name="${typeData.name}" data-code="${typeData.code}">
             </div>
             <div class="design-reference-container">
-                <div class="design-reference-square" data-sign-type="${signTypeCode}">
+                <div class="design-reference-square" data-marker-type="${markerTypeCode}">
                     <div class="design-reference-empty" style="display: ${typeData.designReference ? 'none' : 'flex'};">
                         <span class="upload-plus-icon">+</span>
                     </div>
@@ -1510,24 +2249,24 @@ function updateFilterCheckboxes() {
                         <button class="design-reference-delete" type="button">&times;</button>
                     </div>
                 </div>
-                <input type="file" class="design-reference-input" accept="image/jpeg,image/jpg,image/png" style="display: none;" data-sign-type="${signTypeCode}">
+                <input type="file" class="design-reference-input" accept="image/jpeg,image/jpg,image/png" style="display: none;" data-marker-type="${markerTypeCode}">
             </div>
-            <div class="sign-type-controls">
-                <div class="color-picker-wrapper" data-sign-type-code="${signTypeCode}" data-color-type="dot"></div>
-                <div class="color-picker-wrapper" data-sign-type-code="${signTypeCode}" data-color-type="text"></div>
-                <button class="delete-sign-type-btn" data-sign-type-code="${signTypeCode}">×</button>
+            <div class="marker-type-controls">
+                <div class="color-picker-wrapper" data-marker-type-code="${markerTypeCode}" data-color-type="dot"></div>
+                <div class="color-picker-wrapper" data-marker-type-code="${markerTypeCode}" data-color-type="text"></div>
+                <button class="delete-marker-type-btn" data-marker-type-code="${markerTypeCode}">×</button>
             </div>
 `;
         container.appendChild(item);
         
-        setupDesignReferenceHandlers(item, signTypeCode);
+        setupDesignReferenceHandlers(item, markerTypeCode);
         
-        const codeInput = item.querySelector('.sign-type-code-input');
+        const codeInput = item.querySelector('.marker-type-code-input');
         codeInput.classList.add('dynamic-input');
         codeInput.style.flex = '0 0 auto';
         codeInput.style.minWidth = '5px';
 
-        const nameInput = item.querySelector('.sign-type-name-input');
+        const nameInput = item.querySelector('.marker-type-name-input');
         nameInput.style.flex = '1 1 30px';
         nameInput.style.minWidth = '30px';
 
@@ -1537,31 +2276,33 @@ function updateFilterCheckboxes() {
         codeInput.addEventListener('blur', () => resizeInput(codeInput));
         
         item.addEventListener('click', (e) => {
-            if (e.target.closest('input, .pcr-app, .color-picker-wrapper, .delete-sign-type-btn, .design-reference-square')) return;
+            if (e.target.closest('input, .pcr-app, .color-picker-wrapper, .delete-marker-type-btn, .design-reference-square')) return;
             e.preventDefault();
-            appState.activeSignType = signTypeCode;
+            appState.activeMarkerType = markerTypeCode;
             updateFilterCheckboxes();
         });
 
         item.querySelector('input[type="checkbox"]').addEventListener('change', applyFilters);
 
-        const codeInputEvents = item.querySelector('.sign-type-code-input');
-        codeInputEvents.addEventListener('change', (e) => handleSignTypeCodeChange(e.target));
+        const codeInputEvents = item.querySelector('.marker-type-code-input');
+        codeInputEvents.addEventListener('change', (e) => handleMarkerTypeCodeChange(e.target));
         codeInputEvents.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
         codeInputEvents.addEventListener('input', (e) => {
             e.target.style.color = e.target.value.trim() ? 'white' : '#ccc';
         });
 
-        const nameInputEvents = item.querySelector('.sign-type-name-input');
-        nameInputEvents.addEventListener('change', (e) => handleSignTypeNameChange(e.target));
+        const nameInputEvents = item.querySelector('.marker-type-name-input');
+        nameInputEvents.addEventListener('change', (e) => handleMarkerTypeNameChange(e.target));
         nameInputEvents.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
         nameInputEvents.addEventListener('input', (e) => {
             e.target.style.color = e.target.value.trim() ? 'white' : '#aaa';
         });
 
-        item.querySelector('.delete-sign-type-btn').addEventListener('click', () => deleteSignType(signTypeCode));
-        initializeColorPickers(item, signTypeCode, typeData);
+        item.querySelector('.delete-marker-type-btn').addEventListener('click', () => deleteMarkerType(markerTypeCode));
+        initializeColorPickers(item, markerTypeCode, typeData);
     });
+
+    container.scrollTop = scrollPosition; // Restore the scroll position
 }
 
 function resizeInput(input) {
@@ -1579,7 +2320,7 @@ function resizeInput(input) {
     document.body.removeChild(temp);
 }
 
-function initializeColorPickers(item, signTypeCode, typeData) {
+function initializeColorPickers(item, markerTypeCode, typeData) {
     item.querySelectorAll('.color-picker-wrapper').forEach(wrapper => {
         const colorType = wrapper.dataset.colorType;
         const initialColor = (colorType === 'dot') ? typeData.color : typeData.textColor;
@@ -1593,8 +2334,8 @@ function initializeColorPickers(item, signTypeCode, typeData) {
         pickr.on('change', (color) => { wrapper.style.backgroundColor = color.toHEXA().toString(); });
         pickr.on('save', (color) => {
             const newColor = color.toHEXA().toString();
-            if (colorType === 'dot') { appState.signTypes[signTypeCode].color = newColor; } 
-            else { appState.signTypes[signTypeCode].textColor = newColor; }
+            if (colorType === 'dot') { appState.markerTypes[markerTypeCode].color = newColor; } 
+            else { appState.markerTypes[markerTypeCode].textColor = newColor; }
             wrapper.style.backgroundColor = newColor;
             setDirtyState();
             updateAllSectionsForCurrentPage();
@@ -1602,44 +2343,44 @@ function initializeColorPickers(item, signTypeCode, typeData) {
             pickr.hide();
         });
         pickr.on('hide', () => {
-            const currentColor = (colorType === 'dot') ? appState.signTypes[signTypeCode].color : appState.signTypes[signTypeCode].textColor;
+            const currentColor = (colorType === 'dot') ? appState.markerTypes[markerTypeCode].color : appState.markerTypes[markerTypeCode].textColor;
             wrapper.style.backgroundColor = currentColor;
         });
     });
 }
 
-function handleSignTypeCodeChange(inputElement) {
+function handleMarkerTypeCodeChange(inputElement) {
     const originalCode = inputElement.dataset.originalCode;
     const newCode = inputElement.value.trim();
 
     if (newCode === originalCode) return;
 
     if (!newCode) {
-        showCSVStatus("Sign type code cannot be empty.", false);
+        showCSVStatus("Marker type code cannot be empty.", false);
         inputElement.value = originalCode;
         return;
     }
-    if (appState.signTypes[newCode]) {
-        showCSVStatus(`Sign type code "${newCode}" already exists.`, false);
+    if (appState.markerTypes[newCode]) {
+        showCSVStatus(`Marker type code "${newCode}" already exists.`, false);
         inputElement.value = originalCode;
         return;
     }
 
-    const typeData = appState.signTypes[originalCode];
-    delete appState.signTypes[originalCode];
+    const typeData = appState.markerTypes[originalCode];
+    delete appState.markerTypes[originalCode];
     typeData.code = newCode;
-    appState.signTypes[newCode] = typeData;
+    appState.markerTypes[newCode] = typeData;
 
     for (const pageData of appState.dotsByPage.values()) {
         for (const dot of pageData.dots.values()) {
-            if (dot.signType === originalCode) {
-                dot.signType = newCode;
+            if (dot.markerType === originalCode) {
+                dot.markerType = newCode;
             }
         }
     }
     
-    if (appState.activeSignType === originalCode) {
-        appState.activeSignType = newCode;
+    if (appState.activeMarkerType === originalCode) {
+        appState.activeMarkerType = newCode;
     }
 
     setDirtyState();
@@ -1648,15 +2389,15 @@ function handleSignTypeCodeChange(inputElement) {
     showCSVStatus(`Renamed code "${originalCode}" to "${newCode}".`, true);
 }
 
-function handleSignTypeNameChange(inputElement) {
+function handleMarkerTypeNameChange(inputElement) {
     const code = inputElement.dataset.code;
     const originalName = inputElement.dataset.originalName;
     const newName = inputElement.value.trim();
 
     if (newName === originalName) return;
 
-    if (appState.signTypes[code]) {
-        appState.signTypes[code].name = newName;
+    if (appState.markerTypes[code]) {
+        appState.markerTypes[code].name = newName;
         setDirtyState();
         updateAllSectionsForCurrentPage();
         updateAutomapControls(); // Add this line to update the automap dropdown
@@ -1664,21 +2405,21 @@ function handleSignTypeNameChange(inputElement) {
     }
 }
 
-function addNewSignType() {
+function addNewMarkerType() {
     let newCode = "NEW";
     let counter = 1;
-    while (appState.signTypes[newCode]) {
+    while (appState.markerTypes[newCode]) {
         newCode = `NEW-${counter++}`;
     }
 
-    appState.signTypes[newCode] = { 
+    appState.markerTypes[newCode] = { 
         code: newCode, 
-        name: 'New Sign Type', 
+        name: 'New Marker Type', 
         color: '#808080', 
         textColor: '#FFFFFF', 
         designReference: null 
     };
-    appState.activeSignType = newCode;
+    appState.activeMarkerType = newCode;
 
     setDirtyState();
     updateAllSectionsForCurrentPage();
@@ -1686,7 +2427,7 @@ function addNewSignType() {
     
     setTimeout(() => {
         const container = document.getElementById('filter-checkboxes');
-        const newInput = container.querySelector(`.sign-type-code-input[value="${newCode}"]`);
+        const newInput = container.querySelector(`.marker-type-code-input[value="${newCode}"]`);
         if (newInput) {
             newInput.focus();
             newInput.select();
@@ -1694,11 +2435,11 @@ function addNewSignType() {
     }, 100);
 }
 
-function deleteSignType(signTypeCode) {
+function deleteMarkerType(markerTypeCode) {
     let dotsUsingType = 0;
     for (const pageData of appState.dotsByPage.values()) {
         for (const dot of pageData.dots.values()) {
-            if (dot.signType === signTypeCode) {
+            if (dot.markerType === markerTypeCode) {
                 dotsUsingType++;
             }
         }
@@ -1708,7 +2449,7 @@ function deleteSignType(signTypeCode) {
         for (const pageData of appState.dotsByPage.values()) {
             const dotsToDelete = [];
             for (const [dotId, dot] of pageData.dots.entries()) {
-                if (dot.signType === signTypeCode) {
+                if (dot.markerType === markerTypeCode) {
                     dotsToDelete.push(dotId);
                 }
             }
@@ -1716,22 +2457,22 @@ function deleteSignType(signTypeCode) {
         }
     }
 
-    delete appState.signTypes[signTypeCode];
+    delete appState.markerTypes[markerTypeCode];
 
-    if (appState.activeSignType === signTypeCode) {
-        const remainingTypes = Object.keys(appState.signTypes);
-        appState.activeSignType = remainingTypes.length > 0 ? remainingTypes[0] : null;
+    if (appState.activeMarkerType === markerTypeCode) {
+        const remainingTypes = Object.keys(appState.markerTypes);
+        appState.activeMarkerType = remainingTypes.length > 0 ? remainingTypes[0] : null;
     }
 
-    captureUndoState(`Delete sign type "${signTypeCode}"`);
+    captureUndoState(`Delete marker type "${markerTypeCode}"`);
     setDirtyState();
     renderDotsForCurrentPage();
     updateAllSectionsForCurrentPage();
-    showCSVStatus(`Deleted sign type "${signTypeCode}" and ${dotsUsingType} associated dots.`, true);
+    showCSVStatus(`Deleted marker type "${markerTypeCode}" and ${dotsUsingType} associated dots.`, true);
 }
 
 
-function setupDesignReferenceHandlers(item, signType) {
+function setupDesignReferenceHandlers(item, markerType) {
     const square = item.querySelector('.design-reference-square');
     const fileInput = item.querySelector('.design-reference-input');
     const deleteBtn = item.querySelector('.design-reference-delete');
@@ -1745,7 +2486,7 @@ function setupDesignReferenceHandlers(item, signType) {
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
-            handleDesignReferenceUpload(file, signType);
+            handleDesignReferenceUpload(file, markerType);
         }
         e.target.value = null; // Reset input
     });
@@ -1753,21 +2494,21 @@ function setupDesignReferenceHandlers(item, signType) {
     if (deleteBtn) {
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (confirm(`Are you sure you want to delete the design reference for ${signType}?`)) {
-                handleDesignReferenceDelete(signType);
+            if (confirm(`Are you sure you want to delete the design reference for ${markerType}?`)) {
+                handleDesignReferenceDelete(markerType);
             }
         });
     }
 
-    square.addEventListener('mouseenter', e => showDesignReferencePreview(e, signType));
+    square.addEventListener('mouseenter', e => showDesignReferencePreview(e, markerType));
     square.addEventListener('mouseleave', hideDesignReferencePreview);
 }
 
-async function handleDesignReferenceUpload(file, signType) {
+async function handleDesignReferenceUpload(file, markerType) {
     try {
         const dataUrl = await resizeImage(file, 200, 200, 0.8);
-        appState.signTypes[signType].designReference = dataUrl;
-        captureUndoState(`Upload design ref for ${signType}`);
+        appState.markerTypes[markerType].designReference = dataUrl;
+        captureUndoState(`Upload design ref for ${markerType}`);
         setDirtyState();
         updateFilterCheckboxes();
     } catch (error) {
@@ -1776,9 +2517,9 @@ async function handleDesignReferenceUpload(file, signType) {
     }
 }
 
-function handleDesignReferenceDelete(signType) {
-    appState.signTypes[signType].designReference = null;
-    captureUndoState(`Delete design ref for ${signType}`);
+function handleDesignReferenceDelete(markerType) {
+    appState.markerTypes[markerType].designReference = null;
+    captureUndoState(`Delete design ref for ${markerType}`);
     setDirtyState();
     updateFilterCheckboxes();
 }
@@ -1818,8 +2559,8 @@ function resizeImage(file, maxWidth, maxHeight, quality) {
     });
 }
 
-function showDesignReferencePreview(e, signType) {
-    const typeData = appState.signTypes[signType];
+function showDesignReferencePreview(e, markerType) {
+    const typeData = appState.markerTypes[markerType];
     if (!typeData || !typeData.designReference) return;
     
     clearTimeout(previewTimeout);
@@ -1858,20 +2599,20 @@ function hideDesignReferencePreview() {
 function updateMapLegend() {
     const legend = document.getElementById('map-legend');
     const content = document.getElementById('map-legend-content');
-    const usedSignTypeCodes = new Set(Array.from(getCurrentPageDots().values()).map(d => d.signType));
+    const usedMarkerTypeCodes = new Set(Array.from(getCurrentPageDots().values()).map(d => d.markerType));
     
     legend.classList.toggle('collapsed', appState.pageLegendCollapsed);
 
-    if (usedSignTypeCodes.size === 0) {
+    if (usedMarkerTypeCodes.size === 0) {
         legend.classList.remove('visible');
         return;
     }
     legend.classList.add('visible');
     content.innerHTML = '';
-    const sortedSignTypeCodes = Array.from(usedSignTypeCodes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    sortedSignTypeCodes.forEach(code => {
-        const typeData = appState.signTypes[code];
-        const count = Array.from(getCurrentPageDots().values()).filter(d => d.signType === code).length;
+    const sortedMarkerTypeCodes = Array.from(usedMarkerTypeCodes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    sortedMarkerTypeCodes.forEach(code => {
+        const typeData = appState.markerTypes[code];
+        const count = Array.from(getCurrentPageDots().values()).filter(d => d.markerType === code).length;
         const item = document.createElement('div');
         item.className = 'map-legend-item';
         item.innerHTML = `<div class="map-legend-dot" style="background-color: ${typeData.color};"></div><span class="map-legend-text">${typeData.code} - ${typeData.name}</span><span class="map-legend-count">${count}</span>`;
@@ -1887,7 +2628,7 @@ function updateProjectLegend() {
     const projectCounts = new Map();
     for (const pageData of appState.dotsByPage.values()) {
         for (const dot of pageData.dots.values()) {
-            projectCounts.set(dot.signType, (projectCounts.get(dot.signType) || 0) + 1);
+            projectCounts.set(dot.markerType, (projectCounts.get(dot.markerType) || 0) + 1);
         }
     }
 
@@ -1901,10 +2642,10 @@ function updateProjectLegend() {
     legend.classList.add('visible');
     content.innerHTML = '';
 
-    const sortedSignTypeCodes = Array.from(projectCounts.keys()).sort((a,b) => a.localeCompare(b, undefined, { numeric: true }));
+    const sortedMarkerTypeCodes = Array.from(projectCounts.keys()).sort((a,b) => a.localeCompare(b, undefined, { numeric: true }));
 
-    sortedSignTypeCodes.forEach(code => {
-        const typeData = appState.signTypes[code];
+    sortedMarkerTypeCodes.forEach(code => {
+        const typeData = appState.markerTypes[code];
         const count = projectCounts.get(code);
         const item = document.createElement('div');
         item.className = 'map-legend-item';
@@ -1915,61 +2656,111 @@ function updateProjectLegend() {
 
 function getActiveFilters() {
     const container = document.getElementById('filter-checkboxes');
-    return container.hasChildNodes() ? Array.from(container.querySelectorAll('input:checked')).map(cb => cb.dataset.signTypeCode) : [];
+    return container.hasChildNodes() ? Array.from(container.querySelectorAll('input:checked')).map(cb => cb.dataset.markerTypeCode) : [];
 }
 
 function applyFilters() {
     const activeFilters = getActiveFilters();
     document.querySelectorAll('.map-dot').forEach(dotElement => {
         const dot = getCurrentPageDots().get(dotElement.dataset.dotId);
-        dotElement.style.display = dot && activeFilters.includes(dot.signType) ? 'flex' : 'none';
+        dotElement.style.display = dot && activeFilters.includes(dot.markerType) ? 'flex' : 'none';
     });
     updateLocationList(); updateMapLegend();
 }
 
 function updateLocationList() {
-    const container = document.getElementById('location-list'); container.innerHTML = '';
+    const container = document.getElementById('location-list');
+    container.innerHTML = '';
     const listWrapper = document.getElementById('list-with-renumber');
     const emptyState = document.getElementById('empty-state');
     const activeFilters = getActiveFilters();
-    const allDots = Array.from(getCurrentPageDots().values()).filter(dot => activeFilters.includes(dot.signType));
+    let allDots = [];
+
+    if (appState.isAllPagesView) {
+        // Collect dots from all pages
+        for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+            const dotsOnPage = Array.from(getDotsForPage(pageNum).values());
+            const visibleDots = dotsOnPage
+                .filter(dot => activeFilters.includes(dot.markerType))
+                .map(dot => ({ ...dot, page: pageNum })); // Add page number to each dot
+            allDots.push(...visibleDots);
+        }
+    } else {
+        // Collect dots from the current page only
+        allDots = Array.from(getCurrentPageDots().values()).filter(dot => activeFilters.includes(dot.markerType));
+    }
+
     if (allDots.length === 0) {
-        listWrapper.style.display = 'none'; emptyState.style.display = 'block';
-        emptyState.textContent = getCurrentPageDots().size > 0 ? 'No dots match the current filter.' : 'Click on the map to add your first location dot.';
+        listWrapper.style.display = 'none';
+        emptyState.style.display = 'block';
+        if (appState.isAllPagesView) {
+            emptyState.textContent = 'No dots match the current filter across all pages.';
+        } else {
+            emptyState.textContent = getCurrentPageDots().size > 0 ? 'No dots match the current filter.' : 'Click on the map to add your first location dot.';
+        }
         return;
     }
-    emptyState.style.display = 'none'; listWrapper.style.display = 'block';
-    document.getElementById('toggle-view-btn').textContent = appState.listViewMode === 'flat' ? 'SIGN TYPE' : 'FULL LIST';
-    if (appState.listViewMode === 'grouped') { renderGroupedLocationList(allDots, container); } else { renderFlatLocationList(allDots, container); }
+
+    emptyState.style.display = 'none';
+    listWrapper.style.display = 'block';
+    document.getElementById('toggle-view-btn').textContent = appState.listViewMode === 'flat' ? 'CHANGE TO MARKER TYPE' : 'CHANGE TO FULL LIST';
+    
+    if (appState.listViewMode === 'grouped') {
+        renderGroupedLocationList(allDots, container);
+    } else {
+        renderFlatLocationList(allDots, container);
+    }
 }
 
 function renderFlatLocationList(allDots, container) {
     allDots.sort((a, b) => {
-        const aSelected = appState.selectedDots.has(a.id); const bSelected = appState.selectedDots.has(b.id);
-        if (aSelected && !bSelected) return -1; if (!aSelected && bSelected) return 1;
-        return a.id.localeCompare(b.id);
+        const aSelected = appState.selectedDots.has(a.internalId);
+        const bSelected = appState.selectedDots.has(b.internalId);
+        if (aSelected && !bSelected) return -1;
+        if (!aSelected && bSelected) return 1;
+        // Primary sort by page number if in all pages view
+        if (appState.isAllPagesView && a.page !== b.page) {
+            return a.page - b.page;
+        }
+        return a.locationNumber.localeCompare(b.locationNumber);
     }).forEach(dot => {
-        const typeData = appState.signTypes[dot.signType];
+        const typeData = appState.markerTypes[dot.markerType];
         const item = document.createElement('div');
-        item.className = 'location-item'; item.dataset.dotId = dot.id;
-        if (appState.selectedDots.has(dot.id)) { item.classList.add('selected'); }
-        
-        const badgeClass = dot.isCodeRequired ? 'sign-type-badge code-required-badge' : 'sign-type-badge';
-        const badgeText = `${typeData.code} - ${typeData.name}`;
+        item.className = 'location-item';
+        item.dataset.dotId = dot.internalId;
+        // Add page data to the item for the click handler
+        if (dot.page) {
+            item.dataset.dotPage = dot.page;
+        }
+        if (appState.selectedDots.has(dot.internalId)) {
+            item.classList.add('selected');
+        }
 
-        item.innerHTML = `<div class="location-header"><span class="location-number">${dot.id}</span><input type="text" class="location-message-input" value="${dot.message}" data-dot-id="${dot.id}"><span class="${badgeClass}" style="background-color:${typeData.color}; color: ${typeData.textColor};" title="${badgeText}">${badgeText}</span></div>`;
+        const badgeClass = dot.isCodeRequired ? 'marker-type-badge code-required-badge' : 'marker-type-badge';
+        const badgeText = `${typeData.code} - ${typeData.name}`;
+        const pagePrefix = appState.isAllPagesView ? `(P${dot.page}) ` : '';
+
+        item.innerHTML = `<div class="location-header"><span class="location-number">${pagePrefix}${dot.locationNumber}</span><input type="text" class="location-message-input" value="${dot.message}" data-dot-id="${dot.internalId}"><span class="${badgeClass}" style="background-color:${typeData.color}; color: ${typeData.textColor};" title="${badgeText}">${badgeText}</span></div>`;
         container.appendChild(item);
 
-        item.addEventListener('click', (e) => {
-            if (!isDotVisible(dot.id)) centerOnDot(dot.id);
-            if (e.shiftKey) { 
-                toggleDotSelection(dot.id); 
-            } else { 
-                if (appState.selectedDots.has(dot.id) && appState.selectedDots.size === 1) {
+        item.addEventListener('click', async (e) => {
+            const dotPage = e.currentTarget.dataset.dotPage ? parseInt(e.currentTarget.dataset.dotPage, 10) : appState.currentPdfPage;
+            if (dotPage !== appState.currentPdfPage) {
+                await changePage(dotPage);
+            }
+
+            if (!isDotVisible(dot.internalId)) {
+                centerOnDot(dot.internalId);
+            }
+
+            if (e.shiftKey) {
+                toggleDotSelection(dot.internalId);
+            } else {
+                if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
                     clearSelection();
                 } else {
-                    clearSelection(); 
-                    selectDot(dot.id); 
+                    clearSelection();
+                    selectDot(dot.internalId);
                 }
             }
             updateSelectionUI();
@@ -1983,19 +2774,23 @@ function renderFlatLocationList(allDots, container) {
         });
 
         messageInput.addEventListener('input', (e) => {
-            dot.message = e.target.value;
-            setDirtyState();
-            renderDotsForCurrentPage(); 
-        });
-        
-        messageInput.addEventListener('change', (e) => {
-            if (dot.message !== originalMessage) {
-                 captureUndoState('Edit message');
+            // Find the correct dot to update, even across pages
+            const dotToUpdate = getDotsForPage(dot.page || appState.currentPdfPage).get(dot.internalId);
+            if (dotToUpdate) {
+                dotToUpdate.message = e.target.value;
+                setDirtyState();
+                renderDotsForCurrentPage();
             }
         });
-        
+
+        messageInput.addEventListener('change', (e) => {
+            if (dot.message !== originalMessage) {
+                captureUndoState('Edit message');
+            }
+        });
+
         messageInput.addEventListener('click', (e) => {
-            e.stopPropagation(); 
+            e.stopPropagation();
         });
 
         messageInput.addEventListener('keydown', (e) => {
@@ -2004,11 +2799,22 @@ function renderFlatLocationList(allDots, container) {
                 e.target.blur();
             }
         });
-        
-        item.addEventListener('contextmenu', (e) => {
-            e.preventDefault(); if (!isDotVisible(dot.id)) centerOnDot(dot.id);
-            if (appState.selectedDots.has(dot.id) && appState.selectedDots.size > 1) { openGroupEditModal(); } 
-            else { clearSelection(); selectDot(dot.id); updateSelectionUI(); openEditModal(dot.id); }
+
+        item.addEventListener('contextmenu', async (e) => {
+            e.preventDefault();
+            const dotPage = e.currentTarget.dataset.dotPage ? parseInt(e.currentTarget.dataset.dotPage, 10) : appState.currentPdfPage;
+            if (dotPage !== appState.currentPdfPage) {
+                await changePage(dotPage);
+            }
+            if (!isDotVisible(dot.internalId)) centerOnDot(dot.internalId);
+            if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size > 1) {
+                openGroupEditModal();
+            } else {
+                clearSelection();
+                selectDot(dot.internalId);
+                updateSelectionUI();
+                openEditModal(dot.internalId);
+            }
         });
     });
 }
@@ -2016,52 +2822,85 @@ function renderFlatLocationList(allDots, container) {
 function renderGroupedLocationList(allDots, container) {
     const groupedDots = {};
     allDots.forEach(dot => {
-        if (!groupedDots[dot.signType]) groupedDots[dot.signType] = [];
-        groupedDots[dot.signType].push(dot);
+        if (!groupedDots[dot.markerType]) groupedDots[dot.markerType] = [];
+        groupedDots[dot.markerType].push(dot);
     });
-    const sortedSignTypeCodes = Object.keys(groupedDots).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    sortedSignTypeCodes.forEach(signTypeCode => {
-        const dots = groupedDots[signTypeCode]; 
-        const typeData = appState.signTypes[signTypeCode];
-        const isExpanded = appState.expandedSignTypes.has(signTypeCode);
+
+    const sortedMarkerTypeCodes = Object.keys(groupedDots).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    sortedMarkerTypeCodes.forEach(markerTypeCode => {
+        const dots = groupedDots[markerTypeCode];
+        const typeData = appState.markerTypes[markerTypeCode];
+        const isExpanded = appState.expandedMarkerTypes.has(markerTypeCode);
         const category = document.createElement('div');
-        category.className = 'sign-type-category'; category.style.borderLeftColor = typeData.color;
+        category.className = 'marker-type-category';
+        category.style.borderLeftColor = typeData.color;
         const displayName = `${typeData.code} - ${typeData.name}`;
         category.innerHTML = `
-            <div class="sign-type-category-header"><div class="sign-type-category-title"><span class="expand-icon ${isExpanded ? 'expanded' : ''}">▶</span>${displayName}</div><span class="sign-type-category-count">${dots.length}</span></div>
-            <div class="sign-type-items ${isExpanded ? 'expanded' : ''}" id="items-${signTypeCode.replace(/[^a-zA-Z0-9]/g, '-')}"></div>
+            <div class="marker-type-category-header">
+                <div class="marker-type-category-title"><span class="expand-icon ${isExpanded ? 'expanded' : ''}">▶</span>${displayName}</div>
+                <span class="marker-type-category-count">${dots.length}</span>
+            </div>
+            <div class="marker-type-items ${isExpanded ? 'expanded' : ''}" id="items-${markerTypeCode.replace(/[^a-zA-Z0-9]/g, '-')}"></div>
         `;
         container.appendChild(category);
-        category.querySelector('.sign-type-category-header').addEventListener('click', () => toggleSignTypeExpansion(signTypeCode));
-        const itemsContainer = category.querySelector('.sign-type-items');
-        dots.sort((a, b) => a.id.localeCompare(b.id)).forEach(dot => {
-            const item = document.createElement('div');
-            item.className = 'grouped-location-item'; item.dataset.dotId = dot.id;
-            if (appState.selectedDots.has(dot.id)) { item.classList.add('selected'); }
-            
-            const badgeClass = dot.isCodeRequired ? 'sign-type-badge code-required-badge' : 'sign-type-badge';
+        category.querySelector('.marker-type-category-header').addEventListener('click', () => toggleMarkerTypeExpansion(markerTypeCode));
 
-            item.innerHTML = `<div class="grouped-location-header"><span class="location-number">${dot.id}</span><span class="location-message">${dot.message}</span></div>`;
+        const itemsContainer = category.querySelector('.marker-type-items');
+        dots.sort((a, b) => {
+            if (appState.isAllPagesView && a.page !== b.page) {
+                return a.page - b.page;
+            }
+            return a.locationNumber.localeCompare(b.locationNumber);
+        }).forEach(dot => {
+            const item = document.createElement('div');
+            item.className = 'grouped-location-item';
+            item.dataset.dotId = dot.internalId;
+            if (dot.page) {
+                item.dataset.dotPage = dot.page;
+            }
+            if (appState.selectedDots.has(dot.internalId)) {
+                item.classList.add('selected');
+            }
+
+            const pagePrefix = appState.isAllPagesView ? `(P${dot.page}) ` : '';
+            item.innerHTML = `<div class="grouped-location-header"><span class="location-number">${pagePrefix}${dot.locationNumber}</span><span class="location-message">${dot.message}</span></div>`;
             itemsContainer.appendChild(item);
 
-            item.addEventListener('click', (e) => {
-                if (!isDotVisible(dot.id)) centerOnDot(dot.id);
-                if (e.shiftKey) { 
-                    toggleDotSelection(dot.id); 
-                } else { 
-                    if (appState.selectedDots.has(dot.id) && appState.selectedDots.size === 1) {
+            item.addEventListener('click', async (e) => {
+                const dotPage = e.currentTarget.dataset.dotPage ? parseInt(e.currentTarget.dataset.dotPage, 10) : appState.currentPdfPage;
+                if (dotPage !== appState.currentPdfPage) {
+                    await changePage(dotPage);
+                }
+                if (!isDotVisible(dot.internalId)) centerOnDot(dot.internalId);
+                if (e.shiftKey) {
+                    toggleDotSelection(dot.internalId);
+                } else {
+                    if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
                         clearSelection();
                     } else {
-                        clearSelection(); 
-                        selectDot(dot.id); 
+                        clearSelection();
+                        selectDot(dot.internalId);
                     }
                 }
                 updateSelectionUI();
             });
-            item.addEventListener('contextmenu', (e) => {
-                e.preventDefault(); if (!isDotVisible(dot.id)) centerOnDot(dot.id);
-                if (appState.selectedDots.has(dot.id) && appState.selectedDots.size > 1) { openGroupEditModal(); } 
-                else { clearSelection(); selectDot(dot.id); updateSelectionUI(); openEditModal(dot.id); }
+
+            item.addEventListener('contextmenu', async (e) => {
+                e.preventDefault();
+                const dotPage = e.currentTarget.dataset.dotPage ? parseInt(e.currentTarget.dataset.dotPage, 10) : appState.currentPdfPage;
+                if (dotPage !== appState.currentPdfPage) {
+                    await changePage(dotPage);
+                }
+                if (!isDotVisible(dot.internalId)) centerOnDot(dot.internalId);
+                if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size > 1) {
+                    openGroupEditModal();
+                } else {
+                    clearSelection();
+                    selectDot(dot.internalId);
+                    updateSelectionUI();
+                    openEditModal(dot.internalId);
+                }
             });
         });
     });
@@ -2069,13 +2908,13 @@ function renderGroupedLocationList(allDots, container) {
 
 function toggleListView() { appState.listViewMode = appState.listViewMode === 'flat' ? 'grouped' : 'flat'; updateLocationList(); }
 
-function toggleSignTypeExpansion(signTypeCode) {
-    if (appState.expandedSignTypes.has(signTypeCode)) { appState.expandedSignTypes.delete(signTypeCode); } 
-    else { appState.expandedSignTypes.add(signTypeCode); }
-    const itemsContainer = document.getElementById(`items-${signTypeCode.replace(/[^a-zA-Z0-9]/g, '-')}`);
+function toggleMarkerTypeExpansion(markerTypeCode) {
+    if (appState.expandedMarkerTypes.has(markerTypeCode)) { appState.expandedMarkerTypes.delete(markerTypeCode); } 
+    else { appState.expandedMarkerTypes.add(markerTypeCode); }
+    const itemsContainer = document.getElementById(`items-${markerTypeCode.replace(/[^a-zA-Z0-9]/g, '-')}`);
     const expandIcon = itemsContainer.parentElement.querySelector('.expand-icon');
-    itemsContainer.classList.toggle('expanded', appState.expandedSignTypes.has(signTypeCode));
-    expandIcon.classList.toggle('expanded', appState.expandedSignTypes.has(signTypeCode));
+    itemsContainer.classList.toggle('expanded', appState.expandedMarkerTypes.has(markerTypeCode));
+    expandIcon.classList.toggle('expanded', appState.expandedMarkerTypes.has(markerTypeCode));
 }
 
 function renumberLocations() {
@@ -2087,11 +2926,11 @@ function renumberLocations() {
     });
     const newDots = new Map();
     oldDots.forEach((dot, index) => {
-        dot.id = String(index + 1).padStart(4, '0');
-        newDots.set(dot.id, dot);
+        dot.locationNumber = String(index + 1).padStart(4, '0');
+        newDots.set(dot.internalId, dot);
     });
     pageData.dots = newDots;
-    pageData.nextDotNumber = oldDots.length + 1;
+    pageData.nextLocationNumber = oldDots.length + 1;
     
     captureUndoState('Renumber locations');
     
@@ -2115,7 +2954,7 @@ function openGroupEditModal() {
     if (selectedCount < 2) return;
 
     document.getElementById('group-edit-count').textContent = selectedCount;
-    updateEditModalOptions('group-edit-sign-type', true);
+    updateEditModalOptions('group-edit-marker-type', true);
     document.getElementById('group-edit-message').value = '';
     document.getElementById('group-edit-notes').value = '';
 
@@ -2160,16 +2999,16 @@ function openGroupEditModal() {
 function closeGroupModal() { document.getElementById('group-edit-modal').style.display = 'none'; }
 
 function groupUpdateDots() {
-    const newSignTypeCode = document.getElementById('group-edit-sign-type').value;
+    const newMarkerTypeCode = document.getElementById('group-edit-marker-type').value;
     const newMessage = document.getElementById('group-edit-message').value.trim();
     const newNotes = document.getElementById('group-edit-notes').value; // Keep as is, don't trim yet
     const codeRequiredCheckbox = document.getElementById('group-edit-code-required');
     const installedCheckbox = document.getElementById('group-edit-installed');
 
-    appState.selectedDots.forEach(dotId => {
-        const dot = getCurrentPageDots().get(dotId);
+    appState.selectedDots.forEach(internalId => {
+        const dot = getCurrentPageDots().get(internalId);
         if (dot) {
-            if (newSignTypeCode) dot.signType = newSignTypeCode;
+            if (newMarkerTypeCode) dot.markerType = newMarkerTypeCode;
             if (newMessage) dot.message = newMessage;
             
             // Always overwrite notes as per user confirmation
@@ -2194,7 +3033,7 @@ function groupUpdateDots() {
 }
 
 function groupDeleteDots() {
-    appState.selectedDots.forEach(dotId => { getCurrentPageDots().delete(dotId); });
+    appState.selectedDots.forEach(internalId => { getCurrentPageDots().delete(internalId); });
     captureUndoState(`Delete ${appState.selectedDots.size} dots`);
     
     closeGroupModal(); 
@@ -2205,26 +3044,26 @@ function groupDeleteDots() {
     setDirtyState();
 }
 
-function updateEditModalOptions(selectElementId = 'edit-sign-type', isGroupEdit = false) {
+function updateEditModalOptions(selectElementId = 'edit-marker-type', isGroupEdit = false) {
     const select = document.getElementById(selectElementId);
-    const sortedSignTypeCodes = Object.keys(appState.signTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const sortedMarkerTypeCodes = Object.keys(appState.markerTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     let optionsHtml = isGroupEdit ? '<option value="">-- Keep Individual Types --</option>' : '';
-    optionsHtml += sortedSignTypeCodes.map(code => {
-        const typeData = appState.signTypes[code];
+    optionsHtml += sortedMarkerTypeCodes.map(code => {
+        const typeData = appState.markerTypes[code];
         return `<option value="${code}">${typeData.code} - ${typeData.name}</option>`;
     }).join('');
     select.innerHTML = optionsHtml;
 }
 
 function updateAutomapControls() {
-    const select = document.getElementById('automap-sign-type-select');
+    const select = document.getElementById('automap-marker-type-select');
     const datalist = document.getElementById('recent-searches-datalist');
     const checkbox = document.getElementById('automap-exact-phrase');
 
-    const sortedSignTypeCodes = Object.keys(appState.signTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    let optionsHtml = sortedSignTypeCodes.map(code => {
-        const typeData = appState.signTypes[code];
-        const isSelected = code === appState.activeSignType ? 'selected' : '';
+    const sortedMarkerTypeCodes = Object.keys(appState.markerTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    let optionsHtml = sortedMarkerTypeCodes.map(code => {
+        const typeData = appState.markerTypes[code];
+        const isSelected = code === appState.activeMarkerType ? 'selected' : '';
         return `<option value="${code}" ${isSelected}>${typeData.code} - ${typeData.name}</option>`;
     }).join('');
     select.innerHTML = optionsHtml;
@@ -2235,12 +3074,12 @@ function updateAutomapControls() {
     checkbox.checked = appState.automapExactPhrase;
 }
 
-function openEditModal(dotId) {
-    const dot = getCurrentPageDots().get(dotId); if (!dot) return;
-    appState.editingDot = dotId;
+function openEditModal(internalId) {
+    const dot = getCurrentPageDots().get(internalId); if (!dot) return;
+    appState.editingDot = internalId;
     updateEditModalOptions(); 
-    document.getElementById('edit-sign-type').value = dot.signType;
-    document.getElementById('edit-location-display').textContent = dot.id;
+    document.getElementById('edit-marker-type').value = dot.markerType;
+    document.getElementById('edit-location-number').value = dot.locationNumber;
     document.getElementById('edit-message').value = dot.message;
     document.getElementById('edit-code-required').checked = dot.isCodeRequired || false;
     document.getElementById('edit-installed').checked = dot.installed || false;
@@ -2254,13 +3093,27 @@ function updateDot() {
     if (!appState.editingDot) return;
     const dot = getCurrentPageDots().get(appState.editingDot); if (!dot) return;
     
-    dot.signType = document.getElementById('edit-sign-type').value;
+    const newLocationNumber = document.getElementById('edit-location-number').value.trim();
+    
+    // Validate location number is unique on this page
+    if (newLocationNumber !== dot.locationNumber) {
+        const dotsOnCurrentPage = getCurrentPageDots();
+        for (const otherDot of dotsOnCurrentPage.values()) {
+            if (otherDot.internalId !== dot.internalId && otherDot.locationNumber === newLocationNumber) {
+                showCSVStatus(`Location number "${newLocationNumber}" already exists on this page.`, false, 5000);
+                return;
+            }
+        }
+    }
+    
+    dot.markerType = document.getElementById('edit-marker-type').value;
+    dot.locationNumber = newLocationNumber;
     dot.message = document.getElementById('edit-message').value.trim();
     dot.isCodeRequired = document.getElementById('edit-code-required').checked;
     dot.installed = document.getElementById('edit-installed').checked;
     dot.notes = document.getElementById('edit-notes').value.trim();
     
-    appState.activeSignType = dot.signType;
+    appState.activeMarkerType = dot.markerType;
     captureUndoState('Edit dot');
 
     renderDotsForCurrentPage(); 
@@ -2288,23 +3141,23 @@ function createMessageSchedule() {
     const activeFilters = getActiveFilters(); let allVisibleDots = [];
     for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
         const dotsOnPage = Array.from(getDotsForPage(pageNum).values());
-        const visibleDots = dotsOnPage.filter(dot => activeFilters.includes(dot.signType)).map(dot => ({ ...dot, page: pageNum }));
+        const visibleDots = dotsOnPage.filter(dot => activeFilters.includes(dot.markerType)).map(dot => ({ ...dot, page: pageNum }));
         allVisibleDots.push(...visibleDots);
     }
     if (allVisibleDots.length === 0) { alert('No annotations match the current filters. CSV not created.'); return; }
     allVisibleDots.sort((a, b) => {
-        const signTypeComparison = a.signType.localeCompare(b.signType, undefined, { numeric: true });
-        if (signTypeComparison !== 0) return signTypeComparison;
-        return a.id.localeCompare(b.id);
+        const markerTypeComparison = a.markerType.localeCompare(b.markerType, undefined, { numeric: true });
+        if (markerTypeComparison !== 0) return markerTypeComparison;
+        return a.locationNumber.localeCompare(b.locationNumber);
     });
-    let csvContent = "SIGN TYPE CODE,SIGN TYPE NAME,MESSAGE,LOCATION NUMBER,MAP PAGE,CODE REQUIRED,INSTALLED\n";
+    let csvContent = "MARKER TYPE CODE,MARKER TYPE NAME,MESSAGE,LOCATION NUMBER,MAP PAGE,CODE REQUIRED,INSTALLED\n";
     allVisibleDots.forEach(dot => {
-        const typeData = appState.signTypes[dot.signType];
+        const typeData = appState.markerTypes[dot.markerType];
         const row = [
             `"${typeData.code.replace(/"/g, '""')}"`, 
             `"${typeData.name.replace(/"/g, '""')}"`, 
             `"${dot.message.replace(/"/g, '""')}"`, 
-            `'${dot.id}'`, 
+            `'${dot.locationNumber}'`, 
             dot.page,
             dot.isCodeRequired ? 'YES' : 'NO',
             dot.installed ? 'YES' : 'NO'
@@ -2331,11 +3184,13 @@ async function createAnnotatedPDF() {
         const { jsPDF } = window.jspdf; 
         let outputPdf = null;
         let detailPageNumbers = new Map(); // Track which page each dot's detail page is on
-        let currentDetailPageNumber = 0;
         
-        // First pass: Create the main annotated pages
+        // Create a map to track original vs. new page numbers
+        const originalToNewPageMap = new Map();
+
+        // First pass: Create the main annotated pages WITHOUT hyperlinks
         for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
-            const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.signType));
+            const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
             if (dotsToDraw.length === 0) continue;
             createPdfBtn.textContent = `Main Page ${pageNum}/${appState.totalPages}...`;
             
@@ -2351,25 +3206,58 @@ async function createAnnotatedPDF() {
                 outputPdf.addPage([viewport.width, viewport.height], viewport.width > viewport.height ? 'landscape' : 'portrait'); 
             }
             
+            // Record the mapping from the original page number to the new one
+            const newPageNumForMap = outputPdf.internal.getNumberOfPages();
+            originalToNewPageMap.set(pageNum, newPageNumForMap);
+
             outputPdf.addImage(imgData, 'JPEG', 0, 0, viewport.width, viewport.height);
             drawLegendWithJsPDF(outputPdf, dotsToDraw);
             
-            // Create detail pages for each dot and track their page numbers
-            for (const dot of dotsToDraw) {
-                currentDetailPageNumber++;
-                detailPageNumbers.set(`${pageNum}-${dot.id}`, outputPdf.internal.getNumberOfPages() + currentDetailPageNumber);
-            }
-            
-            // Draw dots with hyperlinks to their detail pages
-            drawDotsWithHyperlinks(outputPdf, dotsToDraw, messagesVisible, pageNum, detailPageNumbers);
+            // Draw dots WITHOUT hyperlinks for now
+            drawDotsWithJsPDF(outputPdf, dotsToDraw, messagesVisible);
         }
         
-        // Second pass: Create detail pages for all dots
+        // Second pass: Create detail pages and record their actual page numbers
         createPdfBtn.textContent = 'Creating detail pages...';
         for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
-            const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.signType));
+            const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
             for (const dot of dotsToDraw) {
-                createDetailPage(outputPdf, dot, pageNum);
+                // Record the actual page number where this detail page will be
+                const detailPageNum = outputPdf.internal.getNumberOfPages() + 1;
+                detailPageNumbers.set(`${pageNum}-${dot.id}`, detailPageNum);
+                
+                // Create the detail page
+                createDetailPage(outputPdf, dot, pageNum, originalToNewPageMap);
+            }
+        }
+        
+        // Third pass: Add hyperlinks to the main pages now that we know the actual detail page numbers
+        createPdfBtn.textContent = 'Adding hyperlinks...';
+        for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+            const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
+            if (dotsToDraw.length === 0) continue;
+            
+            const mapPageNum = originalToNewPageMap.get(pageNum);
+            if (mapPageNum) {
+                // Go to the map page and add hyperlinks
+                outputPdf.setPage(mapPageNum);
+                
+                // Add hyperlinks for each dot
+                dotsToDraw.forEach(dot => {
+                    const effectiveMultiplier = appState.dotSize * 2;
+                    const radius = (20 * effectiveMultiplier) / 2;
+                    const detailPageNum = detailPageNumbers.get(`${pageNum}-${dot.id}`);
+                    
+                    if (detailPageNum) {
+                        outputPdf.link(
+                            dot.x - radius, 
+                            dot.y - radius, 
+                            radius * 2, 
+                            radius * 2, 
+                            { pageNumber: detailPageNum }
+                        );
+                    }
+                });
             }
         }
         
@@ -2389,19 +3277,19 @@ async function createAnnotatedPDF() {
 
 function drawLegendWithJsPDF(pdf, dotsOnPage) {
     if (dotsOnPage.length === 0) return;
-    const usedSignTypeCodes = new Set(dotsOnPage.map(d => d.signType));
-    const sortedSignTypeCodes = Array.from(usedSignTypeCodes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const usedMarkerTypeCodes = new Set(dotsOnPage.map(d => d.markerType));
+    const sortedMarkerTypeCodes = Array.from(usedMarkerTypeCodes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     const padding = 40, itemHeight = 32, dotRadius = 10, legendWidth = 440, headerHeight = 50;
-    const legendHeight = headerHeight + (sortedSignTypeCodes.length * itemHeight) + padding;
+    const legendHeight = headerHeight + (sortedMarkerTypeCodes.length * itemHeight) + padding;
     const x = padding, y = padding;
     pdf.setFillColor(255, 255, 255); pdf.setDrawColor(0, 0, 0); pdf.setLineWidth(1);
     pdf.rect(x, y, legendWidth, legendHeight, 'FD');
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(32); pdf.setTextColor(0, 0, 0);
     pdf.text('PAGE LEGEND', x + legendWidth / 2, y + 34, { align: 'center' });
     let currentY = y + headerHeight + 20; pdf.setFont('helvetica', 'normal');
-    sortedSignTypeCodes.forEach(code => {
-        const typeData = appState.signTypes[code];
-        const count = dotsOnPage.filter(d => d.signType === code).length;
+    sortedMarkerTypeCodes.forEach(code => {
+        const typeData = appState.markerTypes[code];
+        const count = dotsOnPage.filter(d => d.markerType === code).length;
         const displayText = `(${count}) ${typeData.code} - ${typeData.name}`;
         pdf.setFillColor(typeData.color); pdf.setDrawColor(0, 0, 0); pdf.setLineWidth(1);
         pdf.circle(x + padding, currentY, dotRadius, 'FD');
@@ -2415,14 +3303,14 @@ function drawDotsWithHyperlinks(pdf, dotsOnPage, messagesVisible, sourcePageNum,
     const effectiveMultiplier = appState.dotSize * 2; 
     
     dotsOnPage.forEach(dot => {
-        const signTypeInfo = appState.signTypes[dot.signType] || { color: '#ff0000', textColor: '#FFFFFF' };
+        const markerTypeInfo = appState.markerTypes[dot.markerType] || { color: '#ff0000', textColor: '#FFFFFF' };
         const radius = (20 * effectiveMultiplier) / 2;
         const fontSize = 8 * effectiveMultiplier;
         const pdfX = dot.x; const pdfY = dot.y;
         
         // Draw the dot
-        pdf.setFillColor(signTypeInfo.color);
-        pdf.setDrawColor(signTypeInfo.color);
+        pdf.setFillColor(markerTypeInfo.color);
+        pdf.setDrawColor(markerTypeInfo.color);
         pdf.circle(pdfX, pdfY, radius, 'F');
         
         // Add code required border if needed
@@ -2438,14 +3326,14 @@ function drawDotsWithHyperlinks(pdf, dotsOnPage, messagesVisible, sourcePageNum,
         // Add dot number text
         pdf.setFont('helvetica', 'bold'); 
         pdf.setFontSize(fontSize); 
-        pdf.setTextColor(signTypeInfo.textColor);
+        pdf.setTextColor(markerTypeInfo.textColor);
         pdf.text(String(dot.id), pdfX, pdfY, { align: 'center', baseline: 'middle' });
         
         // Add message if visible
         if (messagesVisible && dot.message) {
             pdf.setFont('helvetica', 'bold'); 
             pdf.setFontSize(fontSize * 1.1); 
-            pdf.setTextColor(signTypeInfo.color);
+            pdf.setTextColor(markerTypeInfo.color);
             pdf.text(dot.message, pdfX, pdfY + radius + (fontSize * 0.5), { align: 'center', baseline: 'top' });
         }
         
@@ -2466,13 +3354,13 @@ function drawDotsWithHyperlinks(pdf, dotsOnPage, messagesVisible, sourcePageNum,
 function drawDotsWithJsPDF(pdf, dotsOnPage, messagesVisible) {
     const effectiveMultiplier = appState.dotSize * 2; 
     dotsOnPage.forEach(dot => {
-        const signTypeInfo = appState.signTypes[dot.signType] || { color: '#ff0000', textColor: '#FFFFFF' };
+        const markerTypeInfo = appState.markerTypes[dot.markerType] || { color: '#ff0000', textColor: '#FFFFFF' };
         const radius = (20 * effectiveMultiplier) / 2;
         const fontSize = 8 * effectiveMultiplier;
         const pdfX = dot.x; const pdfY = dot.y;
         
-        pdf.setFillColor(signTypeInfo.color);
-        pdf.setDrawColor(signTypeInfo.color);
+        pdf.setFillColor(markerTypeInfo.color);
+        pdf.setDrawColor(markerTypeInfo.color);
         pdf.circle(pdfX, pdfY, radius, 'F');
         
         if (dot.isCodeRequired) {
@@ -2484,11 +3372,11 @@ function drawDotsWithJsPDF(pdf, dotsOnPage, messagesVisible) {
             pdf.circle(pdfX, pdfY, radius + 1.5, 'S');
         }
 
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(fontSize); pdf.setTextColor(signTypeInfo.textColor);
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(fontSize); pdf.setTextColor(markerTypeInfo.textColor);
         pdf.text(String(dot.id), pdfX, pdfY, { align: 'center', baseline: 'middle' });
         
         if (messagesVisible && dot.message) {
-            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(fontSize * 1.1); pdf.setTextColor(signTypeInfo.color);
+            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(fontSize * 1.1); pdf.setTextColor(markerTypeInfo.color);
             pdf.text(dot.message, pdfX, pdfY + radius + (fontSize * 0.5), { align: 'center', baseline: 'top' });
         }
     });
@@ -2522,8 +3410,8 @@ async function handleScheduleUpdate(e) {
     
     const headers = parseCSVLine(lines[0].trim()).map(h => h.toUpperCase());
     
-    const codeIndex = headers.indexOf("SIGN TYPE CODE");
-    const nameIndex = headers.indexOf("SIGN TYPE NAME");
+    const codeIndex = headers.indexOf("MARKER TYPE CODE");
+    const nameIndex = headers.indexOf("MARKER TYPE NAME");
     const messageIndex = headers.indexOf("MESSAGE");
     const locNumIndex = headers.indexOf("LOCATION NUMBER");
     const pageIndex = headers.indexOf("MAP PAGE");
@@ -2531,28 +3419,37 @@ async function handleScheduleUpdate(e) {
     const installedIndex = headers.indexOf("INSTALLED");
 
     if ([codeIndex, nameIndex, messageIndex, locNumIndex, pageIndex].includes(-1)) { 
-        showCSVStatus("Update file is missing required columns (SIGN TYPE CODE, SIGN TYPE NAME, etc.).", false, 8000); 
+        showCSVStatus("Update file is missing required columns (MARKER TYPE CODE, MARKER TYPE NAME, etc.).", false, 8000); 
         return; 
     }
 
     let updatedCount = 0; const skippedRows = [];
     for (let i = 1; i < lines.length; i++) {
         const row = parseCSVLine(lines[i]);
-        const signTypeCode = row[codeIndex]; 
+        const markerTypeCode = row[codeIndex]; 
         const message = row[messageIndex];
         const locNum = row[locNumIndex].replace(/'/g, '').padStart(4, '0');
         const pageNum = parseInt(row[pageIndex], 10);
 
         if (isNaN(pageNum)) { skippedRows.push({ line: i + 1, reason: "Invalid Map Page number." }); continue; }
-        if (!appState.signTypes[signTypeCode]) { skippedRows.push({ line: i + 1, reason: `Sign Type Code "${signTypeCode}" does not exist in this project.` }); continue; }
+        if (!appState.markerTypes[markerTypeCode]) { skippedRows.push({ line: i + 1, reason: `Marker Type Code "${markerTypeCode}" does not exist in this project.` }); continue; }
         
-        const dotToUpdate = getDotsForPage(pageNum).get(locNum);
+        // Find dot by locationNumber instead of using it as a Map key
+        const dotsOnPage = getDotsForPage(pageNum);
+        let dotToUpdate = null;
+        for (const dot of dotsOnPage.values()) {
+            if (dot.locationNumber === locNum) {
+                dotToUpdate = dot;
+                break;
+            }
+        }
+        
         if (!dotToUpdate) { 
             skippedRows.push({ line: i + 1, reason: `Location ${locNum} on page ${pageNum} not found.` }); 
             continue; 
         }
         
-        dotToUpdate.signType = signTypeCode; 
+        dotToUpdate.markerType = markerTypeCode; 
         dotToUpdate.message = message; 
 
         if (codeRequiredIndex > -1 && row[codeRequiredIndex] !== undefined) {
@@ -2601,8 +3498,9 @@ function isCollision(newX, newY) {
     return false;
 }
 
-function createDetailPage(pdf, dot, sourcePageNum) {
-    const signTypeInfo = appState.signTypes[dot.signType] || { color: '#ff0000', textColor: '#FFFFFF', code: 'UNKNOWN', name: 'Unknown Type' };
+// --- FIX: Accept the page map as a new argument ---
+function createDetailPage(pdf, dot, sourcePageNum, originalToNewPageMap) {
+    const markerTypeInfo = appState.markerTypes[dot.markerType] || { color: '#ff0000', textColor: '#FFFFFF', code: 'UNKNOWN', name: 'Unknown Type' };
     
     pdf.addPage([612, 792], 'portrait');
     const pageWidth = 612;
@@ -2623,7 +3521,13 @@ function createDetailPage(pdf, dot, sourcePageNum) {
     pdf.setFontSize(12);
     pdf.setTextColor(0, 0, 0);
     pdf.text('BACK TO MAP', pageWidth / 2, currentY + 20, { align: 'center' });
-    pdf.link(buttonX, currentY, buttonWidth, buttonHeight, { pageNumber: Math.ceil(sourcePageNum) });
+
+    // --- FIX: Use the map to get the correct page number for the link ---
+    const correctMapPage = originalToNewPageMap.get(sourcePageNum);
+    if (correctMapPage) {
+        pdf.link(buttonX, currentY, buttonWidth, buttonHeight, { pageNumber: correctMapPage });
+    }
+    
     currentY += 80;
 
     // Main Content Area (no border)
@@ -2638,12 +3542,12 @@ function createDetailPage(pdf, dot, sourcePageNum) {
     pdf.text(`LOC# ${dot.id}`, margin + contentInnerMargin, contentY);
     contentY += 20;
 
-    // Sign Type
-    pdf.setFillColor(signTypeInfo.color);
+    // Marker Type
+    pdf.setFillColor(markerTypeInfo.color);
     pdf.rect(margin + contentInnerMargin, contentY, 20, 20, 'F');
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text(`Sign Type: ${signTypeInfo.code} - ${signTypeInfo.name}`, margin + contentInnerMargin + 30, contentY + 14);
+    pdf.text(`Marker Type: ${markerTypeInfo.code} - ${markerTypeInfo.name}`, margin + contentInnerMargin + 30, contentY + 14);
     contentY += 40;
 
     // Message
@@ -2715,7 +3619,7 @@ function createDetailPage(pdf, dot, sourcePageNum) {
     const placeholderWidth = 240;
     const placeholderHeight = 240;
     
-    if (signTypeInfo.designReference) {
+    if (markerTypeInfo.designReference) {
         // Draw placeholder border first
         pdf.setDrawColor(200);
         pdf.rect(margin + contentInnerMargin, contentY, placeholderWidth, placeholderHeight, 'S');
@@ -2723,7 +3627,7 @@ function createDetailPage(pdf, dot, sourcePageNum) {
         // Show the actual reference image, maintaining aspect ratio
         try {
             // Get image properties to calculate aspect ratio
-            const imgProps = pdf.getImageProperties(signTypeInfo.designReference);
+            const imgProps = pdf.getImageProperties(markerTypeInfo.designReference);
             const imgRatio = imgProps.width / imgProps.height;
             const placeholderRatio = placeholderWidth / placeholderHeight;
             
@@ -2744,7 +3648,7 @@ function createDetailPage(pdf, dot, sourcePageNum) {
             }
             
             pdf.addImage(
-                signTypeInfo.designReference, 
+                markerTypeInfo.designReference, 
                 'JPEG', 
                 margin + contentInnerMargin + offsetX, 
                 contentY + offsetY, 

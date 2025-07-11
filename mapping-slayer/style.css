@@ -143,11 +143,6 @@ body {
     animation: pulse-orange 2s infinite;
 }
 
-.undo-controls {
-    display: flex;
-    gap: 3px;
-}
-
 .save-load-group {
     display: flex;
     flex-direction: column;
@@ -283,7 +278,7 @@ body {
     flex-shrink: 0;
 }
 
-.sign-type-inputs {
+.marker-type-inputs {
     display: flex;
     flex-direction: row;
     flex: 1;
@@ -297,8 +292,8 @@ body {
     box-sizing: border-box;
 }
 
-.sign-type-code-input,
-.sign-type-name-input {
+.marker-type-code-input,
+.marker-type-name-input {
     background: transparent;
     border: none;
     color: white;
@@ -309,12 +304,12 @@ body {
     border: 1px solid transparent;
 }
 
-.sign-type-code-input {
+.marker-type-code-input {
     font-size: 12px;
     font-weight: bold;
 }
 
-.sign-type-name-input {
+.marker-type-name-input {
     font-size: 10px;
     color: #aaa;
 }
@@ -353,19 +348,19 @@ body {
     line-height: 1.5;
 }
 
-.sign-type-code-input:focus,
-.sign-type-name-input:focus {
+.marker-type-code-input:focus,
+.marker-type-name-input:focus {
     background: #555;
     outline: none;
     border: 1px solid #f07727;
 }
 
-.sign-type-code-input:not(:placeholder-shown),
-.sign-type-name-input:not(:placeholder-shown) {
+.marker-type-code-input:not(:placeholder-shown),
+.marker-type-name-input:not(:placeholder-shown) {
     color: white;
 }
 
-.sign-type-controls {
+.marker-type-controls {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -381,7 +376,7 @@ body {
     cursor: pointer;
 }
 
-.delete-sign-type-btn {
+.delete-marker-type-btn {
     background: none;
     border: none;
     color: #888;
@@ -389,7 +384,7 @@ body {
     font-size: 16px;
     padding: 0 5px;
 }
-.delete-sign-type-btn:hover {
+.delete-marker-type-btn:hover {
     color: #ff4444;
 }
 
@@ -406,6 +401,19 @@ body {
 #list-header-controls {
     display: flex;
     gap: 5px;
+}
+
+.all-pages-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #ccc;
+    margin-left: 8px;
+}
+
+.all-pages-container input[type="checkbox"] {
+    accent-color: #f07727;
 }
 
 #list-with-renumber {
@@ -502,7 +510,7 @@ body {
     border: 1px solid #f07727;
 }
 
-.sign-type-category {
+.marker-type-category {
     background: #4a4a4a;
     margin-bottom: 2px;
     border-radius: 4px;
@@ -511,11 +519,11 @@ body {
     border-left: 4px solid;
 }
 
-.sign-type-category:hover {
+.marker-type-category:hover {
     background: #5a5a5a;
 }
 
-.sign-type-category-header {
+.marker-type-category-header {
     padding: 4px 8px;
     display: flex;
     justify-content: space-between;
@@ -523,7 +531,7 @@ body {
     gap: 8px;
 }
 
-.sign-type-category-title {
+.marker-type-category-title {
     font-weight: bold;
     font-size: 11px;
     display: flex;
@@ -540,13 +548,13 @@ body {
     transform: rotate(90deg);
 }
 
-.sign-type-category-count {
+.marker-type-category-count {
     color: #f07727;
     font-size: 9px;
     font-weight: bold;
 }
 
-.sign-type-items {
+.marker-type-items {
     display: none;
     padding-left: 12px;
     border-left: 2px solid #666;
@@ -554,7 +562,7 @@ body {
     margin-bottom: 4px;
 }
 
-.sign-type-items.expanded {
+.marker-type-items.expanded {
     display: block;
 }
 
@@ -587,7 +595,7 @@ body {
     box-shadow: 0 0 8px rgba(255, 102, 0, 0.5) !important;
 }
 
-.sign-type-badge {
+.marker-type-badge {
     background: #007acc;
     color: white;
     padding: 1px 6px;
@@ -602,7 +610,7 @@ body {
     text-overflow: ellipsis;
 }
 
-.sign-type-badge.code-required-badge {
+.marker-type-badge.code-required-badge {
     border: 2px solid yellow;
 }
 
@@ -642,6 +650,7 @@ body {
     position: relative;
     cursor: grab;
     background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect width="20" height="20" fill="%23222"/><rect width="1" height="20" fill="%23333"/><rect width="20" height="1" fill="%23333"/></svg>');
+    overflow: hidden;
 }
 
 #map-content {
@@ -770,12 +779,18 @@ body {
     pointer-events: none;
     z-index: 300;
 }
+
 .scrape-box {
     position: absolute;
-    border: 2px dashed #ff8800 !important;
-    background: rgba(255, 136, 0, 0.1) !important;
+    border: 2px dashed #00ff88 !important;
+    background: rgba(0, 255, 136, 0.1) !important;
     pointer-events: none;
     z-index: 300;
+}
+
+.scrape-box.ocr-scrape {
+    border: 2px dashed #ff44ff !important;
+    background: rgba(255, 68, 255, 0.1) !important;
 }
 
 .legends-container {
@@ -904,6 +919,8 @@ body {
     accent-color: #f07727;
 }
 
+/* No replacement needed; remove these styles as sliders are gone */
+
 .automap-status {
     font-size: 12px;
     color: #aaa;
@@ -911,54 +928,28 @@ body {
     text-align: left;
 }
 
-.tooltip-dropdown {
-    background: rgba(42, 42, 42, 0.9);
-    border: 1px solid #444;
-    border-radius: 6px;
-    color: #ccc;
-    font-size: 12px;
-    width: 260px;
-}
-
-.controls-header {
-    padding: 8px 12px;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.tooltip-arrow {
-    transition: transform 0.2s;
-}
-
-.controls-list {
+.controls-list-modal {
     list-style: none;
-    padding: 0 12px 12px;
-    margin: 0;
-    display: none; /* Hidden by default */
+    padding: 0;
+    margin: 15px 0;
 }
 
-#controls-dropdown.open .controls-list {
-    display: block; /* Shown when open */
-}
-
-#controls-dropdown.open .tooltip-arrow {
-    transform: rotate(180deg);
-}
-
-.controls-list li {
-    padding: 4px 0;
-    font-size: 12px;
+.controls-list-modal li {
+    padding: 5px 0;
+    font-size: 13px;
     display: flex;
+    border-bottom: 1px solid #444;
 }
 
-.controls-list li strong {
+.controls-list-modal li:last-child {
+    border-bottom: none;
+}
+
+.controls-list-modal li strong {
     color: #f07727;
     font-weight: bold;
     display: inline-block;
-    width: 130px;
+    width: 140px;
     flex-shrink: 0;
 }
 
@@ -1017,15 +1008,20 @@ body {
 .page-nav {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     color: #ccc;
-    font-size: 12px;
+    font-size: 11px;
+    background: rgba(42, 42, 42, 0.9);
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    backdrop-filter: blur(10px);
 }
 .nav-btn {
     background: #444;
     border: none;
     color: white;
-    padding: 8px 12px;
+    padding: 6px 10px;
     cursor: pointer;
     border-radius: 4px;
 }
@@ -1053,8 +1049,100 @@ body {
     left: 20px;
     z-index: 200;
     display: flex;
-    gap: 10px;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+}
+
+.scrape-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.train-scrape-btn {
+    background-color: #00ff00 !important;
+    color: #000 !important;
+    border: none;
+}
+
+.train-scrape-btn.glowing {
+    animation: glow-green 1s ease-in-out infinite alternate;
+}
+
+@keyframes glow-green {
+    from { box-shadow: 0 0 5px #00ff00; }
+    to { box-shadow: 0 0 15px #00ff00; }
+}
+
+.train-big-box {
+    position: absolute;
+    border: 2px solid #00ff00;
+    background: rgba(0, 255, 0, 0.05);
+    pointer-events: none;
+    z-index: 300;
+}
+
+.train-big-box.glowing {
+    animation: glow-green-box 1s ease-in-out infinite alternate;
+}
+
+@keyframes glow-green-box {
+    from { box-shadow: 0 0 10px #00ff00; }
+    to { box-shadow: 0 0 20px #00ff00; }
+}
+
+.train-small-box {
+    position: absolute;
+    border: 2px dashed #008000;
+    background: rgba(0, 128, 0, 0.1);
+    pointer-events: none;
+    z-index: 301;
+}
+
+.train-counter-btn {
+    position: absolute;
+    top: -15px;
+    left: 0;
+    background: #00ff00;
+    color: #000;
+    padding: 2px 8px;
+    font-size: 12px;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    z-index: 302;
+}
+
+.train-counter-btn.ready {
+    background: #00ff00;
+    animation: pulse-green 1s infinite;
+}
+
+@keyframes pulse-green {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.train-counter-btn,
+.train-cancel-btn {
+    pointer-events: auto;
+}
+
+.train-cancel-btn {
+    position: absolute;
+    top: -15px;
+    right: 0;
+    background: #ff0000;
+    color: #fff;
+    padding: 2px 6px;
+    font-size: 12px;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    z-index: 302;
 }
 
 .tooltip-controls-group {
@@ -1114,6 +1202,10 @@ body {
     max-width: 500px;
 }
 
+#controls-modal .modal-content {
+    max-width: 420px;
+}
+
 .modal-header {
     font-size: 18px;
     font-weight: bold;
@@ -1165,7 +1257,7 @@ body {
 .modal-subheader {
     font-size: 12px;
     color: #aaa;
-    margin-top: -10px;
+    margin-top: 10px;
     margin-bottom: 15px;
 }
 
@@ -1253,6 +1345,8 @@ body {
 .csv-status.error {
     border-color: #ff4444;
 }
+
+/* Scrape spinner styles removed as the feature now uses the top-right notification area. */
 
 /* Automap progress modal */
 .automap-progress-modal {
@@ -1438,19 +1532,19 @@ body {
     margin-left: 5px;
 }
 
-.sign-type-inputs {
+.marker-type-inputs {
     display: flex;
     gap: 4px;
     flex: 1;
     min-width: 0;
 }
 
-.sign-type-code-input {
+.marker-type-code-input {
     width: 40px;
     flex-shrink: 0;
 }
 
-.sign-type-name-input {
+.marker-type-name-input {
     flex: 1;
     min-width: 60px;
 }
@@ -1585,4 +1679,15 @@ body {
 
 .design-reference-input {
     display: none;
+}.train-cancel-btn {
+    position: absolute;
+    top: -15px;
+    right: 0;
+    background: #ff0000;
+    color: #fff;
+    padding: 2px 6px;
+    font-size: 12px;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    z-index: 302;
 }
