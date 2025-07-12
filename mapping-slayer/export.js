@@ -574,21 +574,34 @@ function createMessageSchedule() {
     link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
-async function createAnnotatedPDF() {
-    if (!appState.pdfDoc) { alert('Please load a PDF first.'); return; }
+function createAnnotatedPDF() {
+    if (!appState.pdfDoc) { 
+        alert('Please load a PDF first.'); 
+        return; 
+    }
+    document.getElementById('pdf-export-modal').style.display = 'block';
+}
+
+async function performPDFExport(exportType) {
+    document.getElementById('pdf-export-modal').style.display = 'none';
+    
     const createPdfBtn = document.getElementById('create-pdf-btn');
     const originalBtnText = createPdfBtn.textContent;
-    createPdfBtn.disabled = true; createPdfBtn.textContent = 'Generating...';
-    const activeFilters = getActiveFilters(); const messagesVisible = appState.messagesVisible;
-    const tempCanvas = document.createElement('canvas'); const tempCtx = tempCanvas.getContext('2d');
+    createPdfBtn.disabled = true; 
+    createPdfBtn.textContent = 'Generating...';
+    
+    const activeFilters = getActiveFilters(); 
+    const messagesVisible = appState.messagesVisible;
+    const tempCanvas = document.createElement('canvas'); 
+    const tempCtx = tempCanvas.getContext('2d');
     
     try {
         const { jsPDF } = window.jspdf; 
         let outputPdf = null;
         let detailPageNumbers = new Map();
-
         const originalToNewPageMap = new Map();
 
+        // Create map pages
         for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
             const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
             if (dotsToDraw.length === 0) continue;
@@ -596,12 +609,17 @@ async function createAnnotatedPDF() {
             
             const page = await appState.pdfDoc.getPage(pageNum);
             const viewport = page.getViewport({ scale: appState.pdfScale });
-            tempCanvas.width = viewport.width; tempCanvas.height = viewport.height;
+            tempCanvas.width = viewport.width; 
+            tempCanvas.height = viewport.height;
             await page.render({ canvasContext: tempCtx, viewport: viewport }).promise;
             const imgData = tempCanvas.toDataURL('image/jpeg', 0.9);
             
             if (!outputPdf) {
-                outputPdf = new jsPDF({ orientation: viewport.width > viewport.height ? 'landscape' : 'portrait', unit: 'pt', format: [viewport.width, viewport.height] });
+                outputPdf = new jsPDF({ 
+                    orientation: viewport.width > viewport.height ? 'landscape' : 'portrait', 
+                    unit: 'pt', 
+                    format: [viewport.width, viewport.height] 
+                });
             } else { 
                 outputPdf.addPage([viewport.width, viewport.height], viewport.width > viewport.height ? 'landscape' : 'portrait'); 
             }
@@ -611,51 +629,54 @@ async function createAnnotatedPDF() {
 
             outputPdf.addImage(imgData, 'JPEG', 0, 0, viewport.width, viewport.height);
             drawLegendWithJsPDF(outputPdf, dotsToDraw);
-            
             drawDotsWithJsPDF(outputPdf, dotsToDraw, messagesVisible);
         }
         
-        createPdfBtn.textContent = 'Creating detail pages...';
-        for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
-            const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
-            for (const dot of dotsToDraw) {
-                const detailPageNum = outputPdf.internal.getNumberOfPages() + 1;
-                detailPageNumbers.set(dot.internalId, detailPageNum);
-                
-                createDetailPage(outputPdf, dot, pageNum, originalToNewPageMap);
+        // Create detail pages only if requested
+        if (exportType === 'with-details') {
+            createPdfBtn.textContent = 'Creating detail pages...';
+            for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+                const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
+                for (const dot of dotsToDraw) {
+                    const detailPageNum = outputPdf.internal.getNumberOfPages() + 1;
+                    detailPageNumbers.set(dot.internalId, detailPageNum);
+                    createDetailPage(outputPdf, dot, pageNum, originalToNewPageMap);
+                }
             }
-        }
-        
-        createPdfBtn.textContent = 'Adding hyperlinks...';
-        for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
-            const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
-            if (dotsToDraw.length === 0) continue;
             
-            const mapPageNum = originalToNewPageMap.get(pageNum);
-            if (mapPageNum) {
-                outputPdf.setPage(mapPageNum);
+            // Add hyperlinks only if we have detail pages
+            createPdfBtn.textContent = 'Adding hyperlinks...';
+            for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+                const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
+                if (dotsToDraw.length === 0) continue;
                 
-                dotsToDraw.forEach(dot => {
-                    const effectiveMultiplier = appState.dotSize * 2;
-                    const radius = (20 * effectiveMultiplier) / 2;
-                    const detailPageNum = detailPageNumbers.get(dot.internalId);
+                const mapPageNum = originalToNewPageMap.get(pageNum);
+                if (mapPageNum) {
+                    outputPdf.setPage(mapPageNum);
                     
-                    if (detailPageNum) {
-                        outputPdf.link(
-                            dot.x - radius, 
-                            dot.y - radius, 
-                            radius * 2, 
-                            radius * 2, 
-                            { pageNumber: detailPageNum }
-                        );
-                    }
-                });
+                    dotsToDraw.forEach(dot => {
+                        const effectiveMultiplier = appState.dotSize * 2;
+                        const radius = (20 * effectiveMultiplier) / 2;
+                        const detailPageNum = detailPageNumbers.get(dot.internalId);
+                        
+                        if (detailPageNum) {
+                            outputPdf.link(
+                                dot.x - radius, 
+                                dot.y - radius, 
+                                radius * 2, 
+                                radius * 2, 
+                                { pageNumber: detailPageNum }
+                            );
+                        }
+                    });
+                }
             }
         }
         
         if (outputPdf) {
             const mapFileName = document.getElementById('map-file-name').textContent.replace('.pdf', '');
-            outputPdf.save(`${mapFileName}_interactive.pdf`);
+            const suffix = exportType === 'with-details' ? '_interactive' : '_map_only';
+            outputPdf.save(`${mapFileName}${suffix}.pdf`);
         } else { 
             alert('No annotations match the current filters. PDF not created.'); 
         }
@@ -663,6 +684,8 @@ async function createAnnotatedPDF() {
         console.error('Failed to create PDF:', error);
         alert('An error occurred while creating the PDF. Check the console for details.');
     } finally {
-        createPdfBtn.disabled = false; createPdfBtn.textContent = originalBtnText; tempCanvas.remove();
+        createPdfBtn.disabled = false; 
+        createPdfBtn.textContent = originalBtnText; 
+        tempCanvas.remove();
     }
 }

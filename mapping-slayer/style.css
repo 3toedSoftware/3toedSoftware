@@ -1078,6 +1078,25 @@ body {
     flex-direction: column;
     gap: 5px;
 }
+
+.tolerance-display {
+    position: absolute;
+    bottom: 30px;
+    left: 20px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 10px;
+    color: #ccc;
+    font-family: monospace;
+}
+
+.tolerance-value {
+    color: #00ff88;
+    font-weight: bold;
+}
+
 .train-scrape-btn {
     background-color: #00ff00 !important;
     color: #000 !important;
@@ -1158,6 +1177,112 @@ body {
     border-radius: 4px 4px 0 0;
     cursor: pointer;
     z-index: 302;
+}
+
+#renumber-modal .modal-content {
+    max-width: 280px;
+    min-width: 260px;
+    padding: 15px;
+}
+
+#renumber-modal .modal-body {
+    gap: 8px;
+}
+
+#renumber-modal .modal-text {
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.renumber-options {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 8px 0;
+}
+
+.renumber-option-btn {
+    padding: 6px 8px;
+    text-align: left;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    line-height: 1.2;
+    font-size: 11px;
+}
+
+.renumber-option-btn:hover {
+    border-color: #f07727;
+    background: #3a3a3a;
+}
+
+.renumber-option-btn strong {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 1px;
+}
+
+.renumber-option-btn small {
+    color: #ccc;
+    font-size: 9px;
+    line-height: 1.1;
+}
+
+#renumber-modal .modal-buttons {
+    margin-top: 10px;
+}
+
+#pdf-export-modal .modal-content {
+    max-width: 280px;
+    min-width: 260px;
+    padding: 15px;
+}
+
+#pdf-export-modal .modal-body {
+    gap: 8px;
+}
+
+#pdf-export-modal .modal-text {
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.pdf-export-options {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 8px 0;
+}
+
+.pdf-export-option-btn {
+    padding: 6px 8px;
+    text-align: left;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    line-height: 1.2;
+    font-size: 11px;
+}
+
+.pdf-export-option-btn:hover {
+    border-color: #f07727;
+    background: #3a3a3a;
+}
+
+.pdf-export-option-btn strong {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 1px;
+}
+
+.pdf-export-option-btn small {
+    color: #ccc;
+    font-size: 9px;
+    line-height: 1.1;
+}
+
+#pdf-export-modal .modal-buttons {
+    margin-top: 10px;
 }
 
 .tooltip-controls-group {

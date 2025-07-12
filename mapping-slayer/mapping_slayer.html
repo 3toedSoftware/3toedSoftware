@@ -110,6 +110,10 @@
                 </div>
 
                 <div id="scrape-controls" class="scrape-controls">
+                    <div class="tolerance-display" id="tolerance-display" style="display: none;">
+                        <div>H: <span class="tolerance-value" id="h-tolerance">1.0</span></div>
+                        <div>V: <span class="tolerance-value" id="v-tolerance">25.0</span></div>
+                    </div>
                     <button id="train-scrape-btn" class="btn btn-success btn-compact">TRAIN SCRAPE</button>
                 </div>
                 
@@ -311,6 +315,60 @@
             </ul>
             <div class="modal-buttons">
                 <button class="btn btn-primary" id="close-controls-modal-btn">CLOSE</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="pdf-export-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>PDF Export Options</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-text">Choose your PDF export format:</p>
+                <div class="pdf-export-options">
+                    <button class="btn btn-primary pdf-export-option-btn" onclick="performPDFExport('with-details')">
+                        <strong>With Detail Pages</strong><br>
+                        <small>Interactive PDF with clickable dots leading to detail pages</small>
+                    </button>
+                    <button class="btn btn-primary pdf-export-option-btn" onclick="performPDFExport('map-only')">
+                        <strong>Map Only</strong><br>
+                        <small>PDF with annotated map pages and legends only</small>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancel-pdf-export-btn">CANCEL</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="renumber-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Renumber Options</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-text">Choose how you want to renumber the locations:</p>
+                <div class="renumber-options">
+                    <button class="btn btn-primary renumber-option-btn" onclick="performRenumber('page')">
+                        <strong>Current Page Only</strong><br>
+                        <small>Renumber dots on this page by position (top to bottom, left to right)</small>
+                    </button>
+                    <button class="btn btn-primary renumber-option-btn" onclick="performRenumber('page-by-type')">
+                        <strong>Current Page by Marker Type</strong><br>
+                        <small>Group by marker type, then renumber by position within each type</small>
+                    </button>
+                    <button class="btn btn-primary renumber-option-btn" onclick="performRenumber('all')">
+                        <strong>All Pages</strong><br>
+                        <small>Renumber all dots across all pages by position</small>
+                    </button>
+                    <button class="btn btn-primary renumber-option-btn" onclick="performRenumber('all-by-type')">
+                        <strong>All Pages by Marker Type</strong><br>
+                        <small>Group by marker type across all pages, then renumber by position</small>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancel-renumber-btn">CANCEL</button>
             </div>
         </div>
     </div>

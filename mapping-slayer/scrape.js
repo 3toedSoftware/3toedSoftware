@@ -1,7 +1,52 @@
 // scrape.js
 
+function updateToleranceDisplay() {
+    const display = document.getElementById('tolerance-display');
+    const hElement = document.getElementById('h-tolerance');
+    const vElement = document.getElementById('v-tolerance');
+    
+    if (display && hElement && vElement) {
+        hElement.textContent = appState.scrapeHorizontalTolerance.toFixed(1);
+        vElement.textContent = appState.scrapeVerticalTolerance.toFixed(1);
+        display.style.display = 'flex';
+    }
+}
+
+function groupTextIntoLines(textItems) {
+    if (textItems.length === 0) return [];
+    
+    const VERTICAL_TOLERANCE = 5; // pixels
+    const lines = [];
+    
+    // Sort by Y position first - now using canvas coordinates
+    const sortedItems = [...textItems].sort((a, b) => a.y - b.y);
+    
+    for (const item of sortedItems) {
+        let addedToLine = false;
+        
+        // Try to add to existing line
+        for (const line of lines) {
+            const lineY = line[0].y;
+            if (Math.abs(item.y - lineY) <= VERTICAL_TOLERANCE) {
+                line.push(item);
+                addedToLine = true;
+                break;
+            }
+        }
+        
+        // Create new line if not added to existing one
+        if (!addedToLine) {
+            lines.push([item]);
+        }
+    }
+    
+    return lines;
+}
+
 function toggleTrainingMode(e) {
-    e.stopPropagation();
+    if (e) {
+        e.stopPropagation();
+    }
     appState.isTrainingScrape = !appState.isTrainingScrape;
     const btn = document.getElementById('train-scrape-btn');
     btn.textContent = appState.isTrainingScrape ? 'TRAINING SCRAPE' : 'TRAIN SCRAPE';
@@ -81,7 +126,10 @@ async function finishTrainingBigBox() {
     counterBtn.style.top = '-15px';
     appState.scrapeBox.appendChild(counterBtn);
     appState.trainingCounterElement = counterBtn;
-    counterBtn.addEventListener('click', handleCounterClick);
+    counterBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleCounterClick();
+    });
 
     const cancelBtn = document.createElement('div');
     cancelBtn.className = 'train-cancel-btn';
@@ -89,7 +137,8 @@ async function finishTrainingBigBox() {
     cancelBtn.style.top = '-15px';
     appState.scrapeBox.appendChild(cancelBtn);
     appState.trainingCancelElement = cancelBtn;
-    cancelBtn.addEventListener('click', () => {
+    cancelBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         toggleTrainingMode();
         resetTrainingUI();
     });
@@ -186,6 +235,10 @@ async function handleCounterClick() {
         appState.scrapeHorizontalTolerance = tolerances.avgH;
         appState.scrapeVerticalTolerance = tolerances.avgV;
         setDirtyState();
+        
+        // Update the tolerance display
+        updateToleranceDisplay();
+        
         showCSVStatus(`Updated tolerances: H=${tolerances.avgH.toFixed(1)}, V=${tolerances.avgV.toFixed(1)}`, true);
     } else {
         showCSVStatus("No valid text found in training boxes.", false);
@@ -204,48 +257,110 @@ async function computeTolerancesFromTraining() {
     
     let allMaxH = [];
     let allMaxV = [];
+    let totalTextItemsFound = 0;
     
-    for (const smallBox of appState.trainingSmallBoxes) {
-        const textInBox = textContent.items.filter(item => {
-            const [canvasX, canvasY] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
-            const canvasXEnd = canvasX + (item.width * viewport.scale);
-            const canvasYEnd = canvasY + (item.height * viewport.scale);
-            return canvasX >= smallBox.x1 && canvasXEnd <= smallBox.x2 &&
-                   canvasY >= smallBox.y1 && canvasYEnd <= smallBox.y2;
+    // Convert all text items to canvas coordinates first (like regular scrape does)
+    const formattedTextItems = textContent.items.map(item => {
+        const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+        return {
+            x: x,
+            y: y,
+            width: item.width * viewport.scale,
+            height: item.height * viewport.scale,
+            text: item.str.trim(),
+            originalItem: item
+        };
+    }).filter(item => item.text.length > 0);
+    
+    console.log(`Total formatted text items: ${formattedTextItems.length}`);
+    console.log(`Map transform:`, appState.mapTransform);
+    
+    // Show some sample text items for debugging
+    console.log(`Sample text items:`, formattedTextItems.slice(0, 5).map(item => ({
+        text: item.text,
+        x: item.x,
+        y: item.y,
+        width: item.width,
+        height: item.height
+    })));
+    
+    for (let boxIndex = 0; boxIndex < appState.trainingSmallBoxes.length; boxIndex++) {
+        const smallBox = appState.trainingSmallBoxes[boxIndex];
+        
+        // Convert training box coordinates from screen space to canvas space
+        // Training boxes are stored in screen coordinates relative to map container
+        // We need to convert them back to canvas coordinates
+        const { x: mapX, y: mapY, scale } = appState.mapTransform;
+        const canvasBox = {
+            x1: (smallBox.x1 - mapX) / scale,
+            y1: (smallBox.y1 - mapY) / scale,
+            x2: (smallBox.x2 - mapX) / scale,
+            y2: (smallBox.y2 - mapY) / scale
+        };
+        
+        console.log(`Small box ${boxIndex + 1} screen coords: x1=${smallBox.x1}, y1=${smallBox.y1}, x2=${smallBox.x2}, y2=${smallBox.y2}`);
+        console.log(`Small box ${boxIndex + 1} canvas coords: x1=${canvasBox.x1}, y1=${canvasBox.y1}, x2=${canvasBox.x2}, y2=${canvasBox.y2}`);
+        
+        const textInBox = formattedTextItems.filter(item => {
+            const itemRight = item.x + item.width;
+            const itemBottom = item.y + item.height;
+            
+            // Check if text item overlaps with the small box bounds (now using canvas coordinates)
+            const overlaps = item.x < canvasBox.x2 && itemRight > canvasBox.x1 &&
+                           item.y < canvasBox.y2 && itemBottom > canvasBox.y1;
+            
+            if (overlaps) {
+                console.log(`  Found text "${item.text}" at x=${item.x}, y=${item.y}, w=${item.width}, h=${item.height}`);
+            }
+            
+            return overlaps;
         });
         
-        if (textInBox.length < 2) continue;
+        totalTextItemsFound += textInBox.length;
+        console.log(`Small box ${boxIndex + 1} found ${textInBox.length} text items:`, textInBox.map(item => item.text));
         
+        if (textInBox.length < 1) continue;
+        
+        // Group text items into lines using the canvas coordinates
         const lines = groupTextIntoLines(textInBox);
+        console.log(`  Grouped into ${lines.length} lines`);
         
-        let maxV = 0;
+        // Calculate vertical gaps between lines
         if (lines.length > 1) {
-            lines.sort((a,b) => a[0].transform[5] - b[0].transform[5]);
+            lines.sort((a, b) => a[0].y - b[0].y);
             for (let i = 1; i < lines.length; i++) {
-                const gapV = Math.abs(lines[i][0].transform[5] - lines[i-1][0].transform[5] - lines[i-1][0].height);
-                maxV = Math.max(maxV, gapV);
-            }
-        }
-        
-        let maxH = 0;
-        for (const line of lines) {
-            if (line.length > 1) {
-                line.sort((a,b) => a.transform[4] - b.transform[4]);
-                for (let j = 1; j < line.length; j++) {
-                    const gapH = line[j].transform[4] - (line[j-1].transform[4] + line[j-1].width);
-                    maxH = Math.max(maxH, gapH);
+                const gapV = Math.abs(lines[i][0].y - (lines[i-1][0].y + lines[i-1][0].height));
+                if (gapV > 0) {
+                    allMaxV.push(gapV);
+                    console.log(`  Found vertical gap: ${gapV}`);
                 }
             }
         }
         
-        if (maxH > 0) allMaxH.push(maxH * viewport.scale);
-        if (maxV > 0) allMaxV.push(maxV * viewport.scale);
+        // Calculate horizontal gaps within lines
+        for (const line of lines) {
+            if (line.length > 1) {
+                line.sort((a, b) => a.x - b.x);
+                for (let j = 1; j < line.length; j++) {
+                    const gapH = line[j].x - (line[j-1].x + line[j-1].width);
+                    if (gapH > 0) {
+                        allMaxH.push(gapH);
+                        console.log(`  Found horizontal gap: ${gapH}`);
+                    }
+                }
+            }
+        }
     }
     
-    if (!allMaxH.length || !allMaxV.length) return null;
+    console.log(`Total text items found: ${totalTextItemsFound}`);
+    console.log(`Horizontal gaps found: ${allMaxH.length}`, allMaxH);
+    console.log(`Vertical gaps found: ${allMaxV.length}`, allMaxV);
     
-    const avgH = allMaxH.reduce((a,b) => a+b, 0) / allMaxH.length;
-    const avgV = allMaxV.reduce((a,b) => a+b, 0) / allMaxV.length;
+    if (!allMaxH.length && !allMaxV.length) return null;
+    
+    // Use defaults if one type of gap isn't found
+    const avgH = allMaxH.length > 0 ? (allMaxH.reduce((a,b) => a+b, 0) / allMaxH.length) : 5;
+    const avgV = allMaxV.length > 0 ? (allMaxV.reduce((a,b) => a+b, 0) / allMaxV.length) : 25;
     
     return { avgH, avgV };
 }

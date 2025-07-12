@@ -22,6 +22,7 @@ function init() {
     initializeNewProjectMarkerTypes();
     updateAllSectionsForCurrentPage();
     updateAutomapControls();
+    updateToleranceDisplay();
     
     const getStateSnapshotForUndo = (description) => {
         return {
@@ -152,6 +153,14 @@ function setupEventListeners() {
     
     document.getElementById('disclaimer-cancel-btn').addEventListener('click', () => {
         window.location.href = 'mapping_slayer_landing.html';
+    });
+
+    document.getElementById('cancel-renumber-btn').addEventListener('click', () => {
+        document.getElementById('renumber-modal').style.display = 'none';
+    });
+
+    document.getElementById('cancel-pdf-export-btn').addEventListener('click', () => {
+        document.getElementById('pdf-export-modal').style.display = 'none';
     });
 
     document.getElementById('page-label-input').addEventListener('input', handlePageLabelChange);
@@ -325,6 +334,7 @@ function restoreStateFromData(projectData) {
     showCSVStatus(`✅ Project "${projectData.projectName}" loaded successfully.`, true);
     
     updatePageLabelInput();
+    updateAutomapControls();
     UndoManager.capture('Initial State');
 }
 
@@ -416,6 +426,7 @@ async function handleFileSelect(e) {
         appState.automapExactPhrase = true;
         
         UndoManager.capture('Initial State');
+        updateAutomapControls();
         
         const firstPage = await appState.pdfDoc.getPage(1);
         const textContent = await firstPage.getTextContent();
@@ -1204,6 +1215,7 @@ function deleteMarkerType(markerTypeCode) {
     setDirtyState();
     renderDotsForCurrentPage();
     updateAllSectionsForCurrentPage();
+    updateAutomapControls();
     showCSVStatus(`Deleted marker type "${markerTypeCode}" and ${dotsUsingType} associated dots.`, true);
 }
 
@@ -1343,25 +1355,191 @@ function toggleMarkerTypeExpansion(markerTypeCode) {
 }
 
 function renumberLocations() {
+    document.getElementById('renumber-modal').style.display = 'block';
+}
+
+function performRenumber(type) {
+    let description = '';
+    let totalUpdated = 0;
+
+    switch(type) {
+        case 'page':
+            totalUpdated = renumberCurrentPage();
+            description = 'Renumber current page';
+            break;
+        case 'page-by-type':
+            totalUpdated = renumberCurrentPageByMarkerType();
+            description = 'Renumber current page by marker type';
+            break;
+        case 'all':
+            totalUpdated = renumberAllPages();
+            description = 'Renumber all pages';
+            break;
+        case 'all-by-type':
+            totalUpdated = renumberAllPagesByMarkerType();
+            description = 'Renumber all pages by marker type';
+            break;
+    }
+
+    if (totalUpdated > 0) {
+        UndoManager.capture(description);
+        renderDotsForCurrentPage();
+        updateAllSectionsForCurrentPage();
+        appState.isDirty = true;
+        showCSVStatus(`✅ Renumbered ${totalUpdated} locations`, true, 3000);
+    }
+
+    document.getElementById('renumber-modal').style.display = 'none';
+}
+
+function renumberCurrentPage() {
     const pageData = getCurrentPageData();
     const oldDots = Array.from(pageData.dots.values()).sort((a, b) => {
         const yDiff = a.y - b.y;
         if (Math.abs(yDiff) < 30) { return a.x - b.x; }
         return yDiff;
     });
+    
     const newDots = new Map();
     oldDots.forEach((dot, index) => {
         dot.locationNumber = String(index + 1).padStart(4, '0');
         newDots.set(dot.internalId, dot);
     });
+    
     pageData.dots = newDots;
     pageData.nextLocationNumber = oldDots.length + 1;
     
-    UndoManager.capture('Renumber locations');
+    return oldDots.length;
+}
+
+function renumberCurrentPageByMarkerType() {
+    const pageData = getCurrentPageData();
+    const dotsByMarkerType = new Map();
     
-    renderDotsForCurrentPage();
-    updateAllSectionsForCurrentPage();
-    appState.isDirty = true;
+    // Group dots by marker type
+    for (const dot of pageData.dots.values()) {
+        if (!dotsByMarkerType.has(dot.markerType)) {
+            dotsByMarkerType.set(dot.markerType, []);
+        }
+        dotsByMarkerType.get(dot.markerType).push(dot);
+    }
+    
+    let totalCount = 0;
+    
+    // Sort marker types alphabetically
+    const sortedMarkerTypes = Array.from(dotsByMarkerType.keys()).sort((a, b) => 
+        a.localeCompare(b, undefined, { numeric: true })
+    );
+    
+    // Renumber each marker type group starting from 1
+    for (const markerType of sortedMarkerTypes) {
+        const dotsOfType = dotsByMarkerType.get(markerType);
+        dotsOfType.sort((a, b) => {
+            const yDiff = a.y - b.y;
+            if (Math.abs(yDiff) < 30) { return a.x - b.x; }
+            return yDiff;
+        });
+        
+        dotsOfType.forEach((dot, index) => {
+            dot.locationNumber = String(index + 1).padStart(4, '0');
+        });
+        
+        totalCount += dotsOfType.length;
+    }
+    
+    pageData.nextLocationNumber = Math.max(...Array.from(pageData.dots.values()).map(d => parseInt(d.locationNumber, 10))) + 1;
+    return totalCount;
+}
+
+function renumberAllPages() {
+    let globalCounter = 1;
+    let totalUpdated = 0;
+    
+    for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+        const pageData = appState.dotsByPage.get(pageNum);
+        if (!pageData || pageData.dots.size === 0) continue;
+        
+        const dotsOnPage = Array.from(pageData.dots.values()).sort((a, b) => {
+            const yDiff = a.y - b.y;
+            if (Math.abs(yDiff) < 30) { return a.x - b.x; }
+            return yDiff;
+        });
+        
+        dotsOnPage.forEach(dot => {
+            dot.locationNumber = String(globalCounter++).padStart(4, '0');
+            totalUpdated++;
+        });
+        
+        pageData.nextLocationNumber = globalCounter;
+    }
+    
+    return totalUpdated;
+}
+
+function renumberAllPagesByMarkerType() {
+    // Collect all dots from all pages grouped by marker type
+    const dotsByMarkerType = new Map();
+    
+    for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+        const pageData = appState.dotsByPage.get(pageNum);
+        if (!pageData) continue;
+        
+        for (const dot of pageData.dots.values()) {
+            if (!dotsByMarkerType.has(dot.markerType)) {
+                dotsByMarkerType.set(dot.markerType, []);
+            }
+            dotsByMarkerType.get(dot.markerType).push({ ...dot, pageNum });
+        }
+    }
+    
+    let totalUpdated = 0;
+    
+    // Sort marker types alphabetically
+    const sortedMarkerTypes = Array.from(dotsByMarkerType.keys()).sort((a, b) => 
+        a.localeCompare(b, undefined, { numeric: true })
+    );
+    
+    // Process each marker type, starting from 1 for each type
+    for (const markerType of sortedMarkerTypes) {
+        const dotsOfType = dotsByMarkerType.get(markerType);
+        
+        // Sort by page first, then by position within page
+        dotsOfType.sort((a, b) => {
+            if (a.pageNum !== b.pageNum) {
+                return a.pageNum - b.pageNum;
+            }
+            const yDiff = a.y - b.y;
+            if (Math.abs(yDiff) < 30) { return a.x - b.x; }
+            return yDiff;
+        });
+        
+        // Renumber this marker type group starting from 1
+        dotsOfType.forEach((dotInfo, index) => {
+            const pageData = appState.dotsByPage.get(dotInfo.pageNum);
+            const actualDot = pageData.dots.get(dotInfo.internalId);
+            if (actualDot) {
+                actualDot.locationNumber = String(index + 1).padStart(4, '0');
+                totalUpdated++;
+            }
+        });
+    }
+    
+    // Update nextLocationNumber for all pages to be the max location number + 1
+    let maxLocationNumber = 0;
+    for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+        const pageData = appState.dotsByPage.get(pageNum);
+        if (pageData) {
+            for (const dot of pageData.dots.values()) {
+                const num = parseInt(dot.locationNumber, 10);
+                if (num > maxLocationNumber) {
+                    maxLocationNumber = num;
+                }
+            }
+            pageData.nextLocationNumber = maxLocationNumber + 1;
+        }
+    }
+    
+    return totalUpdated;
 }
 
 function toggleMessages() {
