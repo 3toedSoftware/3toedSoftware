@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="tooltips.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -70,6 +71,7 @@
 
         <div class="map-section">
             <div class="map-overlay-controls-top-left">
+                <button class="btn btn-secondary btn-compact" id="tooltips-btn">TIPS ARE OFF</button>
                 <button class="btn btn-secondary btn-compact" id="controls-btn">CONTROLS</button>
                 <button class="btn btn-secondary btn-compact" id="toggle-messages-btn">SHOW MSG</button>
                 <button class="btn btn-secondary btn-compact" id="renumber-btn">RENUMBER</button>
@@ -314,6 +316,7 @@
                 <li><strong>Clear Selection:</strong> Escape</li>
             </ul>
             <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="TutorialSystem.start()" style="margin-right: auto;">RESTART TUTORIAL</button>
                 <button class="btn btn-primary" id="close-controls-modal-btn">CLOSE</button>
             </div>
         </div>

@@ -6,6 +6,322 @@ document.addEventListener('DOMContentLoaded', function() {
     init();
 });
 
+// Tutorial System
+const TutorialSystem = {
+    currentStep: 0,
+    isActive: false,
+    steps: [],
+    
+    // Define tutorial steps
+    basicTutorialSteps: [
+        {
+            target: '.upload-area',
+            title: 'Welcome to Mapping Slayer!',
+            content: 'Start by uploading a PDF file here. You can click to browse or drag and drop a file. PDFs with live text work best for auto-mapping features.',
+            position: 'bottom',
+            interactive: false
+        },
+        {
+            target: '#add-marker-type-btn',
+            title: 'Create Marker Types',
+            content: 'Before adding dots, create marker types to categorize your locations. Each type has a unique code, name, and color.',
+            position: 'right',
+            interactive: false
+        },
+        {
+            target: '#map-container',
+            title: 'Add Location Dots',
+            content: 'Click anywhere on the map to add a location dot. The active marker type (highlighted in orange) will be used.',
+            position: 'top',
+            interactive: false
+        },
+        {
+            target: '#toggle-messages-btn',
+            title: 'Show/Hide Messages',
+            content: 'Toggle the visibility of location messages on the map. This helps keep the view clean when needed.',
+            position: 'bottom',
+            interactive: false
+        },
+        {
+            target: '#automap-text-input',
+            title: 'Auto-Mapping Feature',
+            content: 'Enter text to automatically find and place dots on matching text in your PDF. Great for quickly mapping repeated elements!',
+            position: 'top',
+            interactive: false
+        },
+        {
+            target: '#controls-btn',
+            title: 'Keyboard Shortcuts',
+            content: 'Click here to see all available keyboard shortcuts and controls. These will help you work much faster!',
+            position: 'bottom',
+            interactive: false
+        },
+        {
+            target: '#save-project-btn',
+            title: 'Save Your Work',
+            content: 'Always save your project as a .mslay file. This preserves both your annotations and the original PDF in one file.',
+            position: 'bottom',
+            interactive: false
+        }
+    ],
+    
+    start(tutorialSteps = null) {
+        this.steps = tutorialSteps || this.basicTutorialSteps;
+        this.currentStep = 0;
+        this.isActive = true;
+        
+        // Create overlay elements
+        this.createOverlay();
+        this.showStep(0);
+        
+        // Store tutorial state
+        try {
+            sessionStorage.setItem('mapping-slayer-tutorial-active', 'true');
+        } catch (e) {
+            // Ignore if sessionStorage not available
+        }
+    },
+    
+    createOverlay() {
+        // Remove existing overlay if present
+        this.cleanup();
+        
+        // Create main overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'tutorial-overlay';
+        overlay.id = 'tutorial-overlay';
+        document.body.appendChild(overlay);
+        
+        // Create spotlight
+        const spotlight = document.createElement('div');
+        spotlight.className = 'tutorial-spotlight';
+        spotlight.id = 'tutorial-spotlight';
+        document.body.appendChild(spotlight);
+        
+        // Create tooltip
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tutorial-tooltip';
+        tooltip.id = 'tutorial-tooltip';
+        document.body.appendChild(tooltip);
+        
+        // Show overlay
+        setTimeout(() => overlay.classList.add('active'), 10);
+    },
+    
+    showStep(stepIndex) {
+        if (stepIndex < 0 || stepIndex >= this.steps.length) return;
+        
+        this.currentStep = stepIndex;
+        const step = this.steps[stepIndex];
+        
+        // Find target element
+        const targetElement = document.querySelector(step.target);
+        if (!targetElement) {
+            console.warn(`Tutorial target not found: ${step.target}`);
+            this.nextStep();
+            return;
+        }
+        
+        // Position spotlight
+        this.positionSpotlight(targetElement);
+        
+        // Create and position tooltip
+        this.createTooltip(step, targetElement);
+        
+        // Handle interactive steps
+        if (step.interactive) {
+            this.setupInteractiveStep(step, targetElement);
+        }
+    },
+    
+    positionSpotlight(element) {
+        const spotlight = document.getElementById('tutorial-spotlight');
+        const rect = element.getBoundingClientRect();
+        
+        // Add some padding around the element
+        const padding = 8;
+        
+        spotlight.style.left = `${rect.left - padding}px`;
+        spotlight.style.top = `${rect.top - padding}px`;
+        spotlight.style.width = `${rect.width + (padding * 2)}px`;
+        spotlight.style.height = `${rect.height + (padding * 2)}px`;
+        
+        // Add pulsing effect
+        spotlight.classList.add('pulsing');
+    },
+    
+    createTooltip(step, targetElement) {
+        const tooltip = document.getElementById('tutorial-tooltip');
+        const rect = targetElement.getBoundingClientRect();
+        
+        // Build tooltip content
+        tooltip.innerHTML = `
+            <div class="tutorial-header">
+                <span class="tutorial-step-counter">${this.currentStep + 1}/${this.steps.length}</span>
+                <span>${step.title}</span>
+            </div>
+            <div class="tutorial-progress">
+                <div class="tutorial-progress-fill" style="width: ${((this.currentStep + 1) / this.steps.length) * 100}%"></div>
+            </div>
+            <div class="tutorial-content">${step.content}</div>
+            ${step.interactive && step.interactiveHint ? `<div class="tutorial-interactive-hint">${step.interactiveHint}</div>` : ''}
+            <div class="tutorial-controls">
+                <div class="tutorial-controls-left">
+                    ${this.currentStep > 0 ? '<button class="tutorial-btn tutorial-btn-secondary" onclick="TutorialSystem.previousStep()">Previous</button>' : ''}
+                </div>
+                <div class="tutorial-controls-right">
+                    <button class="tutorial-btn tutorial-btn-skip" onclick="TutorialSystem.skip()">Skip Tutorial</button>
+                    ${this.currentStep < this.steps.length - 1 ? 
+                        '<button class="tutorial-btn tutorial-btn-primary" onclick="TutorialSystem.nextStep()">Next</button>' :
+                        '<button class="tutorial-btn tutorial-btn-primary" onclick="TutorialSystem.finish()">Finish</button>'
+                    }
+                </div>
+            </div>
+        `;
+        
+        // Position tooltip
+        this.positionTooltip(tooltip, rect, step.position);
+        
+        // Show tooltip with animation
+        setTimeout(() => tooltip.classList.add('active'), 100);
+    },
+    
+    positionTooltip(tooltip, targetRect, position) {
+        // Reset classes
+        tooltip.classList.remove('active');
+        
+        // Remove existing arrow
+        const existingArrow = tooltip.querySelector('.tutorial-tooltip-arrow');
+        if (existingArrow) existingArrow.remove();
+        
+        // Calculate position
+        const tooltipRect = tooltip.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const spacing = 20;
+        
+        let left, top, arrowPosition;
+        
+        switch (position) {
+            case 'top':
+                left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+                top = targetRect.top - tooltipRect.height - spacing;
+                arrowPosition = 'bottom';
+                break;
+            case 'bottom':
+                left = targetRect.left - tooltipRect.width - spacing;
+                top = targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2);
+                arrowPosition = 'top';
+                break;
+            case 'left':
+                left = targetRect.left - tooltipRect.width - spacing;
+                top = targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2);
+                arrowPosition = 'right';
+                break;
+            case 'right':
+                left = targetRect.right + spacing;
+                top = targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2);
+                arrowPosition = 'left';
+                break;
+            default:
+                left = targetRect.left - tooltipRect.width - spacing;
+                top = targetRect.top;
+                arrowPosition = 'left';
+        }
+        
+        // Keep tooltip in viewport
+        left = Math.max(10, Math.min(left, viewportWidth - tooltipRect.width - 10));
+        top = Math.max(10, Math.min(top, viewportHeight - tooltipRect.height - 10));
+        
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+    },
+    
+    setupInteractiveStep(step, targetElement) {
+        // For interactive steps, we wait for user action instead of auto-advancing
+        if (step.target === '#map-container') {
+            // Listen for dot creation
+            const originalAddDot = window.addDot;
+            window.addDot = function(...args) {
+                const result = originalAddDot.apply(this, args);
+                if (TutorialSystem.isActive && TutorialSystem.currentStep < TutorialSystem.steps.length) {
+                    TutorialSystem.nextStep();
+                    // Restore original function
+                    window.addDot = originalAddDot;
+                }
+                return result;
+            };
+        }
+    },
+    
+    nextStep() {
+        if (this.currentStep < this.steps.length - 1) {
+            this.showStep(this.currentStep + 1);
+        } else {
+            this.finish();
+        }
+    },
+    
+    previousStep() {
+        if (this.currentStep > 0) {
+            this.showStep(this.currentStep - 1);
+        }
+    },
+    
+    skip() {
+        if (confirm('Are you sure you want to skip the tutorial? You can restart it later from the Help menu.')) {
+            this.finish();
+        }
+    },
+    
+    finish() {
+        this.isActive = false;
+        
+        // Clean up
+        this.cleanup();
+        
+        // Store completion state
+        try {
+            sessionStorage.setItem('mapping-slayer-tutorial-completed', 'true');
+            sessionStorage.removeItem('mapping-slayer-tutorial-active');
+        } catch (e) {
+            // Ignore if sessionStorage not available
+        }
+        
+        showCSVStatus('🎉 Tutorial completed! You\'re ready to start mapping.', true, 5000);
+    },
+    
+    cleanup() {
+        const overlay = document.getElementById('tutorial-overlay');
+        const spotlight = document.getElementById('tutorial-spotlight');
+        const tooltip = document.getElementById('tutorial-tooltip');
+        
+        if (overlay) overlay.remove();
+        if (spotlight) spotlight.remove();
+        if (tooltip) tooltip.remove();
+    }
+};
+
+// Auto-start tutorial for new users
+function checkForFirstTimeUser() {
+    try {
+        const hasCompletedTutorial = sessionStorage.getItem('mapping-slayer-tutorial-completed');
+        const disclaimerAgreed = sessionStorage.getItem('mapping-slayer-disclaimer-agreed');
+        
+        // Only show tutorial if they've agreed to disclaimer but haven't completed tutorial
+        if (disclaimerAgreed === 'true' && !hasCompletedTutorial) {
+            // Wait a moment for the UI to fully load
+            setTimeout(() => {
+                if (confirm('Welcome to Mapping Slayer! Would you like to take a quick tutorial to learn the basics?')) {
+                    TutorialSystem.start();
+                }
+            }, 1000);
+        }
+    } catch (e) {
+        // Ignore if sessionStorage not available
+    }
+}
+
 function init() {
     let disclaimerAgreed = false;
     try {
@@ -17,6 +333,9 @@ function init() {
     if (disclaimerAgreed) {
         document.getElementById('disclaimer-modal').style.display = 'none';
     }
+    
+    // Check for first-time user tutorial
+    checkForFirstTimeUser();
     
     setupEventListeners();
     initializeNewProjectMarkerTypes();
@@ -114,6 +433,10 @@ function setupEventListeners() {
         });
     }
 
+    document.getElementById('tooltips-btn').addEventListener('click', () => {
+        TooltipManager.toggle();
+    });
+
     document.getElementById('controls-btn').addEventListener('click', () => {
         document.getElementById('controls-modal').style.display = 'block';
     });
@@ -163,6 +486,13 @@ function setupEventListeners() {
         } catch (e) {
             // Ignore
         }
+        
+        // Check if user wants tutorial
+        setTimeout(() => {
+            if (confirm('Welcome to Mapping Slayer! Would you like to take a quick tutorial to learn the basics?')) {
+                TutorialSystem.start();
+            }
+        }, 500);
     });
     
     document.getElementById('disclaimer-cancel-btn').addEventListener('click', () => {
