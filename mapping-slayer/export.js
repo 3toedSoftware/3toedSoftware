@@ -733,6 +733,7 @@ async function performPDFExport(exportType) {
     const originalBtnText = createPdfBtn.textContent;
     createPdfBtn.disabled = true; 
     createPdfBtn.textContent = 'Generating...';
+    createPdfBtn.classList.add('btn-processing');
     
     const activeFilters = getActiveFilters(); 
     const messagesVisible = appState.messagesVisible;
@@ -740,96 +741,168 @@ async function performPDFExport(exportType) {
     const tempCtx = tempCanvas.getContext('2d');
     
     try {
-        const { jsPDF } = window.jspdf; 
-        let outputPdf = null;
-        let detailPageNumbers = new Map();
-        const originalToNewPageMap = new Map();
+        const { jsPDF } = window.jspdf;
 
-        // Create map pages
-        for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
-            const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
-            if (dotsToDraw.length === 0) continue;
-            createPdfBtn.textContent = `Main Page ${pageNum}/${appState.totalPages}...`;
-            
-            const page = await appState.pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: appState.pdfScale });
-            tempCanvas.width = viewport.width; 
-            tempCanvas.height = viewport.height;
-            await page.render({ canvasContext: tempCtx, viewport: viewport }).promise;
-            const imgData = tempCanvas.toDataURL('image/jpeg', 0.9);
-            
-            if (!outputPdf) {
-                outputPdf = new jsPDF({ 
-                    orientation: viewport.width > viewport.height ? 'landscape' : 'portrait', 
-                    unit: 'pt', 
-                    format: [viewport.width, viewport.height] 
-                });
-            } else { 
-                outputPdf.addPage([viewport.width, viewport.height], viewport.width > viewport.height ? 'landscape' : 'portrait'); 
-            }
-            
-            const newPageNumForMap = outputPdf.internal.getNumberOfPages();
-            originalToNewPageMap.set(pageNum, newPageNumForMap);
-
-            outputPdf.addImage(imgData, 'JPEG', 0, 0, viewport.width, viewport.height);
-            drawLegendWithJsPDF(outputPdf, dotsToDraw);
-            drawDotsWithJsPDF(outputPdf, dotsToDraw, messagesVisible);
+        // Determine which pages to process based on export type
+        let pagesToProcess = [];
+        if (exportType === 'current-with-details' || exportType === 'current-only') {
+            pagesToProcess = [appState.currentPdfPage];
+        } else {
+            pagesToProcess = Array.from({length: appState.totalPages}, (_, i) => i + 1);
         }
-        
-        // Create detail pages only if requested
-        if (exportType === 'with-details') {
-            createPdfBtn.textContent = 'Creating detail pages...';
-            for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+
+        // Filter pages that have dots
+        const pagesWithDots = pagesToProcess.filter(pageNum => {
+            const dots = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
+            return dots.length > 0;
+        });
+
+        if (pagesWithDots.length === 0) {
+            alert('No annotations match the current filters. PDF not created.');
+            return;
+        }
+
+        // Split into chunks of 10 maps
+        const CHUNK_SIZE = 10;
+        const chunks = [];
+        for (let i = 0; i < pagesWithDots.length; i += CHUNK_SIZE) {
+            chunks.push(pagesWithDots.slice(i, i + CHUNK_SIZE));
+        }
+
+        const pdfChunks = [];
+        let globalDetailPageNumbers = new Map();
+        let globalOriginalToNewPageMap = new Map();
+        let totalPagesProcessed = 0;
+
+        // Process each chunk
+        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+            const chunk = chunks[chunkIndex];
+            createPdfBtn.textContent = `Processing chunk ${chunkIndex + 1} of ${chunks.length}...`;
+
+            let chunkPdf = null;
+            let chunkDetailPageNumbers = new Map();
+            let chunkOriginalToNewPageMap = new Map();
+
+            // Create map pages for this chunk
+            for (const pageNum of chunk) {
                 const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
-                for (const dot of dotsToDraw) {
-                    const detailPageNum = outputPdf.internal.getNumberOfPages() + 1;
-                    detailPageNumbers.set(dot.internalId, detailPageNum);
-                    createDetailPage(outputPdf, dot, pageNum, originalToNewPageMap);
-                }
-            }
-            
-            // Add hyperlinks only if we have detail pages
-            createPdfBtn.textContent = 'Adding hyperlinks...';
-            for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
-                const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
-                if (dotsToDraw.length === 0) continue;
                 
-                const mapPageNum = originalToNewPageMap.get(pageNum);
-                if (mapPageNum) {
-                    outputPdf.setPage(mapPageNum);
-                    
-                    dotsToDraw.forEach(dot => {
-                        const effectiveMultiplier = appState.dotSize * 2;
-                        const radius = (20 * effectiveMultiplier) / 2;
-                        const detailPageNum = detailPageNumbers.get(dot.internalId);
-                        
-                        if (detailPageNum) {
-                            outputPdf.link(
-                                dot.x - radius, 
-                                dot.y - radius, 
-                                radius * 2, 
-                                radius * 2, 
-                                { pageNumber: detailPageNum }
-                            );
-                        }
+                const page = await appState.pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale: appState.pdfScale });
+                tempCanvas.width = viewport.width; 
+                tempCanvas.height = viewport.height;
+                await page.render({ canvasContext: tempCtx, viewport: viewport }).promise;
+                const imgData = tempCanvas.toDataURL('image/jpeg', 0.9);
+                
+                if (!chunkPdf) {
+                    chunkPdf = new jsPDF({ 
+                        orientation: viewport.width > viewport.height ? 'landscape' : 'portrait', 
+                        unit: 'pt', 
+                        format: [viewport.width, viewport.height] 
                     });
+                } else { 
+                    chunkPdf.addPage([viewport.width, viewport.height], viewport.width > viewport.height ? 'landscape' : 'portrait'); 
+                }
+                
+                const newPageNumForMap = chunkPdf.internal.getNumberOfPages();
+                chunkOriginalToNewPageMap.set(pageNum, newPageNumForMap);
+                globalOriginalToNewPageMap.set(pageNum, totalPagesProcessed + newPageNumForMap);
+
+                chunkPdf.addImage(imgData, 'JPEG', 0, 0, viewport.width, viewport.height);
+                drawLegendWithJsPDF(chunkPdf, dotsToDraw);
+                drawDotsWithJsPDF(chunkPdf, dotsToDraw, messagesVisible);
+            }
+            
+            // Create detail pages for this chunk only if requested
+            if (exportType === 'current-with-details') {
+                for (const pageNum of chunk) {
+                    const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
+                    for (const dot of dotsToDraw) {
+                        const detailPageNum = chunkPdf.internal.getNumberOfPages() + 1;
+                        chunkDetailPageNumbers.set(dot.internalId, detailPageNum);
+                        globalDetailPageNumbers.set(dot.internalId, totalPagesProcessed + detailPageNum);
+                        createDetailPage(chunkPdf, dot, pageNum, chunkOriginalToNewPageMap);
+                    }
+                }
+                
+                // Add hyperlinks for this chunk
+                for (const pageNum of chunk) {
+                    const dotsToDraw = Array.from(getDotsForPage(pageNum).values()).filter(dot => activeFilters.includes(dot.markerType));
+                    if (dotsToDraw.length === 0) continue;
+                    
+                    const mapPageNum = chunkOriginalToNewPageMap.get(pageNum);
+                    if (mapPageNum) {
+                        chunkPdf.setPage(mapPageNum);
+                        
+                        dotsToDraw.forEach(dot => {
+                            const effectiveMultiplier = appState.dotSize * 2;
+                            const radius = (20 * effectiveMultiplier) / 2;
+                            const detailPageNum = chunkDetailPageNumbers.get(dot.internalId);
+                            
+                            if (detailPageNum) {
+                                chunkPdf.link(
+                                    dot.x - radius, 
+                                    dot.y - radius, 
+                                    radius * 2, 
+                                    radius * 2, 
+                                    { pageNumber: detailPageNum }
+                                );
+                            }
+                        });
+                    }
+                }
+            }
+
+            totalPagesProcessed += chunkPdf.internal.getNumberOfPages();
+            pdfChunks.push(chunkPdf);
+        }
+
+        // Combine all chunks into final PDF
+        createPdfBtn.textContent = 'Combining chunks...';
+        let finalPdf = null;
+
+        for (let i = 0; i < pdfChunks.length; i++) {
+            const chunk = pdfChunks[i];
+            
+            if (i === 0) {
+                finalPdf = chunk;
+            } else {
+                // Add all pages from this chunk to the final PDF
+                const pageCount = chunk.internal.getNumberOfPages();
+                for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+                    chunk.setPage(pageNum);
+                    const pageData = chunk.internal.pages[pageNum];
+                    finalPdf.addPage();
+                    finalPdf.internal.pages[finalPdf.internal.getNumberOfPages()] = pageData;
                 }
             }
         }
         
-        if (outputPdf) {
+        if (finalPdf) {
             const mapFileName = document.getElementById('map-file-name').textContent.replace('.pdf', '');
-            const suffix = exportType === 'with-details' ? '_interactive' : '_map_only';
-            outputPdf.save(`${mapFileName}${suffix}.pdf`);
-        } else { 
-            alert('No annotations match the current filters. PDF not created.'); 
+            let suffix = '';
+            switch(exportType) {
+                case 'current-with-details':
+                    const pageLabel = appState.pageLabels.get(appState.currentPdfPage) || `Page${appState.currentPdfPage}`;
+                    suffix = `_${pageLabel}_Interactive`;
+                    break;
+                case 'current-only':
+                    const currentLabel = appState.pageLabels.get(appState.currentPdfPage) || `Page${appState.currentPdfPage}`;
+                    suffix = `_${currentLabel}_MapOnly`;
+                    break;
+                case 'all-maps-only':
+                    suffix = '_AllMaps_MapOnly';
+                    break;
+            }
+            finalPdf.save(`${mapFileName}${suffix}.pdf`);
         }
     } catch (error) {
         console.error('Failed to create PDF:', error);
         alert('An error occurred while creating the PDF. Check the console for details.');
     } finally {
         createPdfBtn.disabled = false; 
-        createPdfBtn.textContent = originalBtnText; 
+        createPdfBtn.textContent = originalBtnText;
+        createPdfBtn.classList.remove('btn-processing');
         tempCanvas.remove();
     }
 }

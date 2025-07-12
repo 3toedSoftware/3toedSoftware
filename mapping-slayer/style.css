@@ -137,6 +137,12 @@ body {
     background: #c82333;
 }
 
+/* PDF Export Button Processing State */
+.btn-processing {
+    border: 3px solid #ffffff !important;
+    box-shadow: 0 0 0 2px #f07727 !important;
+}
+
 .btn-glow-orange {
     background-color: #ff8800;
     color: white;
@@ -1320,7 +1326,7 @@ body {
 .pdf-export-option-btn strong {
     display: block;
     font-size: 11px;
-    margin-bottom: 1px;
+    margin-bottom: 0px;
 }
 
 .pdf-export-option-btn small {

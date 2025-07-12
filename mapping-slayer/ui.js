@@ -347,21 +347,23 @@ function renderFlatLocationList(allDots, container) {
                 await changePage(dotPage);
             }
 
-            if (!isDotVisible(dot.internalId)) {
-                centerOnDot(dot.internalId);
-            }
-
-            if (e.shiftKey) {
-                toggleDotSelection(dot.internalId);
-            } else {
-                if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
-                    clearSelection();
+            // Always center on the dot to ensure it's visible and in viewport
+            centerOnDot(dot.internalId);
+            
+            // Give the viewport update a moment to render the dot
+            setTimeout(() => {
+                if (e.shiftKey) {
+                    toggleDotSelection(dot.internalId);
                 } else {
-                    clearSelection();
-                    selectDot(dot.internalId);
+                    if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
+                        clearSelection();
+                    } else {
+                        clearSelection();
+                        selectDot(dot.internalId);
+                    }
                 }
-            }
-            updateSelectionUI();
+                updateSelectionUI();
+            }, 100);
         });
 
         const messageInput = item.querySelector('.location-message-input');
@@ -470,18 +472,24 @@ function renderGroupedLocationList(allDots, container) {
                 if (dotPage !== appState.currentPdfPage) {
                     await changePage(dotPage);
                 }
-                if (!isDotVisible(dot.internalId)) centerOnDot(dot.internalId);
-                if (e.shiftKey) {
-                    toggleDotSelection(dot.internalId);
-                } else {
-                    if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
-                        clearSelection();
+                
+                // Always center on the dot to ensure it's visible and in viewport
+                centerOnDot(dot.internalId);
+                
+                // Give the viewport update a moment to render the dot
+                setTimeout(() => {
+                    if (e.shiftKey) {
+                        toggleDotSelection(dot.internalId);
                     } else {
-                        clearSelection();
-                        selectDot(dot.internalId);
+                        if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
+                            clearSelection();
+                        } else {
+                            clearSelection();
+                            selectDot(dot.internalId);
+                        }
                     }
-                }
-                updateSelectionUI();
+                    updateSelectionUI();
+                }, 100);
             });
 
             item.addEventListener('contextmenu', async (e) => {

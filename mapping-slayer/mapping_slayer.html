@@ -326,13 +326,17 @@
             <div class="modal-body">
                 <p class="modal-text">Choose your PDF export format:</p>
                 <div class="pdf-export-options">
-                    <button class="btn btn-primary pdf-export-option-btn" onclick="performPDFExport('with-details')">
-                        <strong>With Detail Pages</strong><br>
-                        <small>Interactive PDF with clickable dots leading to detail pages</small>
+                    <button class="btn btn-primary pdf-export-option-btn" onclick="performPDFExport('current-with-details')">
+                        <strong>Current Map - With Detail Pages</strong><br>
+                        <small>This map + clickable detail pages for each location</small>
                     </button>
-                    <button class="btn btn-primary pdf-export-option-btn" onclick="performPDFExport('map-only')">
-                        <strong>Map Only</strong><br>
-                        <small>PDF with annotated map pages and legends only</small>
+                    <button class="btn btn-primary pdf-export-option-btn" onclick="performPDFExport('current-only')">
+                        <strong>Current Map Only</strong><br>
+                        <small>Just this map page with location dots</small>
+                    </button>
+                    <button class="btn btn-primary pdf-export-option-btn" onclick="performPDFExport('all-maps-only')">
+                        <strong>All Maps Only</strong><br>
+                        <small>All map pages with dots (no detail pages)</small>
                     </button>
                 </div>
             </div>

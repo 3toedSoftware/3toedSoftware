@@ -280,9 +280,15 @@ async function automapSingleLocation() {
         await sleep(200);
 
         if (dotsToAdd.length > 0) {
+            // Add dots to data without rendering
             dotsToAdd.forEach(dotInfo => {
-                addDot(dotInfo.x, dotInfo.y, markerTypeCode, dotInfo.message);
+                addDotToData(dotInfo.x, dotInfo.y, markerTypeCode, dotInfo.message);
             });
+            
+            // Render all new dots asynchronously
+            showAutomapProgress("Rendering dots on map...", 95);
+            await renderDotsForCurrentPage(true);
+            
             UndoManager.capture(`Automap: ${searchTerm}`);
             updateRecentSearches(searchTerm);
             textInput.value = '';

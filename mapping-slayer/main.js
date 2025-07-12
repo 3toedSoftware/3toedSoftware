@@ -671,59 +671,106 @@ async function finishScrape() {
     showCSVStatus("Scraping, please wait...", true, 20000);
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 0));
-
         const boxRect = appState.scrapeBox.getBoundingClientRect();
         const mapRect = document.getElementById('map-container').getBoundingClientRect();
         const { x: mapX, y: mapY, scale } = appState.mapTransform;
-        const canvasX1 = (boxRect.left - mapRect.left - mapX) / scale; const canvasY1 = (boxRect.top - mapRect.top - mapY) / scale;
-        const canvasX2 = (boxRect.right - mapRect.left - mapX) / scale; const canvasY2 = (boxRect.bottom - mapRect.top - mapY) / scale;
-        const boxLeft = Math.min(canvasX1, canvasX2); const boxTop = Math.min(canvasY1, canvasY2);
-        const boxRight = Math.max(canvasX1, canvasX2); const boxBottom = Math.max(canvasY1, canvasY2);
+        const canvasX1 = (boxRect.left - mapRect.left - mapX) / scale; 
+        const canvasY1 = (boxRect.top - mapRect.top - mapY) / scale;
+        const canvasX2 = (boxRect.right - mapRect.left - mapX) / scale; 
+        const canvasY2 = (boxRect.bottom - mapRect.top - mapY) / scale;
+        const boxLeft = Math.min(canvasX1, canvasX2); 
+        const boxTop = Math.min(canvasY1, canvasY2);
+        const boxRight = Math.max(canvasX1, canvasX2); 
+        const boxBottom = Math.max(canvasY1, canvasY2);
+        
+        // Remove scrape box immediately so user knows we're processing
+        appState.scrapeBox.remove();
+        appState.scrapeBox = null;
+        appState.isScraping = false;
+        document.removeEventListener('contextmenu', preventContextMenu);
+        
+        showCSVStatus("Loading page text...", true, 20000);
+        await new Promise(resolve => setTimeout(resolve, 10));
         
         const page = await appState.pdfDoc.getPage(appState.currentPdfPage);
         const viewport = page.getViewport({ scale: appState.pdfScale });
-        const textContent = await page.getTextContent(); 
-        const capturedTextItems = [];
+        const textContent = await page.getTextContent();
         
-        for (const item of textContent.items) {
-            const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
-            if (x >= boxLeft && x <= boxRight && y >= boxTop && y <= boxBottom) {
-                const text = item.str.trim();
-                if (text.length > 0 && item.height > 0) {
-                    capturedTextItems.push({
-                        x: x, y: y, width: item.width * viewport.scale, height: item.height * viewport.scale, text: text
-                    }); 
+        showCSVStatus("Processing text items...", true, 20000);
+        await new Promise(resolve => setTimeout(resolve, 10));
+        
+        const capturedTextItems = [];
+        const BATCH_SIZE = 100; // Process text items in batches
+        
+        for (let i = 0; i < textContent.items.length; i += BATCH_SIZE) {
+            const batch = textContent.items.slice(i, i + BATCH_SIZE);
+            
+            for (const item of batch) {
+                const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+                if (x >= boxLeft && x <= boxRight && y >= boxTop && y <= boxBottom) {
+                    const text = item.str.trim();
+                    if (text.length > 0 && item.height > 0) {
+                        capturedTextItems.push({
+                            x: x, y: y, width: item.width * viewport.scale, height: item.height * viewport.scale, text: text
+                        });
+                    }
                 }
+            }
+            
+            // Allow browser to breathe every 100 items
+            if (i % BATCH_SIZE === 0) {
+                const progress = Math.round((i / textContent.items.length) * 50); // Use 50% of progress bar
+                showCSVStatus(`Processing text items: ${i}/${textContent.items.length}`, true, 20000);
+                await new Promise(resolve => setTimeout(resolve, 5));
             }
         }
         
         if (capturedTextItems.length > 0) {
+            showCSVStatus("Clustering text...", true, 20000);
+            await new Promise(resolve => setTimeout(resolve, 10));
+            
             const clusters = clusterTextItems(capturedTextItems);
+            
+            showCSVStatus("Adding dots to data...", true, 20000);
+            await new Promise(resolve => setTimeout(resolve, 10));
 
             if (clusters.length === 1) {
                 const cluster = clusters[0];
                 const message = cluster.items.map(item => item.text).join(' ').trim();
                 if (!isCollision(cluster.centerX, cluster.centerY)) {
-                    addDot(cluster.centerX, cluster.centerY, appState.activeMarkerType, message);
+                    addDotToData(cluster.centerX, cluster.centerY, appState.activeMarkerType, message);
+                    showCSVStatus("Rendering dots...", true, 20000);
+                    await renderDotsForCurrentPage(true);
                     UndoManager.capture('Scrape text');
                     showCSVStatus(`✅ Scraped: "${message}"`, true, 3000);
                 } else {
                     showCSVStatus("❌ Collision detected", false, 4000);
                 }
             } else {
-                let dotsPlaced = 0;
+                const dotsToAdd = [];
                 clusters.forEach(cluster => {
                     const message = cluster.items.map(item => item.text).join(' ').trim();
                     if (message.length > 0 && !isCollision(cluster.centerX, cluster.centerY)) {
-                        addDot(cluster.centerX, cluster.centerY, appState.activeMarkerType, message);
-                        dotsPlaced++;
+                        dotsToAdd.push({
+                            x: cluster.centerX, 
+                            y: cluster.centerY, 
+                            message: message
+                        });
                     }
                 });
                 
-                if (dotsPlaced > 0) {
+                if (dotsToAdd.length > 0) {
+                    // Add all dots to data first
+                    dotsToAdd.forEach(dotInfo => {
+                        addDotToData(dotInfo.x, dotInfo.y, appState.activeMarkerType, dotInfo.message);
+                    });
+                    
+                    showCSVStatus("Rendering dots...", true, 20000);
+                    await renderDotsForCurrentPage(true);
+                    updateAllSectionsForCurrentPage();
+                    
                     UndoManager.capture('Batch scrape text');
-                    showCSVStatus(`✅ Scraped ${dotsPlaced} locations`, true, 3000);
+                    showCSVStatus(`✅ Scraped ${dotsToAdd.length} locations`, true, 3000);
                 } else if (clusters.length > 0) {
                     showCSVStatus("❌ No valid locations found (all collided)", false, 4000);
                 } else {
@@ -737,6 +784,7 @@ async function finishScrape() {
         console.error("Scrape operation failed:", error);
         showCSVStatus("❌ An error occurred during scrape.", false, 4000);
     } finally {
+        // Cleanup in case something went wrong
         if (appState.scrapeBox) {
             appState.scrapeBox.remove();
             appState.scrapeBox = null;
@@ -756,6 +804,9 @@ function selectDot(internalId) {
             border: '2px solid #00ff88',
             zIndex: '200'
         });
+    } else {
+        // Dot is off-screen but selected - it will get selection styling when rendered
+        console.log(`Selected off-screen dot: ${internalId}`);
     }
 }
 
@@ -790,6 +841,45 @@ function updateListHighlighting() {
         const internalId = item.dataset.dotId;
         item.classList.toggle('selected', appState.selectedDots.has(internalId));
     });
+}
+
+function addDotToData(x, y, markerTypeCode, message, isCodeRequired = false) {
+    const pageData = getCurrentPageData();
+    const effectiveMarkerTypeCode = markerTypeCode || appState.activeMarkerType || Object.keys(appState.markerTypes)[0];
+    if (!effectiveMarkerTypeCode) { 
+        showCSVStatus("Cannot add dot: No marker types exist. Please add one.", false);
+        return null; 
+    }
+    
+    const internalId = String(appState.nextInternalId).padStart(7, '0');
+    
+    let highestLocationNum = 0;
+    for (const dot of pageData.dots.values()) {
+        const num = parseInt(dot.locationNumber, 10);
+        if (!isNaN(num) && num > highestLocationNum) {
+            highestLocationNum = num;
+        }
+    }
+    const locationNumber = String(highestLocationNum + 1).padStart(4, '0');
+    
+    const dot = { 
+        internalId: internalId,
+        locationNumber: locationNumber,
+        x, 
+        y, 
+        markerType: effectiveMarkerTypeCode, 
+        message: message || 'NEW LOCATION', 
+        isCodeRequired: isCodeRequired,
+        notes: '',
+        installed: false
+    };
+
+    pageData.dots.set(internalId, dot);
+    pageData.nextLocationNumber = highestLocationNum + 2;
+    appState.nextInternalId++;
+    setDirtyState();
+    
+    return dot;
 }
 
 function addDot(x, y, markerTypeCode, message, isCodeRequired = false) {
@@ -1076,10 +1166,22 @@ function updateFindUI() {
     const findCountEl = document.getElementById('find-count');
     if (appState.searchResults.length > 0) {
         const dot = appState.searchResults[appState.currentSearchIndex];
-        const dotElement = document.querySelector(`.map-dot[data-dot-id="${dot.internalId}"]`);
-        if (dotElement) { dotElement.classList.add('search-highlight'); centerOnDot(dot.internalId); }
+        
+        // Always center on the dot to bring it into viewport
+        centerOnDot(dot.internalId);
+        
+        // Give viewport update time to render the dot, then highlight it
+        setTimeout(() => {
+            const dotElement = document.querySelector(`.map-dot[data-dot-id="${dot.internalId}"]`);
+            if (dotElement) { 
+                dotElement.classList.add('search-highlight'); 
+            }
+        }, 100);
+        
         findCountEl.textContent = `${appState.currentSearchIndex + 1} of ${appState.searchResults.length} found`;
-    } else { findCountEl.textContent = '0 found'; }
+    } else { 
+        findCountEl.textContent = '0 found'; 
+    }
 }
 
 function clearSearchHighlights() {
