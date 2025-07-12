@@ -31,7 +31,7 @@ const TutorialSystem = {
         {
             target: '#map-container',
             title: 'Add Location Dots',
-            content: 'Click anywhere on the map to add a location dot. The active marker type (highlighted in orange) will be used.',
+            content: 'Once you have choesen a Marker Type on the left, it will highlight. You can then click anywhere on the map to add a location dot.',
             position: 'top',
             interactive: false
         },
