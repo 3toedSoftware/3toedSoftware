@@ -215,7 +215,7 @@ function updateTrainingCounter() {
         counterEl.textContent = `${count}/5`;
         if (count >= 5) {
             counterEl.classList.add('ready');
-            counterEl.textContent = 'PRESS ME WHEN READY!';
+            counterEl.textContent = 'ACCEPT!';
             const bigBoxEl = document.querySelector('.train-big-box');
             if (bigBoxEl) {
                 bigBoxEl.classList.add('glowing');

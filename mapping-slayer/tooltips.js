@@ -106,7 +106,7 @@ const TooltipManager = {
             },
             {
                 selector: '#train-scrape-btn',
-                text: 'Training mode: Draw boxes around text samples to teach the scraper how to group text properly.',
+                text: 'Training mode: to teach the Scrape tool how to group text properly 1. Shift + right drag a box around a large sample area. 2. Shift + right drag boxes around at least five text samples. 3. Click accept. The H and V values will update in green.',
                 position: 'top'
             },
             {
