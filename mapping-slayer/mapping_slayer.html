@@ -372,6 +372,28 @@
             </div>
         </div>
     </div>
+    <div class="modal" id="character-warning-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Character Changes for Revu Compatibility</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-text">
+                    Revu doesn't like importing these characters in BAX files. We're changing them to something that it will accept.
+                </p>
+                <div class="character-changes-preview" id="character-changes-preview">
+                    <!-- Character changes will be populated here -->
+                </div>
+                <p class="modal-text" style="margin-top: 15px;">
+                    <span id="affected-locations-count">0</span> location(s) will be affected. A detailed log file will be created.
+                </p>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancel-character-changes-btn">CANCEL</button>
+                <button class="btn btn-primary" id="proceed-character-changes-btn">OK - PROCEED</button>
+            </div>
+        </div>
+    </div>
     <div class="modal" id="disclaimer-modal" style="display: block;">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">

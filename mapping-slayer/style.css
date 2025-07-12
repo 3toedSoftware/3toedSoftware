@@ -348,6 +348,54 @@ body {
     line-height: 1.5;
 }
 
+/* Character Warning Modal Styles */
+#character-warning-modal .modal-content {
+    max-width: 500px;
+}
+
+.character-changes-preview {
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 10px;
+    margin: 10px 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.character-changes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.character-change-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    background: #3a3a3a;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 14px;
+}
+
+.original-char {
+    color: #ff6b6b;
+    font-weight: bold;
+    background: rgba(255, 107, 107, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.replacement-text {
+    color: #6bff6b;
+    font-weight: bold;
+    background: rgba(107, 255, 107, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
 .marker-type-code-input:focus,
 .marker-type-name-input:focus {
     background: #555;

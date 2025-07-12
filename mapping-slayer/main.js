@@ -51,6 +51,20 @@ function init() {
 }
 
 function setupEventListeners() {
+    // Character warning modal event listeners
+    document.getElementById('cancel-character-changes-btn').addEventListener('click', () => {
+        document.getElementById('character-warning-modal').style.display = 'none';
+        if (window.characterWarningResolver) {
+            window.characterWarningResolver(false);
+        }
+    });
+
+    document.getElementById('proceed-character-changes-btn').addEventListener('click', () => {
+        document.getElementById('character-warning-modal').style.display = 'none';
+        if (window.characterWarningResolver) {
+            window.characterWarningResolver(true);
+        }
+    });
     const mapContainer = document.getElementById('map-container');
     mapContainer.addEventListener('click', handleMapClick);
     mapContainer.addEventListener('contextmenu', handleMapRightClick);

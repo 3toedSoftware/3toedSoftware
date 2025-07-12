@@ -1,3 +1,96 @@
+// Character sanitization for Revu compatibility
+function sanitizeForRevu(text) {
+    if (!text || typeof text !== 'string') return text;
+    
+    const changes = [];
+    let sanitized = text;
+    
+    // Define character replacements
+    const replacements = {
+        '&': 'and',
+        '<': '(less than)'
+    };
+    
+    // Apply replacements and track changes
+    for (const [char, replacement] of Object.entries(replacements)) {
+        if (sanitized.includes(char)) {
+            changes.push({ char, replacement });
+            sanitized = sanitized.replace(new RegExp(char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), replacement);
+        }
+    }
+    
+    return { sanitized, changes };
+}
+
+function analyzeAllDotsForCharacters(dots) {
+    const allChanges = new Map(); // char -> replacement
+    const locationChanges = []; // detailed log entries
+    
+    dots.forEach(dot => {
+        // Check message
+        if (dot.message) {
+            const result = sanitizeForRevu(dot.message);
+            if (result.changes.length > 0) {
+                result.changes.forEach(change => allChanges.set(change.char, change.replacement));
+                locationChanges.push({
+                    locationNumber: dot.locationNumber,
+                    field: 'message',
+                    original: dot.message,
+                    sanitized: result.sanitized,
+                    changes: result.changes
+                });
+            }
+        }
+        
+        // Check notes
+        if (dot.notes) {
+            const result = sanitizeForRevu(dot.notes);
+            if (result.changes.length > 0) {
+                result.changes.forEach(change => allChanges.set(change.char, change.replacement));
+                locationChanges.push({
+                    locationNumber: dot.locationNumber,
+                    field: 'notes',
+                    original: dot.notes,
+                    sanitized: result.sanitized,
+                    changes: result.changes
+                });
+            }
+        }
+    });
+    
+    return { allChanges, locationChanges };
+}
+
+function generateCharacterChangeLog(locationChanges) {
+    const timestamp = new Date().toLocaleString();
+    const mapFileName = document.getElementById('map-file-name').textContent.replace('.pdf', '');
+    
+    let logContent = `MAPPING SLAYER - CHARACTER CHANGES FOR REVU EXPORT\n`;
+    logContent += `Generated on: ${timestamp}\n`;
+    logContent += `Project: ${mapFileName}\n\n`;
+    logContent += `The following characters were changed for Revu compatibility:\n\n`;
+    
+    locationChanges.forEach(change => {
+        logContent += `Location: ${change.locationNumber} (${change.field})\n`;
+        logContent += `Original: ${change.original}\n`;
+        logContent += `Modified: ${change.sanitized}\n`;
+        logContent += `Changes: ${change.changes.map(c => `'${c.char}' → '${c.replacement}'`).join(', ')}\n`;
+        logContent += `\n`;
+    });
+    
+    // Create and download log file
+    const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${mapFileName}_Revu_Export_Character_Changes_${new Date().toISOString().slice(0,19).replace(/:/g, '')}.txt`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 // export.js
 function decodeRawData(hexString) {
     try {
@@ -410,6 +503,32 @@ async function exportToBluebeam() {
             return;
         }
 
+        // Check for problematic characters before export
+        const characterAnalysis = analyzeAllDotsForCharacters(allVisibleDots);
+        
+        if (characterAnalysis.allChanges.size > 0) {
+            // Show warning modal and wait for user decision
+            const userProceed = await showCharacterWarningModal(characterAnalysis);
+            if (!userProceed) {
+                return; // User cancelled
+            }
+            
+            // Generate log file
+            generateCharacterChangeLog(characterAnalysis.locationChanges);
+            
+            // Apply sanitization to the dots
+            allVisibleDots = allVisibleDots.map(dot => {
+                const newDot = { ...dot };
+                if (dot.message) {
+                    newDot.message = sanitizeForRevu(dot.message).sanitized;
+                }
+                if (dot.notes) {
+                    newDot.notes = sanitizeForRevu(dot.notes).sanitized;
+                }
+                return newDot;
+            });
+        }
+
         const baxContent = await createBluebeamBAX(allVisibleDots);
         
         const blob = new Blob([baxContent], { type: 'application/xml' });
@@ -525,6 +644,31 @@ async function createBluebeamBAX(dots) {
 
     bax += `</Document>`;
     return bax;
+}
+
+function showCharacterWarningModal(characterAnalysis) {
+    return new Promise((resolve) => {
+        window.characterWarningResolver = resolve;
+        
+        const modal = document.getElementById('character-warning-modal');
+        const previewDiv = document.getElementById('character-changes-preview');
+        const countSpan = document.getElementById('affected-locations-count');
+        
+        // Populate the changes preview
+        let previewHtml = '<div class="character-changes-list">';
+        for (const [char, replacement] of characterAnalysis.allChanges.entries()) {
+            previewHtml += `<div class="character-change-item">`;
+            previewHtml += `<span class="original-char">'${char}'</span> → `;
+            previewHtml += `<span class="replacement-text">'${replacement}'</span>`;
+            previewHtml += `</div>`;
+        }
+        previewHtml += '</div>';
+        
+        previewDiv.innerHTML = previewHtml;
+        countSpan.textContent = characterAnalysis.locationChanges.length;
+        
+        modal.style.display = 'block';
+    });
 }
 
 function generateBluebeamID() {
