@@ -7,7 +7,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -94,6 +95,7 @@
             <div class="map-overlay-controls">
                 <div class="page-nav">
                     <button class="nav-btn" id="prev-page">&lt;</button>
+                    <input type="text" id="page-label-input" placeholder="Enter Page Label" class="page-label-input">
                     <span id="page-info">PAGE 1 OF 1</span>
                     <button class="nav-btn" id="next-page">&gt;</button>
                 </div>
@@ -139,6 +141,7 @@
                 <button class="btn btn-primary btn-compact" id="create-pdf-btn" disabled="">CREATE PDF</button>
                 <button class="btn btn-primary btn-compact" id="create-schedule-btn" disabled="">CREATE MESSAGE SCHEDULE</button>
                 <button class="btn btn-primary btn-compact" id="update-from-schedule-btn" disabled="">UPDATE FROM MESSAGE SCHEDULE</button>
+                <button class="btn btn-primary btn-compact" id="export-fdf-btn" disabled="">EXPORT FOR BLUEBEAM</button>
                 
             </div>
         </div>
@@ -360,6 +363,13 @@
     </div>
     
     <script src="project-io.js"></script>
-    <script src="script.js" defer></script>
+    <script src="state.js"></script>
+    <script src="ui.js"></script>
+    <script src="map-controller.js"></script>
+    <script src="undo-manager.js"></script>
+    <script src="automap.js"></script>
+    <script src="scrape.js"></script>
+    <script src="export.js"></script>
+    <script src="main.js" defer></script>
 </body>
 </html>

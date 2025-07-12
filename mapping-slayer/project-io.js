@@ -67,9 +67,7 @@ const ProjectIO = {
      */
     load: async function(file) {
     try {
-        console.log('ProjectIO LOAD DEBUG: file.size =', file.size);
         const fileBuffer = await file.arrayBuffer();
-        console.log('ProjectIO LOAD DEBUG: fileBuffer after arrayBuffer() =', fileBuffer.byteLength);
         const fileName = file.name.toLowerCase();
 
             // --- Handle .mslay project files ---

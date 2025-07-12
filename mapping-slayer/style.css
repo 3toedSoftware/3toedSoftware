@@ -919,8 +919,6 @@ body {
     accent-color: #f07727;
 }
 
-/* No replacement needed; remove these styles as sliders are gone */
-
 .automap-status {
     font-size: 12px;
     color: #aaa;
@@ -1017,6 +1015,23 @@ body {
     border: 1px solid #444;
     backdrop-filter: blur(10px);
 }
+
+.page-label-input {
+    background: transparent;
+    border: 1px solid #555;
+    color: #ccc;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    width: 100px;
+}
+
+.page-label-input:focus {
+    border-color: #f07727;
+    outline: none;
+    background: rgba(255, 255, 255, 0.1);
+}
+
 .nav-btn {
     background: #444;
     border: none;
@@ -1345,8 +1360,6 @@ body {
 .csv-status.error {
     border-color: #ff4444;
 }
-
-/* Scrape spinner styles removed as the feature now uses the top-right notification area. */
 
 /* Automap progress modal */
 .automap-progress-modal {
