@@ -89,6 +89,13 @@ const TooltipManager = {
             },
             
             // Map controls
+
+            {
+                selector: '#guide-btn',
+                text: 'Open the complete user guide in a new tab. Contains detailed instructions for all features.',
+                position: 'bottom'
+            },
+
             {
                 selector: '#controls-btn',
                 text: 'View all keyboard shortcuts and mouse controls for faster navigation.',
@@ -106,7 +113,7 @@ const TooltipManager = {
             },
             {
                 selector: '#train-scrape-btn',
-                text: 'Training mode: to teach the Scrape tool how to group text properly 1. Shift + right drag a box around a large sample area. 2. Shift + right drag boxes around at least five text samples. 3. Click accept. The H and V values will update in green.',
+                text: 'To teach the Scrape tool how to group text properly: 1. Click TRAIN SCRAPE button. 2. Shift + right drag a box around a large sample area. 3. Shift + right drag boxes around at least five text samples. 4. Click accept. The H and V values will update in green.',
                 position: 'top'
             },
             {

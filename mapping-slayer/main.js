@@ -437,6 +437,10 @@ function setupEventListeners() {
         TooltipManager.toggle();
     });
 
+    document.getElementById('guide-btn').addEventListener('click', () => {
+        window.open('user_guide.html', '_blank');
+    });
+
     document.getElementById('controls-btn').addEventListener('click', () => {
         document.getElementById('controls-modal').style.display = 'block';
     });
