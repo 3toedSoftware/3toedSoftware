@@ -1107,6 +1107,11 @@
                     <label for="signupPassword">Password</label>
                     <input type="password" id="signupPassword" required>
                 </div>
+                <!-- UPDATED: Added Confirm Password field -->
+                <div class="form-group">
+                    <label for="signupPasswordConfirm">Confirm Password</label>
+                    <input type="password" id="signupPasswordConfirm" required>
+                </div>
                 <div id="signup-error" class="auth-error"></div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Sign Up</button>
             </form>
@@ -1223,12 +1228,20 @@
             signupError.textContent = '';
             const email = document.getElementById('signupEmail').value;
             const password = document.getElementById('signupPassword').value;
+            // UPDATED: Get the confirm password value
+            const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+            
+            // UPDATED: Check if passwords match
+            if (password !== passwordConfirm) {
+                signupError.textContent = 'Passwords do not match.';
+                return; // Stop the function if they don't match
+            }
+
             const { error } = await _supabase.auth.signUp({ email, password });
             if (error) {
                 signupError.textContent = error.message;
             } else {
                 signupModal.classList.remove('active');
-                // You might want to show a "Check your email to verify" message here
                 alert('Success! Please check your email for a verification link.');
             }
         });
@@ -1487,7 +1500,7 @@
                 const selectRect = this.state.boxEl.getBoundingClientRect();
                 this.mapPage.querySelectorAll('.demo-dot').forEach(dotEl => {
                     const dotRect = dotEl.getBoundingClientRect();
-                    const overlap = !(selectRect.right < dotRect.left || selectRect.left > dotRect.right || selectRect.bottom < dotRect.top || selectRect.top > dotRect.bottom);
+                    const overlap = !(selectRect.right < dotRect.left || selectRect.left > textRect.right || selectRect.bottom < dotRect.top || selectRect.top > dotRect.bottom);
                     if (overlap) {
                         const dotId = parseInt(dotEl.dataset.id);
                         if (!this.state.selectedDots.has(dotId)) {
