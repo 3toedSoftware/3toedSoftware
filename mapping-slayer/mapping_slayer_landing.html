@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mapping Slayer - PDF Sign Mapping Software</title>
+    <!-- Stripe.js - ADDED FOR CHECKOUT -->
+    <script src="https://js.stripe.com/v3/"></script>
     <style>
         * {
             margin: 0;
@@ -793,7 +795,8 @@
                 <div class="nav-buttons">
                     <button class="btn" onclick="window.location.href='mapping_slayer.html'">Free Demo in Browser</button>
                     <button class="btn" onclick="openModal('login')">Login</button>
-                    <button class="btn btn-primary" onclick="openModal('signup')">Sign Up</button>
+                    <!-- UPDATED: Changed onclick to redirectToCheckout() -->
+                    <button class="btn btn-primary" onclick="redirectToCheckout()">Sign Up</button>
                 </div>
             </div>
         </div>
@@ -807,7 +810,8 @@
             <p>Transform static floor plans into interactive signage layouts. Plan, document, and manage sign placement with precision and efficiency <strong style="color: #ff6600;">in record time</strong>.</p>
             <div class="hero-buttons">
                 <button class="btn btn-primary" onclick="window.location.href='mapping_slayer.html'">Free Demo in Browser</button>
-                <button class="btn" onclick="openModal('signup')">Start Subscription - $10/month</button>
+                <!-- UPDATED: Changed onclick and text -->
+                <button class="btn" onclick="redirectToCheckout()">Start Subscription - $11.11/month</button>
             </div>
             <p style="font-size: 16px; margin-top: 20px; font-style: italic;">There is only one tier: SLAY!</p>
             <p style="font-size: 16px; margin-top: 5px;">No hidden fees. No long-term commitment. All functionality. All future updates.</p>
@@ -1046,28 +1050,8 @@
             </div>
         </div>
 
-        <!-- Signup Modal -->
-        <div id="signupModal" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeModal('signup')">&times;</span>
-                <h2 style="color: #ff6600; margin-bottom: 30px;">Sign Up</h2>
-                <form id="signupForm">
-                    <div class="form-group">
-                        <label for="signupEmail">Email</label>
-                        <input type="email" id="signupEmail" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="signupPassword">Password</label>
-                        <input type="password" id="signupPassword" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="signupConfirmPassword">Confirm Password</label>
-                        <input type="password" id="signupConfirmPassword" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Start $10/month Subscription</button>
-                </form>
-            </div>
-        </div>
+        <!-- Signup Modal - REMOVED because Stripe checkout is used instead -->
+
     </div>
 
     <!-- Automap Demo Modals -->
@@ -1145,25 +1129,66 @@
 
 
     <script>
+        // --- START: STRIPE CHECKOUT LOGIC ---
+        // --- PASTE YOUR KEYS HERE ---
+        const STRIPE_PUBLISHABLE_KEY = 'pk_test_51RkCbXAcN7hZsXp1qDPU61Y58IBv1Xw1OBArb1lZcMUc3rtfkEWKDQMJv6A9AhjraAkUaB6YWChOrV3erVEwJAVn00yLcdX0eO'; // Looks like pk_test_...
+        const PRICE_ID = 'price_1RkDG5AcN7hZsXp1QdikMksw'; // Looks like price_...
+        // --------------------------
+        
+        const stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+
+        function redirectToCheckout() {
+            // Disable buttons to prevent multiple clicks
+            document.querySelectorAll('button').forEach(button => {
+                if(button.onclick && button.onclick.toString().includes('redirectToCheckout')) {
+                    button.disabled = true;
+                    button.textContent = 'Redirecting...';
+                }
+            });
+
+            stripe.redirectToCheckout({
+                lineItems: [{
+                    price: PRICE_ID,
+                    quantity: 1
+                }],
+                mode: 'subscription',
+                // IMPORTANT: Replace these with your actual success and cancel URLs
+                successUrl: 'https://3toedsoftware.com/success.html?session_id={CHECKOUT_SESSION_ID}',
+                cancelUrl: 'https://3toedsoftware.com/mapping-slayer/mapping_slayer_landing.html',
+            })
+            .then(function (result) {
+                if (result.error) {
+                    // If `redirectToCheckout` fails, display the error to your customer.
+                    // You might want to create a dedicated error element on your page.
+                    alert(result.error.message);
+                    // Re-enable buttons if there's an error
+                    document.querySelectorAll('button').forEach(button => {
+                        if(button.onclick && button.onclick.toString().includes('redirectToCheckout')) {
+                           button.disabled = false;
+                           // You might want to restore original text here
+                        }
+                    });
+                }
+            });
+        }
+        // --- END: STRIPE CHECKOUT LOGIC ---
+
+
         // General Modal Logic
         function openModal(type) {
+            // NOTE: 'signup' modal is now handled by Stripe.
             if (type === 'login') document.getElementById('loginModal').style.display = 'block';
-            else if (type === 'signup') document.getElementById('signupModal').style.display = 'block';
         }
         function closeModal(type) {
             if (type === 'login') document.getElementById('loginModal').style.display = 'none';
-            else if (type === 'signup') document.getElementById('signupModal').style.display = 'none';
         }
         window.onclick = function(event) {
             const loginModal = document.getElementById('loginModal');
-            const signupModal = document.getElementById('signupModal');
             if (event.target === loginModal) loginModal.style.display = 'none';
-            if (event.target === signupModal) signupModal.style.display = 'none';
         }
         // Placeholder Form Submission
         document.getElementById('loginForm').addEventListener('submit', (e) => { e.preventDefault(); alert('Login functionality is a placeholder.'); });
-        document.getElementById('signupForm').addEventListener('submit', (e) => { e.preventDefault(); alert('Signup functionality is a placeholder.'); });
-
+        
         // --- REFACTORED DEMO LOGIC ---
         class Demo {
             constructor(mapId, legendContainerId, signTypes = null) {
