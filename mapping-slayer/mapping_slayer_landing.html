@@ -690,7 +690,7 @@
 
         .modal-content {
             background-color: #333537;
-            padding: 40px;
+            padding: 25px 30px;
             border: 1px solid #e6e6e6; /* Hairline */
             width: 90%;
             max-width: 400px;
@@ -714,7 +714,7 @@
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-align: left;
         }
 
@@ -726,7 +726,7 @@
 
         .form-group input {
             width: 100%;
-            padding: 12px;
+            padding: 10px;
             background-color: #2A2C2E;
             border: 1px solid #e6e6e6; /* Hairline */
             color: #ffffff;
@@ -854,7 +854,6 @@
             </div>
             <p style="font-size: 16px; margin-top: 20px; font-style: italic;">There is only one tier: SLAY!</p>
             <p style="font-size: 16px; margin-top: 5px;">No hidden fees. No long-term commitment. All functionality. All future updates.</p>
-            <button class="btn" id="gallery-btn" style="margin-top: 20px;">INSPIRING IMAGES FROM ACTUAL USERS</button>
         </div>
     </section>
 
@@ -1061,14 +1060,6 @@
                 <p>&copy; 2025 Mapping Slayer. Questions? Ideas for new features? Email me directly - I'm building this to make your job easier and I read every customer message.</p>
             </div>
         </footer>
-
-        <div id="imageGalleryModal" class="gallery-modal">
-            <div class="gallery-modal-content">
-                <span class="gallery-prev">&#10094;</span>
-                <img id="galleryImage" src="" alt="Inspiring user images">
-                <span class="gallery-next">&#10095;</span>
-            </div>
-        </div>
     </div>
 
 
@@ -1077,7 +1068,7 @@
     <div id="loginModal" class="modal">
         <div class="modal-content">
             <span class="close" id="close-login">&times;</span>
-            <h2 style="color: #ff6600; margin-bottom: 30px;">Login</h2>
+            <h2 style="color: #ff6600; margin-bottom: 20px;">Login</h2>
             <form id="loginForm">
                 <div class="form-group">
                     <label for="loginEmail">Email</label>
@@ -1088,7 +1079,7 @@
                     <input type="password" id="loginPassword" required>
                 </div>
                 <div id="login-error" class="auth-error"></div>
-                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Login</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 15px;">Login</button>
             </form>
         </div>
     </div>
@@ -1097,7 +1088,7 @@
     <div id="signupModal" class="modal">
         <div class="modal-content">
             <span class="close" id="close-signup">&times;</span>
-            <h2 style="color: #ff6600; margin-bottom: 30px;">Create Account</h2>
+            <p style="font-size: 16px; margin-top: 5px; margin-bottom: 10px; font-style: italic;">This will create a<br>3toed Software Account<br>for access to Mapping Slayer</p>
             <form id="signupForm">
                 <div class="form-group">
                     <label for="signupEmail">Email</label>
@@ -1107,13 +1098,12 @@
                     <label for="signupPassword">Password</label>
                     <input type="password" id="signupPassword" required>
                 </div>
-                <!-- UPDATED: Added Confirm Password field -->
                 <div class="form-group">
                     <label for="signupPasswordConfirm">Confirm Password</label>
                     <input type="password" id="signupPasswordConfirm" required>
                 </div>
                 <div id="signup-error" class="auth-error"></div>
-                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Sign Up</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 15px;">Sign Up</button>
             </form>
         </div>
     </div>
@@ -1856,62 +1846,7 @@
                 // Add initial dot
                 operationsDemo.addDot(100, 150, operationsDemo.state.activeSignType);
             }
-
-            // --- Image Gallery Logic ---
-            const galleryBtn = document.getElementById('gallery-btn');
-            const modal = document.getElementById('imageGalleryModal');
-            const galleryImage = document.getElementById('galleryImage');
-            const prevBtn = document.querySelector('.gallery-prev');
-            const nextBtn = document.querySelector('.gallery-next');
-
-            const images = [
-                'inspiringimages/1.jpg',
-                'inspiringimages/2.jpg',
-                'inspiringimages/3.jpg',
-                'inspiringimages/4.jpg',
-                'inspiringimages/5.jpg'
-            ];
-            let currentIndex = 0;
-
-            function showImage(index) {
-                if(images.length > 0) {
-                   galleryImage.src = images[index];
-                   currentIndex = index;
-                }
-            }
-
-            function openGallery() {
-                if(images.length > 0) {
-                    modal.style.display = 'flex';
-                    showImage(0);
-                } else {
-                    alert("No images in the gallery yet!");
-                }
-            }
-
-            function closeGallery() {
-                modal.style.display = 'none';
-            }
-
-            galleryBtn.addEventListener('click', openGallery);
             
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    closeGallery();
-                }
-            });
-
-            prevBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const newIndex = (currentIndex - 1 + images.length) % images.length;
-                showImage(newIndex);
-            });
-
-            nextBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const newIndex = (currentIndex + 1) % images.length;
-                showImage(newIndex);
-            });
         });
         // --- END: COMPLETE DEMO LOGIC ---
     </script>
