@@ -1252,8 +1252,9 @@
             stripe.redirectToCheckout({
                 lineItems: [{ price: PRICE_ID, quantity: 1 }],
                 mode: 'subscription',
-                // Pass the logged-in user's email to pre-fill the checkout form
                 customerEmail: session.user.email,
+                // NEW: This is the crucial line that links the payment to the user
+                client_reference_id: session.user.id, 
                 successUrl: `https://3toedsoftware.com/mapping-slayer/success.html?session_id={CHECKOUT_SESSION_ID}`,
                 cancelUrl: 'https://3toedsoftware.com/mapping-slayer/mapping_slayer_landing.html',
             })
