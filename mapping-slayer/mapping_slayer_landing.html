@@ -1253,8 +1253,7 @@
                 lineItems: [{ price: PRICE_ID, quantity: 1 }],
                 mode: 'subscription',
                 customerEmail: session.user.email,
-                // NEW: This is the crucial line that links the payment to the user
-                client_reference_id: session.user.id, 
+                // The client_reference_id has been removed as it's not supported for subscriptions here.
                 successUrl: `https://3toedsoftware.com/mapping-slayer/success.html?session_id={CHECKOUT_SESSION_ID}`,
                 cancelUrl: 'https://3toedsoftware.com/mapping-slayer/mapping_slayer_landing.html',
             })
