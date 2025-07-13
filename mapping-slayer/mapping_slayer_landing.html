@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mapping Slayer - PDF Sign Mapping Software</title>
-    <!-- Stripe.js - ADDED FOR CHECKOUT -->
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Stripe.js -->
     <script src="https://js.stripe.com/v3/"></script>
     <style>
+        /* All existing CSS from your page is preserved here */
         * {
             margin: 0;
             padding: 0;
@@ -27,7 +30,6 @@
             user-select: none; /* Standard syntax */
             padding: 15px;
             background-color: #1B1C1D;
-            /* border: 1px solid #555; */ /* Border removed as requested */
         }
 
         .demo-header {
@@ -432,6 +434,7 @@
         .nav-buttons {
             display: flex;
             gap: 15px;
+            align-items: center; /* Vertically align items */
         }
 
         .btn {
@@ -457,6 +460,17 @@
 
         .btn-primary:hover {
             background-color: #e55a00;
+        }
+        
+        /* NEW: User status display */
+        .user-status {
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        /* NEW: Hide elements by default */
+        .logged-in, .logged-out {
+            display: none;
         }
 
         .hero {
@@ -656,8 +670,9 @@
             font-size: 16px;
         }
 
+        /* MODAL STYLES UPDATED */
         .modal {
-            display: none;
+            display: none; /* Hidden by default */
             position: fixed;
             z-index: 1000;
             left: 0;
@@ -665,21 +680,29 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex; /* Show when active */
         }
 
         .modal-content {
             background-color: #333537;
-            margin: 10% auto;
             padding: 40px;
             border: 1px solid #e6e6e6; /* Hairline */
             width: 90%;
             max-width: 400px;
             text-align: center;
+            position: relative;
         }
 
         .close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
             color: #e6e6e6;
-            float: right;
             font-size: 28px;
             font-weight: bold;
             cursor: pointer;
@@ -714,6 +737,16 @@
         .form-group input:focus {
             outline: none;
             border-color: #ff6600;
+        }
+
+        /* NEW: Auth error message style */
+        .auth-error {
+            color: #ff6b6b;
+            font-size: 14px;
+            margin-top: -10px;
+            margin-bottom: 15px;
+            text-align: left;
+            min-height: 20px;
         }
 
         .gallery-modal {
@@ -794,9 +827,16 @@
                 </div>
                 <div class="nav-buttons">
                     <button class="btn" onclick="window.location.href='mapping_slayer.html'">Free Demo in Browser</button>
-                    <button class="btn" onclick="openModal('login')">Login</button>
-                    <!-- UPDATED: Changed onclick to redirectToCheckout() -->
-                    <button class="btn btn-primary" onclick="redirectToCheckout()">Sign Up</button>
+                    <!-- Logged Out Buttons -->
+                    <div class="logged-out">
+                        <button class="btn" id="login-button">Login</button>
+                        <button class="btn btn-primary" id="signup-button">Sign Up</button>
+                    </div>
+                    <!-- Logged In Buttons -->
+                    <div class="logged-in">
+                         <span id="user-status" class="user-status"></span>
+                         <button class="btn" id="logout-button">Logout</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -810,8 +850,7 @@
             <p>Transform static floor plans into interactive signage layouts. Plan, document, and manage sign placement with precision and efficiency <strong style="color: #ff6600;">in record time</strong>.</p>
             <div class="hero-buttons">
                 <button class="btn btn-primary" onclick="window.location.href='mapping_slayer.html'">Free Demo in Browser</button>
-                <!-- UPDATED: Changed onclick and text -->
-                <button class="btn" onclick="redirectToCheckout()">Start Subscription - $11.11/month</button>
+                <button class="btn" id="subscribe-button">Start Subscription - $11.11/month</button>
             </div>
             <p style="font-size: 16px; margin-top: 20px; font-style: italic;">There is only one tier: SLAY!</p>
             <p style="font-size: 16px; margin-top: 5px;">No hidden fees. No long-term commitment. All functionality. All future updates.</p>
@@ -1030,170 +1069,204 @@
                 <span class="gallery-next">&#10095;</span>
             </div>
         </div>
-
-        <!-- Login Modal -->
-        <div id="loginModal" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeModal('login')">&times;</span>
-                <h2 style="color: #ff6600; margin-bottom: 30px;">Login</h2>
-                <form id="loginForm">
-                    <div class="form-group">
-                        <label for="loginEmail">Email</label>
-                        <input type="email" id="loginEmail" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="loginPassword">Password</label>
-                        <input type="password" id="loginPassword" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Login</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Signup Modal - REMOVED because Stripe checkout is used instead -->
-
     </div>
 
-    <!-- Automap Demo Modals -->
-    <div class="automap-modal-overlay" id="automap-modal-overlay">
-        <div class="automap-modal-content">
-            <div class="automap-modal-header">Open</div>
-            <div class="automap-modal-body">
-                <label for="fake-filename">File name:</label>
-                <input type="text" id="fake-filename" value="ROOMLIST.json" readonly>
-            </div>
-            <div class="automap-modal-footer">
-                <button id="automap-modal-open">Open</button>
-                <button id="automap-modal-cancel">Cancel</button>
-            </div>
-        </div>
-    </div>
-    <div class="automap-notification" id="automap-notification">
-        <span class="check">✓</span>
-        <span id="automap-notification-text"></span>
-    </div>
-    <div class="automap-alert-modal" id="automap-alert-modal">
-        <div class="automap-alert-content">
-            <p id="automap-alert-text"></p>
-            <button class="btn btn-primary" id="automap-alert-ok">OK</button>
-        </div>
-    </div>
 
-    <!-- Operations Demo Edit Modals -->
-    <div class="edit-modal-overlay" id="edit-location-modal">
-        <div class="edit-modal-content">
-            <div class="edit-modal-header">Edit Location</div>
-            <form class="edit-modal-form" id="edit-location-form">
+    <!-- NEW: Auth Modals -->
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="close-login">&times;</span>
+            <h2 style="color: #ff6600; margin-bottom: 30px;">Login</h2>
+            <form id="loginForm">
                 <div class="form-group">
-                    <label class="form-label">Sign Type</label>
-                    <select class="form-input" id="edit-sign-type"></select>
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Message</label>
-                    <input type="text" class="form-input" id="edit-message" placeholder="Enter message">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required>
                 </div>
-                <div class="edit-modal-buttons">
-                    <button type="button" class="btn btn-danger" id="edit-delete-btn">DELETE</button>
-                    <div class="right-buttons">
-                        <button type="button" class="btn btn-secondary" id="edit-cancel-btn">CANCEL</button>
-                        <button type="submit" class="btn btn-primary">UPDATE</button>
-                    </div>
-                </div>
+                <div id="login-error" class="auth-error"></div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Login</button>
             </form>
         </div>
     </div>
 
-    <div class="edit-modal-overlay" id="group-edit-modal">
-        <div class="edit-modal-content">
-            <div class="edit-modal-header">Edit Multiple Locations</div>
-            <div class="edit-modal-subheader" id="group-edit-subheader"></div>
-            <form class="edit-modal-form" id="group-edit-form">
+    <!-- Signup Modal -->
+    <div id="signupModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="close-signup">&times;</span>
+            <h2 style="color: #ff6600; margin-bottom: 30px;">Create Account</h2>
+            <form id="signupForm">
                 <div class="form-group">
-                    <label class="form-label">Sign Type (will apply to all selected)</label>
-                    <select class="form-input" id="group-edit-sign-type"></select>
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Message (will apply to all selected)</label>
-                    <input type="text" class="form-input" id="group-edit-message" placeholder="Enter message for all selected dots">
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" required>
                 </div>
-                <div class="edit-modal-buttons">
-                    <button type="button" class="btn btn-danger" id="group-delete-btn">DELETE ALL</button>
-                     <div class="right-buttons">
-                        <button type="button" class="btn btn-secondary" id="group-cancel-btn">CANCEL</button>
-                        <button type="submit" class="btn btn-primary">UPDATE ALL</button>
-                    </div>
-                </div>
+                <div id="signup-error" class="auth-error"></div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Sign Up</button>
             </form>
         </div>
     </div>
 
 
     <script>
-        // --- START: STRIPE CHECKOUT LOGIC ---
-        // --- PASTE YOUR KEYS HERE ---
-        const STRIPE_PUBLISHABLE_KEY = 'pk_test_51RkCbXAcN7hZsXp1qDPU61Y58IBv1Xw1OBArb1lZcMUc3rtfkEWKDQMJv6A9AhjraAkUaB6YWChOrV3erVEwJAVn00yLcdX0eO'; // Looks like pk_test_...
-        const PRICE_ID = 'price_1RkDG5AcN7hZsXp1QdikMksw'; // Looks like price_...
-        // --------------------------
+        // --- START: SUPABASE & STRIPE CONFIG ---
+        // --- IMPORTANT: PASTE YOUR KEYS HERE ---
+        const SUPABASE_URL = 'https://apmrjfzlbhncygmbhzbh.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwbXJqZnpsYmhuY3lnbWJoemJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0MTcwMjEsImV4cCI6MjA2Nzk5MzAyMX0.R0SWhl3mtGveMA5klvTZP2S4mLxd-aXQFDnYAjcfIN4';
+
+        const STRIPE_PUBLISHABLE_KEY = 'pk_test_51RkCbXAcN7hZsXp1qDPU61Y58IBv1Xw1OBArb1lZcMUc3rtfkEWKDQMJv6A9AhjraAkUaB6YWChOrV3erVEwJAVn00yLcdX0eO';
+        const PRICE_ID = 'price_1RkDG5AcN7hZsXp1QdikMksw';
+        // ------------------------------------
         
+        // --- Add a validation check for keys ---
+        if (!SUPABASE_URL || SUPABASE_URL.includes('PASTE_YOUR_SUPABASE_URL_HERE') || 
+            !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes('PASTE_YOUR_SUPABASE_ANON_KEY_HERE')) {
+            
+            // We can't use a custom modal here because the script might stop before the DOM is ready.
+            // An alert is the most reliable way to show this critical error.
+            alert('Configuration Error: Supabase API keys are missing. Please paste your Supabase URL and Anon Key into the script section of the mapping_slayer_landing.html file.');
+            
+            // Stop the script from running further to prevent more errors.
+            throw new Error('Supabase credentials are not set in the script.'); 
+        }
+
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
 
-        function redirectToCheckout() {
-            // Disable buttons to prevent multiple clicks
-            document.querySelectorAll('button').forEach(button => {
-                if(button.onclick && button.onclick.toString().includes('redirectToCheckout')) {
-                    button.disabled = true;
-                    button.textContent = 'Redirecting...';
-                }
-            });
+        // --- UI Elements ---
+        const loggedInElements = document.querySelectorAll('.logged-in');
+        const loggedOutElements = document.querySelectorAll('.logged-out');
+        const userStatusElement = document.getElementById('user-status');
+        const logoutButton = document.getElementById('logout-button');
+        const loginButton = document.getElementById('login-button');
+        const signupButton = document.getElementById('signup-button');
+        const subscribeButton = document.getElementById('subscribe-button');
+        
+        const loginModal = document.getElementById('loginModal');
+        const signupModal = document.getElementById('signupModal');
+        const loginForm = document.getElementById('loginForm');
+        const signupForm = document.getElementById('signupForm');
+        const closeLogin = document.getElementById('close-login');
+        const closeSignup = document.getElementById('close-signup');
+        const loginError = document.getElementById('login-error');
+        const signupError = document.getElementById('signup-error');
+
+        // --- Auth State Management ---
+        _supabase.auth.onAuthStateChange((event, session) => {
+            updateUI(session);
+        });
+        
+        // Check initial session
+        async function checkSession() {
+            const { data: { session } } = await _supabase.auth.getSession();
+            updateUI(session);
+        }
+        checkSession();
+
+
+        function updateUI(session) {
+            if (session) {
+                // User is logged in
+                loggedInElements.forEach(el => el.style.display = 'flex');
+                loggedOutElements.forEach(el => el.style.display = 'none');
+                userStatusElement.textContent = session.user.email;
+            } else {
+                // User is logged out
+                loggedInElements.forEach(el => el.style.display = 'none');
+                loggedOutElements.forEach(el => el.style.display = 'flex');
+                userStatusElement.textContent = '';
+            }
+        }
+
+        // --- Event Listeners ---
+        logoutButton.addEventListener('click', async () => {
+            await _supabase.auth.signOut();
+        });
+
+        loginButton.addEventListener('click', () => {
+            loginModal.classList.add('active');
+        });
+
+        signupButton.addEventListener('click', () => {
+            signupModal.classList.add('active');
+        });
+
+        closeLogin.addEventListener('click', () => loginModal.classList.remove('active'));
+        closeSignup.addEventListener('click', () => signupModal.classList.remove('active'));
+        window.addEventListener('click', (event) => {
+            if (event.target == loginModal) loginModal.classList.remove('active');
+            if (event.target == signupModal) signupModal.classList.remove('active');
+        });
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginError.textContent = '';
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const { error } = await _supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                loginError.textContent = error.message;
+            } else {
+                loginModal.classList.remove('active');
+            }
+        });
+
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            signupError.textContent = '';
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const { error } = await _supabase.auth.signUp({ email, password });
+            if (error) {
+                signupError.textContent = error.message;
+            } else {
+                signupModal.classList.remove('active');
+                // You might want to show a "Check your email to verify" message here
+                alert('Success! Please check your email for a verification link.');
+            }
+        });
+
+        // --- Stripe Checkout Logic ---
+        subscribeButton.addEventListener('click', async () => {
+            const { data: { session } } = await _supabase.auth.getSession();
+
+            if (!session) {
+                alert('Please sign up or log in before subscribing.');
+                signupModal.classList.add('active');
+                return;
+            }
+
+            subscribeButton.disabled = true;
+            subscribeButton.textContent = 'Redirecting...';
 
             stripe.redirectToCheckout({
-                lineItems: [{
-                    price: PRICE_ID,
-                    quantity: 1
-                }],
+                lineItems: [{ price: PRICE_ID, quantity: 1 }],
                 mode: 'subscription',
-                // IMPORTANT: Replace these with your actual success and cancel URLs
-                successUrl: 'https://3toedsoftware.com/mapping-slayer/success.html?session_id={CHECKOUT_SESSION_ID}',
+                // Pass the logged-in user's email to pre-fill the checkout form
+                customerEmail: session.user.email,
+                successUrl: `https://3toedsoftware.com/mapping-slayer/success.html?session_id={CHECKOUT_SESSION_ID}`,
                 cancelUrl: 'https://3toedsoftware.com/mapping-slayer/mapping_slayer_landing.html',
             })
             .then(function (result) {
                 if (result.error) {
-                    // If `redirectToCheckout` fails, display the error to your customer.
-                    // You might want to create a dedicated error element on your page.
                     alert(result.error.message);
-                    // Re-enable buttons if there's an error
-                    document.querySelectorAll('button').forEach(button => {
-                        if(button.onclick && button.onclick.toString().includes('redirectToCheckout')) {
-                           button.disabled = false;
-                           // You might want to restore original text here
-                        }
-                    });
+                    subscribeButton.disabled = false;
+                    subscribeButton.textContent = 'Start Subscription - $11.11/month';
                 }
             });
-        }
-        // --- END: STRIPE CHECKOUT LOGIC ---
+        });
 
-
-        // General Modal Logic
-        function openModal(type) {
-            // NOTE: 'signup' modal is now handled by Stripe.
-            if (type === 'login') document.getElementById('loginModal').style.display = 'block';
-        }
-        function closeModal(type) {
-            if (type === 'login') document.getElementById('loginModal').style.display = 'none';
-        }
-        window.onclick = function(event) {
-            const loginModal = document.getElementById('loginModal');
-            if (event.target === loginModal) loginModal.style.display = 'none';
-        }
-        // Placeholder Form Submission
-        document.getElementById('loginForm').addEventListener('submit', (e) => { e.preventDefault(); alert('Login functionality is a placeholder.'); });
-        
-        // --- REFACTORED DEMO LOGIC ---
+        // --- START: COMPLETE DEMO LOGIC ---
         class Demo {
             constructor(mapId, legendContainerId, signTypes = null) {
                 this.mapPage = document.getElementById(mapId);
-                // Correctly get the legend container element by its ID string
                 this.legendContainer = typeof legendContainerId === 'string' ? document.getElementById(legendContainerId) : legendContainerId;
                 this.signTypes = signTypes;
                 this.state = {
@@ -1216,8 +1289,8 @@
             }
 
             initializeLegend() {
-                if (!this.legendContainer) return; // Guard clause
-                this.legendContainer.innerHTML = ''; // Clear existing
+                if (!this.legendContainer) return;
+                this.legendContainer.innerHTML = '';
                 let isFirst = true;
                 for (const typeKey in this.signTypes) {
                     const type = this.signTypes[typeKey];
@@ -1231,7 +1304,7 @@
                     `;
                     this.legendContainer.appendChild(item);
 
-                    if (this.mapPage.id.includes('operations')) { // Add click listener only for operations demo
+                    if (this.mapPage.id.includes('operations')) {
                         if (isFirst) {
                             item.classList.add('active');
                             this.state.activeSignType = type;
@@ -1343,9 +1416,9 @@
                         if (countEl) countEl.textContent = count;
                     }
                 } else {
-                    if (this.legendContainer && this.legendContainer.id === 'scrape-legend-count') {
-                        this.legendContainer.textContent = this.state.dots.length;
-                    }
+                    // This handles the scrape demo legend
+                    const scrapeLegend = document.getElementById('scrape-legend-count');
+                    if (scrapeLegend) scrapeLegend.textContent = this.state.dots.length;
                 }
             }
 
@@ -1443,7 +1516,7 @@
             };
 
             // --- Initialize Demos ---
-            const scrapeDemo = new Demo('demo-pdf-page-scrape', 'scrape-legend-count');
+            const scrapeDemo = new Demo('demo-pdf-page-scrape');
             const operationsDemo = new Demo('demo-pdf-page-operations', document.getElementById('operations-legend-items'), automapSignTypes);
             window.scrapeDemo = scrapeDemo;
             window.operationsDemo = operationsDemo;
@@ -1457,8 +1530,14 @@
                     scrapeDemo.clearSelection();
                 }
             });
-            document.addEventListener('mousemove', (e) => scrapeDemo.updateBox(e));
-            document.addEventListener('mouseup', () => scrapeDemo.finishScrape());
+            document.addEventListener('mousemove', (e) => {
+                scrapeDemo.updateBox(e);
+                operationsDemo.updateBox(e);
+            });
+            document.addEventListener('mouseup', () => {
+                scrapeDemo.finishScrape();
+                operationsDemo.finishSelection();
+            });
 
             // --- Automap Demo Listeners & Logic ---
             setupAutomapDemo();
@@ -1667,8 +1746,6 @@
                         }
                     }
                 });
-                document.addEventListener('mousemove', (e) => operationsDemo.updateBox(e));
-                document.addEventListener('mouseup', () => operationsDemo.finishSelection());
 
                 // --- Edit Modal Logic ---
                 const editModal = document.getElementById('edit-location-modal');
@@ -1716,7 +1793,6 @@
                     
                     dot.message = document.getElementById('edit-message').value;
 
-                    // Only update the signType if a valid new one was found
                     if (newSignType) {
                         dot.signType = newSignType;
                     }
@@ -1743,7 +1819,7 @@
                 
                 operationsDemo.updateDotVisuals = function(dot) {
                     const dotEl = this.mapPage.querySelector(`.demo-dot[data-id='${dot.id}']`);
-                    if (!dotEl || !dot.signType) return; // Add guard for corrupted dot
+                    if (!dotEl || !dot.signType) return;
                     const msgEl = dotEl.querySelector('.demo-dot-message');
                     dotEl.style.backgroundColor = dot.signType.color;
                     msgEl.style.color = dot.signType.color;
@@ -1767,18 +1843,14 @@
                 // Add initial dot
                 operationsDemo.addDot(100, 150, operationsDemo.state.activeSignType);
             }
-        });
 
-        // --- START: Image Gallery Logic ---
-        document.addEventListener('DOMContentLoaded', () => {
+            // --- Image Gallery Logic ---
             const galleryBtn = document.getElementById('gallery-btn');
             const modal = document.getElementById('imageGalleryModal');
-            const modalContent = document.querySelector('.gallery-modal-content');
             const galleryImage = document.getElementById('galleryImage');
             const prevBtn = document.querySelector('.gallery-prev');
             const nextBtn = document.querySelector('.gallery-next');
 
-            // Replace these with your actual image paths
             const images = [
                 'inspiringimages/1.jpg',
                 'inspiringimages/2.jpg',
@@ -1789,13 +1861,19 @@
             let currentIndex = 0;
 
             function showImage(index) {
-                galleryImage.src = images[index];
-                currentIndex = index;
+                if(images.length > 0) {
+                   galleryImage.src = images[index];
+                   currentIndex = index;
+                }
             }
 
             function openGallery() {
-                modal.style.display = 'flex';
-                showImage(0);
+                if(images.length > 0) {
+                    modal.style.display = 'flex';
+                    showImage(0);
+                } else {
+                    alert("No images in the gallery yet!");
+                }
             }
 
             function closeGallery() {
@@ -1805,24 +1883,24 @@
             galleryBtn.addEventListener('click', openGallery);
             
             modal.addEventListener('click', (e) => {
-                // Closes the modal if the click is on the background, not the content
                 if (e.target === modal) {
                     closeGallery();
                 }
             });
 
-            prevBtn.addEventListener('click', () => {
+            prevBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const newIndex = (currentIndex - 1 + images.length) % images.length;
                 showImage(newIndex);
             });
 
-            nextBtn.addEventListener('click', () => {
+            nextBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const newIndex = (currentIndex + 1) % images.length;
                 showImage(newIndex);
             });
         });
-        // --- END: Image Gallery Logic ---
-
+        // --- END: COMPLETE DEMO LOGIC ---
     </script>
 </body>
 </html>
