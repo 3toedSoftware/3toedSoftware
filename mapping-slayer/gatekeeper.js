@@ -68,7 +68,13 @@ async function protectPage() {
 function redirectToLanding() {
     // This redirects the user to the landing page with a reason.
     // This allows the landing page to show a specific message.
-    window.location.href = 'mapping_slayer_landing.html?reason=unsubscribed';
+    console.log('🔄 REDIRECT: About to redirect to landing page in 5 seconds...');
+    console.log('🔄 Check the console messages above to see why access was denied');
+    
+    // Delay the redirect so we can see the console messages
+    setTimeout(() => {
+        window.location.href = 'mapping_slayer_landing.html?reason=unsubscribed';
+    }, 5000);
 }
 
 // Run the protection check as soon as the script loads.
