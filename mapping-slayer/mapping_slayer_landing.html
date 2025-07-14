@@ -818,6 +818,10 @@
     </style>
 </head>
 <body>
+    <!-- Access Denied Banner -->
+    <div id="access-denied-banner" style="display: none; background-color: #e55a00; color: white; text-align: center; padding: 10px; font-size: 16px; font-family: Cambria, serif;">
+        Please log in and subscribe to access the full application.
+    </div>
     <!-- Header -->
     <header>
         <div class="container">
@@ -826,7 +830,7 @@
                     <img src="MSLogo.svg" alt="Mapping Slayer" class="logo-svg">
                 </div>
                 <div class="nav-buttons">
-                    <button class="btn" onclick="window.location.href='mapping_slayer.html'">Free Demo in Browser</button>
+                    <button class="btn" onclick="window.location.href='demo.html'">Free Demo in Browser</button>
                     <!-- Logged Out Buttons -->
                     <div class="logged-out">
                         <button class="btn" id="login-button">Login</button>
@@ -849,7 +853,7 @@
             <p class="hero-subtitle">Slay it! with Mapping Slayer</p>
             <p>Transform static floor plans into interactive signage layouts. Plan, document, and manage sign placement with precision and efficiency <strong style="color: #ff6600;">in record time</strong>.</p>
             <div class="hero-buttons">
-                <button class="btn btn-primary" onclick="window.location.href='mapping_slayer.html'">Free Demo in Browser</button>
+                <button class="btn btn-primary" onclick="window.location.href='demo.html'">Free Demo in Browser</button>
                 <button class="btn" id="subscribe-button">Start Subscription - $11.11/month</button>
             </div>
             <p style="font-size: 16px; margin-top: 20px; font-style: italic;">There is only one tier: SLAY!</p>
@@ -1849,6 +1853,25 @@
             
         });
         // --- END: COMPLETE DEMO LOGIC ---
+        // --- START: Access Denied Banner Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const reason = urlParams.get('reason');
+
+            if (reason === 'unsubscribed') {
+                const banner = document.getElementById('access-denied-banner');
+                if (banner) {
+                    banner.style.display = 'block';
+                }
+
+                // Optional: Automatically open the login modal for a smoother flow
+                const loginModal = document.getElementById('loginModal');
+                if (loginModal) {
+                    loginModal.classList.add('active');
+                }
+            }
+        });
+        // --- END: Access Denied Banner Logic ---
     </script>
 </body>
 </html>
