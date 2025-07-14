@@ -1044,6 +1044,56 @@
     
     <!-- Footer, Modals etc. -->
     <div id="footer-and-modals">
+
+        <!-- Edit Location Modal -->
+        <div id="edit-location-modal" class="edit-modal-overlay">
+            <div class="edit-modal-content">
+                <div class="edit-modal-header">Edit Location</div>
+                <div class="edit-modal-subheader">Update location details</div>
+                <form id="edit-location-form" class="edit-modal-form">
+                    <div class="form-group">
+                        <label class="form-label">Sign Type</label>
+                        <select id="edit-sign-type" class="form-input"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Message</label>
+                        <input type="text" id="edit-message" class="form-input">
+                    </div>
+                    <div class="edit-modal-buttons">
+                        <button type="button" id="edit-delete-btn" class="btn btn-danger">DELETE</button>
+                        <div class="right-buttons">
+                            <button type="button" id="edit-cancel-btn" class="btn btn-secondary">CANCEL</button>
+                            <button type="submit" class="btn btn-primary">UPDATE</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Group Edit Modal -->
+        <div id="group-edit-modal" class="edit-modal-overlay">
+            <div class="edit-modal-content">
+                <div class="edit-modal-header">Edit Multiple Locations</div>
+                <div class="edit-modal-subheader" id="group-edit-subheader">(0 selected)</div>
+                <form id="group-edit-form" class="edit-modal-form">
+                    <div class="form-group">
+                        <label class="form-label">Sign Type</label>
+                        <select id="group-edit-sign-type" class="form-input"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Message</label>
+                        <input type="text" id="group-edit-message" class="form-input">
+                    </div>
+                    <div class="edit-modal-buttons">
+                        <button type="button" id="group-delete-btn" class="btn btn-danger">DELETE ALL</button>
+                        <div class="right-buttons">
+                            <button type="button" id="group-cancel-btn" class="btn btn-secondary">CANCEL</button>
+                            <button type="submit" class="btn btn-primary">UPDATE ALL</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
         
         <!-- System Requirements Section -->
         <section class="section">
