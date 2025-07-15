@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Mapping Slayer</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="tooltips.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <div>
+                <div class="app-title">
+                    <img src="MSLogo.svg" alt="Mapping Slayer" class="logo-svg">
+                </div>
+                <span id="project-name" style="display: none;">New Project</span>
+            </div>
+            <div class="header-controls">
+                <div class="find-replace-container">
+                    <div class="find-replace-inputs">
+                        <button class="btn find-all-btn" id="find-all-btn">FIND ALL</button>
+                        <input type="text" class="find-input" placeholder="FIND" id="find-input">
+                        <input type="text" class="replace-input" placeholder="REPLACE" id="replace-input">
+                        <button class="btn replace-btn" id="replace-btn">REPLACE</button>
+                    </div>
+                    <div class="replace-status" id="replace-status"></div>
+                    <span id="find-count" style="display: none;"></span>
+                </div>
+                <span style="color: #444;">|</span>
+                <div class="save-load-group">
+                    <div class="save-load-buttons">
+                        <button class="btn btn-primary btn-compact" id="save-project-btn" disabled="">SAVE PROJECT (.mslay)</button>
+                        <button class="btn btn-primary btn-compact" id="load-project-btn">LOAD PROJECT</button>
+                    </div>
+                    <div id="map-filename-display">FILE NAME: <span id="map-file-name">No file loaded</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="left-panel">
+            <div class="panel-section filter-section">
+                <div class="panel-header">
+                    <span>FULL LIST</span>
+                    <button class="btn btn-small btn-primary" id="add-marker-type-btn">+</button>
+                </div>
+                <div class="panel-content">
+                    <div class="filter-checkboxes" id="filter-checkboxes"></div>
+                </div>
+            </div>
+
+            <div class="panel-section list-section">
+                <div class="panel-header">
+                    <span>LIST</span>
+                    <div id="list-header-controls">
+                        <button class="btn btn-secondary btn-compact" id="sort-toggle-btn">BY LOC</button>
+                        <button class="btn btn-secondary btn-compact" id="toggle-view-btn">FULL LIST</button>
+                        <div class="all-pages-container">
+                            <input type="checkbox" id="all-pages-checkbox">
+                            <label for="all-pages-checkbox">All Pages</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-content" id="list-content">
+                    <div class="empty-state" id="empty-state">
+                        Click on the map to add your first location dot.
+                    </div>
+                    <div id="list-with-renumber" style="display: none; height: 100%;">
+                        <div id="location-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-section">
+            <div class="map-overlay-controls-top-left">
+                <button class="btn btn-secondary btn-compact btn-uniform-width" id="help-btn">HELP</button>
+                <button class="btn btn-secondary btn-compact btn-uniform-width" id="toggle-messages-btn">SHOW MSG</button>
+                <button class="btn btn-secondary btn-compact btn-uniform-width" id="toggle-messages2-btn">SHOW MSG2</button>
+                <button class="btn btn-secondary btn-compact btn-uniform-width" id="toggle-locations-btn">SHOW LOC</button>
+                <button class="btn btn-secondary btn-compact btn-uniform-width" id="renumber-btn">RENUMBER</button>
+            </div>
+            
+            <div class="legends-container">
+                <div class="legend-box" id="project-legend">
+                    <div class="map-legend-header">
+                        <span>PROJECT LEGEND</span>
+                        <span class="legend-collapse-arrow">▼</span>
+                    </div>
+                    <div class="map-legend-content" id="project-legend-content"></div>
+                </div>
+                <div class="legend-box" id="map-legend">
+                    <div class="map-legend-header">
+                        <span>PAGE LEGEND</span>
+                        <span class="legend-collapse-arrow">▼</span>
+                    </div>
+                    <div class="map-legend-content" id="map-legend-content"></div>
+                </div>
+            </div>
+
+            <div class="map-overlay-controls">
+                <div class="page-nav">
+                    <button class="nav-btn" id="prev-page">&lt;</button>
+                    <input type="text" id="page-label-input" placeholder="Enter Page Label" class="page-label-input">
+                    <span id="page-info">PAGE 1 OF 1</span>
+                    <button class="nav-btn" id="next-page">&gt;</button>
+                </div>
+            </div>
+            
+            <div class="map-container" id="map-container">
+                 <div class="upload-area" id="upload-area">
+                    <div>📄 Upload PDF or .mslay File</div>
+                    <div style="margin-top: 10px; font-size: 14px;">Click to browse or drag and drop</div>
+                    <div class="upload-area-note">For Automap & Scrape functions, please use a PDF with live text.</div>
+                    <input type="file" id="file-input" accept=".pdf,.mslay" style="display: none;">
+                </div>
+
+                <div id="scrape-controls" class="scrape-controls">
+                    <div class="tolerance-controls">
+                        <div class="tolerance-input-group">
+                            <label for="h-tolerance-input">H:</label>
+                            <input type="number" id="h-tolerance-input" class="tolerance-input" min="0.1" max="100" step="0.1" value="1.0">
+                        </div>
+                        <div class="tolerance-input-group">
+                            <label for="v-tolerance-input">V:</label>
+                            <input type="number" id="v-tolerance-input" class="tolerance-input" min="0.1" max="100" step="0.1" value="25.0">
+                        </div>
+                        <div class="tolerance-input-group">
+                            <label for="dot-size-slider">DOT SIZE:</label>
+                            <input type="range" class="size-slider" id="dot-size-slider" min="0.5" max="3" step="0.1" value="1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="map-content">
+                    <canvas id="pdf-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-controls">
+            <div class="automap-container" id="single-automap-container">
+                <select class="form-input automap-select" id="automap-marker-type-select" disabled=""></select>
+                <input type="text" class="form-input automap-input" id="automap-text-input" placeholder="Enter text to find..." list="recent-searches-datalist" disabled="">
+                <datalist id="recent-searches-datalist"></datalist>
+                <div class="automap-checkbox-group">
+                    <input type="checkbox" id="automap-exact-phrase" checked="">
+                    <label for="automap-exact-phrase">Exact Phrase</label>
+                </div>
+                <button class="btn btn-success" id="single-automap-btn" disabled="">AUTOMAP IT!</button>
+                <span class="automap-status" id="automap-status"></span>
+            </div>
+            
+            <div class="control-group">                
+                <button class="btn btn-primary btn-compact" id="create-pdf-btn" disabled="">CREATE PDF</button>
+                <button class="btn btn-primary btn-compact" id="create-schedule-btn" disabled="">CREATE MESSAGE SCHEDULE</button>
+                <button class="btn btn-primary btn-compact" id="update-from-schedule-btn" disabled="">UPDATE FROM MESSAGE SCHEDULE</button>
+                <button class="btn btn-primary btn-compact" id="export-fdf-btn" disabled="">EXPORT REVU MARKUPS (BETA)</button>
+                
+            </div>
+        </div>
+    </div>
+
+    <div class="csv-status" id="csv-status">
+        <div id="csv-status-content"></div>
+    </div>
+
+    <div class="automap-progress-modal" id="automap-progress-modal">
+        <div class="automap-progress-content">
+            <div class="automap-progress-header">Auto-Mapping in Progress</div>
+            <div id="automap-main-status">Initializing...</div>
+            <div class="automap-progress-bar">
+                <div class="automap-progress-fill" id="automap-progress-fill"></div>
+            </div>
+            <div id="automap-activity-feed"></div>
+            <div class="automap-results" id="automap-results" style="display: none;"></div>
+            <div class="modal-buttons">
+                <button class="btn btn-danger" id="cancel-automap-btn" style="display: none; margin-right: auto;">CANCEL</button>
+                <button class="btn btn-primary" id="close-automap-btn" style="display: none;">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="group-edit-modal">
+        <div class="modal-content">
+            <div class="modal-header-grid">
+                <div class="modal-header-main">
+                    <h3 class="modal-title">Edit Multiple Locations</h3>
+                    <div class="modal-subheader">(<span id="group-edit-count">0</span> selected)</div>
+                </div>
+                <div class="modal-header-checkboxes">
+                    <div class="form-group-inline">
+                        <label for="group-edit-code-required">Code Required</label>
+                        <input type="checkbox" id="group-edit-code-required">
+                    </div>
+                    <div class="form-group-inline">
+                        <label for="group-edit-vinyl-backer">Vinyl Backer</label>
+                        <input type="checkbox" id="group-edit-vinyl-backer">
+                    </div>
+                    <div class="form-group-inline">
+                        <label for="group-edit-installed">Installed</label>
+                        <input type="checkbox" id="group-edit-installed">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Marker Type</label>
+                    <select class="form-input" id="group-edit-marker-type">
+                        <option value="">-- Keep Individual Types --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message</label>
+                    <input type="text" class="form-input" id="group-edit-message" placeholder="Leave blank to keep existing messages">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message 2</label>
+                    <input type="text" class="form-input" id="group-edit-message2" placeholder="Leave blank to keep existing messages">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-input form-textarea" id="group-edit-notes" placeholder="Enter notes to overwrite all selected locations..."></textarea>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-danger" id="group-delete-btn">DELETE ALL</button>
+                <button class="btn btn-secondary" id="group-cancel-btn">CANCEL</button>
+                <button class="btn btn-primary" id="group-update-btn">UPDATE ALL</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="edit-modal">
+        <div class="modal-content">
+            <div class="modal-header-grid">
+                <div class="modal-header-main">
+                    <h3 class="modal-title">Edit Location</h3>
+                </div>
+                <div class="modal-header-checkboxes">
+                    <div class="form-group-inline">
+                        <label for="edit-code-required">Code Required</label>
+                        <input type="checkbox" id="edit-code-required">
+                    </div>
+                    <div class="form-group-inline">
+                        <label for="edit-vinyl-backer">Vinyl Backer</label>
+                        <input type="checkbox" id="edit-vinyl-backer">
+                    </div>
+                    <div class="form-group-inline">
+                        <label for="edit-installed">Installed</label>
+                        <input type="checkbox" id="edit-installed">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Marker Type</label>
+                    <select class="form-input" id="edit-marker-type"></select>
+                </div>
+                <div class="form-group" id="edit-location-group">
+                    <label class="form-label">Location Number</label>
+                    <input type="text" class="form-input" id="edit-location-number" placeholder="Enter location number">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message</label>
+                    <input type="text" class="form-input" id="edit-message" placeholder="Enter message">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message 2</label>
+                    <input type="text" class="form-input" id="edit-message2" placeholder="Enter second message">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-input form-textarea" id="edit-notes" placeholder="Enter notes..."></textarea>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-danger" id="delete-dot-btn">DELETE</button>
+                <button class="btn btn-secondary" id="cancel-modal-btn">CANCEL</button>
+                <button class="btn btn-primary" id="update-dot-btn">UPDATE</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="ocr-info-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                Live Text Not Found
+            </div>
+            <p class="modal-text">
+                It looks like your PDF doesn't have live text. You can still use Mapping Slayer, but you won't be able to use the 'Automap' or 'Scrape' functions.
+            </p>
+            <p class="modal-text">
+                <strong>Solution:</strong> Adobe Acrobat can scan your document to create live text. This is called optical character recognition or "OCR". There are also several online free OCR services available. Once your doc has been updated with live text bring it back here and slay it!
+            </p>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" id="close-ocr-modal-btn">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="save-roomlist-modal">
+        <div class="modal-content" style="min-width: 500px;">
+            <div class="modal-header">
+                <span>Update Room List</span>
+            </div>
+            <div class="modal-subheader" id="roomlist-modal-subheader">
+                Select changes to save to ROOMLIST.json.
+            </div>
+            <div class="roomlist-preview" id="roomlist-preview-content">
+                </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancel-save-roomlist-btn">CANCEL</button>
+                <button class="btn btn-success" id="confirm-save-roomlist-btn">SAVE SELECTED</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="update-csv-input" accept=".csv" style="display: none;">
+    <input type="file" id="import-roomlist-input" accept=".json" style="display: none;">
+    <div class="modal" id="controls-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Controls</span>
+            </div>
+            <ul class="controls-list-modal">
+                <li><strong>Pan:</strong> Middle-click + drag</li>
+                <li><strong>Zoom:</strong> Scroll wheel</li>
+                <li><strong>Add Dot:</strong> Click on map</li>
+                <li><strong>Edit Dot:</strong> Right-click on dot</li>
+                <li><strong>Select Multiple:</strong> Shift + Left-drag</li>
+                <li><strong>Scrape Live Text:</strong> Shift + Right-drag</li>
+                <li><strong>OCR Scrape:</strong> Ctrl + Shift + Right-drag</li>
+                <li><strong>Delete Selected:</strong> Delete key</li>
+                <li><strong>Copy Dot:</strong> Ctrl/Cmd + C</li>
+                <li><strong>Paste at Cursor:</strong> Ctrl/Cmd + V</li>
+                <li><strong>Undo/Redo:</strong> Ctrl/Cmd + Z / Ctrl/Cmd + Y</li>
+                <li><strong>Change Page:</strong> Page Up / Page Down</li>
+                <li><strong>Change Marker Type:</strong> Up / Down Arrows</li>
+                <li><strong>Clear Selection:</strong> Escape</li>
+            </ul>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary btn-compact" id="tooltips-btn">TOOL TIPS</button>
+                <button class="btn btn-secondary btn-compact" id="guide-btn">FULL GUIDE</button>
+                <button class="btn btn-primary" id="close-controls-modal-btn">CLOSE</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="pdf-export-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>PDF Export Options</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-text">Choose your PDF export format:</p>
+                <div class="pdf-export-options">
+                    <button class="btn btn-primary pdf-export-option-btn" onclick="performPDFExport('current-with-details')">
+                        <strong>Current Map - With Detail Pages</strong><br>
+                        <small>This map + clickable detail pages for each location</small>
+                    </button>
+                    <button class="btn btn-primary pdf-export-option-btn" onclick="performPDFExport('current-only')">
+                        <strong>Current Map Only</strong><br>
+                        <small>Just this map page with location dots</small>
+                    </button>
+                    <button class="btn btn-primary pdf-export-option-btn" onclick="performPDFExport('all-maps-only')">
+                        <strong>All Maps Only</strong><br>
+                        <small>All map pages with dots (no detail pages)</small>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancel-pdf-export-btn">CANCEL</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="renumber-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Renumber Options</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-text">Choose how you want to renumber the locations:</p>
+                <div class="renumber-options">
+                    <button class="btn btn-primary renumber-option-btn" onclick="performRenumber('page')">
+                        <strong>Current Page Only</strong><br>
+                        <small>Renumber dots on this page by position (top to bottom, left to right)</small>
+                    </button>
+                    <button class="btn btn-primary renumber-option-btn" onclick="performRenumber('page-by-type')">
+                        <strong>Current Page by Marker Type</strong><br>
+                        <small>Group by marker type, then renumber by position within each type</small>
+                    </button>
+                    <button class="btn btn-primary renumber-option-btn" onclick="performRenumber('all')">
+                        <strong>All Pages</strong><br>
+                        <small>Renumber all dots across all pages by position</small>
+                    </button>
+                    <button class="btn btn-primary renumber-option-btn" onclick="performRenumber('all-by-type')">
+                        <strong>All Pages by Marker Type</strong><br>
+                        <small>Group by marker type across all pages, then renumber by position</small>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancel-renumber-btn">CANCEL</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="character-warning-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Character Changes for Revu Compatibility</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-text">
+                    Revu doesn't like importing these characters in BAX files. We're changing them to something that it will accept.
+                </p>
+                <div class="character-changes-preview" id="character-changes-preview">
+                    <!-- Character changes will be populated here -->
+                </div>
+                <p class="modal-text" style="margin-top: 15px;">
+                    <span id="affected-locations-count">0</span> location(s) will be affected. A detailed log file will be created.
+                </p>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancel-character-changes-btn">CANCEL</button>
+                <button class="btn btn-primary" id="proceed-character-changes-btn">OK - PROCEED</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="disclaimer-modal" style="display: block;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <span>Important Disclaimer</span>
+            </div>
+            <div class="disclaimer-content">
+                <p><strong>File Responsibility Notice:</strong></p>
+                <p>You are solely responsible for your files and data when using Mapping Slayer. This includes:</p>
+                <ul style="margin: 15px 0; padding-left: 20px;">
+                    <li>Making backups of your original PDF files before uploading</li>
+                    <li>Ensuring you have the right to modify and annotate uploaded documents</li>
+                    <li>Any data loss, corruption, or technical issues that may occur</li>
+                    <li>Compliance with your organization's data handling policies</li>
+                </ul>
+                
+                <p><strong>Software Disclaimer:</strong></p>
+                <p>Mapping Slayer is provided "as is" without warranty of any kind. While we strive for reliability, we cannot guarantee:</p>
+                <ul style="margin: 15px 0; padding-left: 20px;">
+                    <li>Uninterrupted or error-free operation</li>
+                    <li>Compatibility with all PDF formats or browsers</li>
+                    <li>Data integrity in all circumstances</li>
+                </ul>
+
+                <p><strong>System Requirements:</strong></p>
+                <ul style="margin: 15px 0; padding-left: 20px;">
+                    <li>Modern web browser (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)</li>
+                    <li>JavaScript enabled</li>
+                    <li>Minimum 4GB RAM recommended for large PDF files</li>
+                    <li>Stable internet connection for initial loading</li>
+                    <li>Local file access permissions (for PDF upload/download)</li>
+                </ul>
+                
+                <p><strong>Best Practices:</strong></p>
+                <ul style="margin: 15px 0; padding-left: 20px;">
+                    <li>Always keep backup copies of important files</li>
+                    <li>Test with non-critical documents first</li>
+                    <li>Save your work frequently using the "SAVE PROJECT" feature</li>
+                </ul>
+                
+                <p style="margin-top: 20px;"><strong>By clicking "I AGREE" below, you acknowledge that you understand and accept these terms.</strong></p>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="disclaimer-cancel-btn">CANCEL</button>
+                <button class="btn btn-primary" id="disclaimer-agree-btn">I AGREE</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="project-io.js"></script>
+    <script src="state.js"></script>
+    <script src="ui.js"></script>
+    <script src="map-controller.js"></script>
+    <script src="undo-manager.js"></script>
+    <script src="automap.js"></script>
+    <script src="scrape.js"></script>
+    <script src="export.js"></script>
+    <script src="main.js" defer></script>
+</body>
+</html>
