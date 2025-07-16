@@ -1,0 +1,2084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapping Slayer - Complete User Guide v5.0</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+            border-bottom: 3px solid #f07727;
+        }
+        
+        .logo {
+            font-size: 48px;
+            font-weight: bold;
+            color: #f07727;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 24px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .version {
+            font-size: 14px;
+            color: #999;
+        }
+        
+        h1 {
+            color: #f07727;
+            border-bottom: 2px solid #f07727;
+            padding-bottom: 10px;
+            margin-top: 40px;
+            page-break-before: auto;
+        }
+        
+        h2 {
+            color: #333;
+            margin-top: 30px;
+            border-left: 4px solid #f07727;
+            padding-left: 15px;
+        }
+        
+        h3 {
+            color: #555;
+            margin-top: 25px;
+        }
+        
+        .feature-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .tip {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .tip::before {
+            content: "💡 TIP: ";
+            font-weight: bold;
+            color: #856404;
+        }
+        
+        .warning {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .warning::before {
+            content: "⚠️ WARNING: ";
+            font-weight: bold;
+            color: #721c24;
+        }
+        
+        .beta-notice {
+            background: #e7f3ff;
+            border: 2px solid #0066cc;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .beta-notice::before {
+            content: "🧪 BETA FEATURE: ";
+            font-weight: bold;
+            color: #0066cc;
+        }
+        
+        .keyboard-shortcut {
+            background: #e9ecef;
+            border: 1px solid #adb5bd;
+            border-radius: 3px;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .step-list {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px 20px;
+            margin: 15px 0;
+        }
+        
+        .step-list ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .step-list li {
+            margin: 8px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f07727;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .toc {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        
+        .toc h2 {
+            margin-top: 0;
+            border: none;
+            padding: 0;
+        }
+        
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        .toc li {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        
+        .toc a {
+            text-decoration: none;
+            color: #f07727;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        .screenshot-placeholder {
+            background: #e9ecef;
+            border: 2px dashed #adb5bd;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            color: #6c757d;
+            margin: 20px 0;
+            font-style: italic;
+        }
+        
+        @media print {
+            body {
+                max-width: none;
+                padding: 0;
+            }
+            
+            .header {
+                page-break-after: always;
+            }
+            
+            h1 {
+                page-break-before: always;
+            }
+            
+            h1:first-of-type {
+                page-break-before: auto;
+            }
+            
+            .feature-box, .tip, .warning, .step-list {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">MAPPING SLAYER</div>
+        <div class="subtitle">Complete User Guide v5.0</div>
+        <div class="version">Comprehensive guide for AI-assisted learning<br>Updated for current feature set</div>
+    </div>
+
+    <div class="toc">
+        <h2>Table of Contents</h2>
+        <ul>
+            <li><a href="#getting-started">1. Getting Started</a></li>
+            <li><a href="#interface-overview">2. Interface Overview</a></li>
+            <li><a href="#marker-types">3. Marker Types & Categories</a></li>
+            <li><a href="#adding-locations">4. Adding Location Dots</a></li>
+            <li><a href="#automap-features">5. Automap & Text Recognition</a></li>
+            <li><a href="#scraping-text">6. Text Scraping & OCR</a></li>
+            <li><a href="#editing-locations">7. Editing & Managing Locations</a></li>
+            <li><a href="#navigation-search">8. Navigation & Search</a></li>
+            <li><a href="#project-management">9. Project Management</a></li>
+            <li><a href="#export-options">10. Export Options</a></li>
+            <li><a href="#keyboard-shortcuts">11. Keyboard Shortcuts</a></li>
+            <li><a href="#troubleshooting">12. Troubleshooting</a></li>
+            <li><a href="#best-practices">13. Best Practices</a></li>
+            <li><a href="#technical-details">14. Technical Details</a></li>
+        </ul>
+    </div>
+
+    <h1 id="getting-started">1. Getting Started</h1>
+
+    <h2>What is Mapping Slayer?</h2>
+    <p>Mapping Slayer is a web-based PDF annotation tool designed for creating interactive location maps. It allows users to place numbered dots on architectural drawings, floor plans, or site maps while storing detailed information about each location. The tool is particularly valuable for construction projects, facility management, signage installation, and compliance documentation.</p>
+
+    <h2>System Requirements</h2>
+    <div class="feature-box">
+        <h3>Browser Requirements</h3>
+        <ul>
+            <li><strong>Chrome 90+:</strong> Recommended for best performance</li>
+            <li><strong>Firefox 88+:</strong> Full feature support</li>
+            <li><strong>Safari 14+:</strong> Compatible with minor limitations</li>
+            <li><strong>Edge 90+:</strong> Full compatibility</li>
+            <li><strong>Internet Explorer:</strong> Not supported</li>
+        </ul>
+        
+        <h3>System Requirements</h3>
+        <ul>
+            <li><strong>RAM:</strong> Minimum 4GB, 8GB+ recommended for large projects</li>
+            <li><strong>Storage:</strong> 1GB+ free space for downloads and temporary files</li>
+            <li><strong>JavaScript:</strong> Must be enabled</li>
+            <li><strong>Internet Connection:</strong> Required for initial loading only</li>
+            <li><strong>File Access:</strong> Browser must allow local file uploads and downloads</li>
+        </ul>
+    </div>
+
+    <h2>First Launch Setup</h2>
+    <div class="step-list">
+        <ol>
+            <li><strong>Access the Application:</strong> Open Mapping Slayer in your web browser</li>
+            <li><strong>Accept Disclaimer:</strong> Review and accept the software disclaimer and terms</li>
+            <li><strong>Choose Tooltips:</strong> Decide whether to enable contextual help tooltips (recommended for beginners)</li>
+            <li><strong>Upload First File:</strong> Either upload a PDF document or load an existing .mslay project file</li>
+        </ol>
+    </div>
+
+    <div class="tip">
+        Enable tooltips during your first session by clicking "TOOL TIPS" in the top-left corner. They provide contextual help for every interface element.
+    </div>
+
+    <h2>Supported File Formats</h2>
+    <table>
+        <tr>
+            <th>Format</th>
+            <th>Extension</th>
+            <th>Purpose</th>
+            <th>Best Use</th>
+        </tr>
+        <tr>
+            <td>PDF Documents</td>
+            <td>.pdf</td>
+            <td>Source maps and plans</td>
+            <td>Architectural drawings, floor plans, site maps</td>
+        </tr>
+        <tr>
+            <td>Mapping Slayer Projects</td>
+            <td>.mslay</td>
+            <td>Complete project files</td>
+            <td>Saving and sharing annotated projects</td>
+        </tr>
+    </table>
+
+    <h2>PDF Requirements for Advanced Features</h2>
+    <div class="feature-box">
+        <h3>Live Text PDFs (Recommended)</h3>
+        <ul>
+            <li>Text can be selected and copied with your mouse</li>
+            <li>Enable Automap features for automatic dot placement</li>
+            <li>Support text scraping for rapid annotation</li>
+            <li>Usually created from CAD software or word processors</li>
+        </ul>
+        
+        <h3>Scanned/Image PDFs (Limited Features)</h3>
+        <ul>
+            <li>Text appears as images and cannot be selected</li>
+            <li>Manual dot placement only</li>
+            <li>OCR scraping available but slower</li>
+            <li>May require external OCR processing for best results</li>
+        </ul>
+    </div>
+
+    <h1 id="interface-overview">2. Interface Overview</h1>
+
+    <h2>Application Layout</h2>
+    <p>Mapping Slayer uses a professional grid-based layout optimized for workflow efficiency. The interface consists of five main sections, each serving specific functions in the annotation process.</p>
+
+    <h3>Header Section (Top Bar)</h3>
+    <div class="feature-box">
+        <h4>Left Side - Branding</h4>
+        <ul>
+            <li><strong>Mapping Slayer Logo:</strong> Application identifier</li>
+            <li><strong>Project Name:</strong> Current project title (hidden initially)</li>
+        </ul>
+        
+        <h4>Center - Search and Replace</h4>
+        <ul>
+            <li><strong>FIND ALL Button:</strong> Select all locations matching search term</li>
+            <li><strong>Find Input:</strong> Search location numbers and messages</li>
+            <li><strong>Replace Input:</strong> Bulk text replacement</li>
+            <li><strong>REPLACE Button:</strong> Execute replacement on selected items</li>
+            <li><strong>Status Display:</strong> Shows search results and replacement feedback</li>
+        </ul>
+        
+        <h4>Right Side - File Operations</h4>
+        <ul>
+            <li><strong>SAVE PROJECT Button:</strong> Export .mslay project file</li>
+            <li><strong>LOAD PROJECT Button:</strong> Import PDF or .mslay files</li>
+            <li><strong>File Name Display:</strong> Shows currently loaded file name</li>
+        </ul>
+    </div>
+
+    <h3>Left Panel - Project Management</h3>
+    <div class="feature-box">
+        <h4>Marker Types Section (Top)</h4>
+        <ul>
+            <li><strong>Section Header:</strong> "FULL LIST" with add button [+]</li>
+            <li><strong>Type List:</strong> All available marker categories</li>
+            <li><strong>Active Selection:</strong> Currently selected type (highlighted)</li>
+            <li><strong>Configuration:</strong> Code, name, colors, and reference images</li>
+            <li><strong>Controls:</strong> Color pickers and delete buttons</li>
+        </ul>
+        
+        <h4>Location List Section (Bottom)</h4>
+        <ul>
+            <li><strong>View Controls:</strong> Sort mode and list type toggles</li>
+            <li><strong>Page Scope:</strong> Current page vs. all pages checkbox</li>
+            <li><strong>Location Items:</strong> Interactive list of all locations</li>
+            <li><strong>Inline Editing:</strong> Direct message editing capability</li>
+        </ul>
+    </div>
+
+    <h3>Map Area - Primary Workspace</h3>
+    <div class="feature-box">
+        <h4>Main Display</h4>
+        <ul>
+            <li><strong>PDF Viewer:</strong> Interactive document display</li>
+            <li><strong>Location Dots:</strong> Visual markers on the map</li>
+            <li><strong>Upload Area:</strong> Drag-and-drop file loading zone</li>
+        </ul>
+        
+        <h4>Overlay Controls (Top-Left)</h4>
+        <ul>
+            <li><strong>HELP:</strong> Open controls reference</li>
+            <li><strong>SHOW MSG:</strong> Toggle location messages</li>
+            <li><strong>SHOW MSG2:</strong> Toggle secondary messages</li>
+            <li><strong>SHOW LOC:</strong> Toggle location numbers</li>
+            <li><strong>RENUMBER:</strong> Automatic location numbering</li>
+        </ul>
+        
+        <h4>Legends (Top-Right)</h4>
+        <ul>
+            <li><strong>Project Legend:</strong> All marker types across entire project</li>
+            <li><strong>Page Legend:</strong> Active marker types on current page</li>
+            <li><strong>Collapse Controls:</strong> Minimize legends for more space</li>
+        </ul>
+        
+        <h4>Page Navigation (Bottom-Right)</h4>
+        <ul>
+            <li><strong>Previous/Next Buttons:</strong> Page navigation</li>
+            <li><strong>Page Label Input:</strong> Custom page naming</li>
+            <li><strong>Page Counter:</strong> Current position indicator</li>
+        </ul>
+        
+        <h4>Scrape Controls (Bottom-Left)</h4>
+        <ul>
+            <li><strong>H Tolerance:</strong> Horizontal text grouping distance</li>
+            <li><strong>V Tolerance:</strong> Vertical text grouping distance</li>
+            <li><strong>DOT SIZE Slider:</strong> Adjust marker size</li>
+        </ul>
+    </div>
+
+    <h3>Footer Section - Tools and Export</h3>
+    <div class="feature-box">
+        <h4>Left Side - Automap</h4>
+        <ul>
+            <li><strong>Marker Type Selector:</strong> Choose type for auto-placed dots</li>
+            <li><strong>Text Input:</strong> Search term for automatic placement</li>
+            <li><strong>Exact Phrase Checkbox:</strong> Search mode selection</li>
+            <li><strong>AUTOMAP IT! Button:</strong> Execute automatic mapping</li>
+            <li><strong>Status Display:</strong> Progress and result messages</li>
+        </ul>
+        
+        <h4>Right Side - Export Options</h4>
+        <ul>
+            <li><strong>CREATE PDF:</strong> Generate annotated PDF documents</li>
+            <li><strong>CREATE MESSAGE SCHEDULE:</strong> Export location data to CSV</li>
+            <li><strong>UPDATE FROM MESSAGE SCHEDULE:</strong> Import CSV changes</li>
+            <li><strong>EXPORT REVU MARKUPS (BETA):</strong> Bluebeam integration</li>
+        </ul>
+    </div>
+
+    <h2>Interface States and Modes</h2>
+    <table>
+        <tr>
+            <th>State</th>
+            <th>Description</th>
+            <th>Available Actions</th>
+        </tr>
+        <tr>
+            <td>Empty State</td>
+            <td>No file loaded</td>
+            <td>Upload files, load projects</td>
+        </tr>
+        <tr>
+            <td>PDF Loaded</td>
+            <td>Document ready for annotation</td>
+            <td>All features available</td>
+        </tr>
+        <tr>
+            <td>Selection Mode</td>
+            <td>One or more dots selected</td>
+            <td>Move, edit, delete, copy operations</td>
+        </tr>
+        <tr>
+            <td>Edit Mode</td>
+            <td>Location properties dialog open</td>
+            <td>Modify location details</td>
+        </tr>
+        <tr>
+            <td>Automap Mode</td>
+            <td>Automatic processing active</td>
+            <td>Monitor progress, cancel operation</td>
+        </tr>
+    </table>
+
+    <h1 id="marker-types">3. Marker Types & Categories</h1>
+
+    <h2>Understanding Marker Types</h2>
+    <p>Marker types are the foundation of project organization in Mapping Slayer. They define categories of locations and determine how dots appear visually. Every location dot must belong to a marker type, which controls its color, appearance, and grouping in reports and exports.</p>
+
+    <div class="feature-box">
+        <h3>Marker Type Components</h3>
+        <ul>
+            <li><strong>Code:</strong> Short identifier (2-6 characters recommended)</li>
+            <li><strong>Name:</strong> Full descriptive title</li>
+            <li><strong>Dot Color:</strong> Background color of location markers</li>
+            <li><strong>Text Color:</strong> Color of location number text</li>
+            <li><strong>Design Reference:</strong> Optional installation reference image</li>
+        </ul>
+    </div>
+
+    <h2>Creating and Managing Marker Types</h2>
+    <div class="step-list">
+        <ol>
+            <li><strong>Add New Type:</strong> Click the [+] button in the Marker Types section</li>
+            <li><strong>Edit Code:</strong> Click the "NEW" code field and enter a short identifier</li>
+            <li><strong>Set Name:</strong> Click the name field and enter a descriptive title</li>
+            <li><strong>Choose Colors:</strong> Click the colored squares to open color pickers</li>
+            <li><strong>Upload Reference (Optional):</strong> Click the [+] square to add installation images</li>
+            <li><strong>Activate Type:</strong> Click anywhere on the marker type row to select it</li>
+        </ol>
+    </div>
+
+    <h3>Code Naming Best Practices</h3>
+    <table>
+        <tr>
+            <th>Industry</th>
+            <th>Example Codes</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td>Construction</td>
+            <td>FD, EX, HVAC, ELEC</td>
+            <td>Fire Door, Exit Sign, HVAC Equipment, Electrical</td>
+        </tr>
+        <tr>
+            <td>Retail</td>
+            <td>WAY, DIR, PROM, INFO</td>
+            <td>Wayfinding, Directional, Promotional, Information</td>
+        </tr>
+        <tr>
+            <td>Healthcare</td>
+            <td>RM, DEPT, EMG, ADA</td>
+            <td>Room Number, Department, Emergency, ADA Compliance</td>
+        </tr>
+        <tr>
+            <td>Education</td>
+            <td>CLSRM, LAB, OFF, STRG</td>
+            <td>Classroom, Laboratory, Office, Storage</td>
+        </tr>
+    </table>
+
+    <div class="tip">
+        Use consistent, memorable codes that will make sense to installation teams and other project stakeholders months later.
+    </div>
+
+    <h2>Design Reference Images</h2>
+    <p>Reference images provide visual context for installation teams, showing exactly what equipment, signage, or fixtures should be installed at each location.</p>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Click Upload Square:</strong> Click the [+] square next to any marker type</li>
+            <li><strong>Select Image:</strong> Choose a JPEG or PNG file from your computer</li>
+            <li><strong>Automatic Processing:</strong> Image is resized and optimized automatically</li>
+            <li><strong>Preview:</strong> Hover over the square to see a full-size preview</li>
+            <li><strong>Remove:</strong> Click the [×] button to delete a reference image</li>
+        </ol>
+    </div>
+
+    <div class="feature-box">
+        <h3>Reference Image Best Practices</h3>
+        <ul>
+            <li><strong>High Quality:</strong> Use clear, well-lit photos</li>
+            <li><strong>Context:</strong> Show the item in its installed environment</li>
+            <li><strong>Details:</strong> Include close-ups of mounting hardware or specifications</li>
+            <li><strong>Consistency:</strong> Use similar lighting and angles for professional appearance</li>
+        </ul>
+    </div>
+
+    <h2>Color Selection Guidelines</h2>
+    <div class="feature-box">
+        <h3>Dot Color (Background)</h3>
+        <ul>
+            <li><strong>High Contrast:</strong> Choose colors that stand out against your PDF background</li>
+            <li><strong>Industry Standards:</strong> Red for safety, blue for information, green for emergency</li>
+            <li><strong>Distinction:</strong> Ensure marker types are easily distinguishable</li>
+            <li><strong>Printing:</strong> Consider how colors will appear when printed</li>
+        </ul>
+        
+        <h3>Text Color (Location Numbers)</h3>
+        <ul>
+            <li><strong>Readability:</strong> Ensure strong contrast with dot color</li>
+            <li><strong>Consistency:</strong> White or black text works well with most backgrounds</li>
+            <li><strong>Accessibility:</strong> Meet contrast ratio requirements for professional use</li>
+        </ul>
+    </div>
+
+    <h2>Advanced Marker Type Management</h2>
+    <div class="warning">
+        Deleting a marker type removes ALL locations of that type from your entire project. This action cannot be undone through the undo system.
+    </div>
+
+    <h3>Editing Existing Types</h3>
+    <ul>
+        <li><strong>Code Changes:</strong> Updates all references throughout the project</li>
+        <li><strong>Name Changes:</strong> Updates displays and exports immediately</li>
+        <li><strong>Color Changes:</strong> All dots of that type update in real-time</li>
+        <li><strong>Reference Updates:</strong> New images replace old ones, affecting future exports</li>
+    </ul>
+
+    <h3>Active Type Selection</h3>
+    <p>The active marker type (highlighted in orange) determines what type of dot will be created when you click on the map. You can change the active type by:</p>
+    <ul>
+        <li>Clicking on any marker type in the left panel</li>
+        <li>Using the Up/Down arrow keys (when not typing)</li>
+        <li>Selecting it from the Automap dropdown</li>
+    </ul>
+
+    <h1 id="adding-locations">4. Adding Location Dots</h1>
+
+    <h2>Manual Dot Placement</h2>
+    <p>The most basic way to add locations is by clicking directly on the map. This gives you precise control over dot placement and is suitable for all types of PDFs.</p>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Select Marker Type:</strong> Choose the appropriate category from the left panel</li>
+            <li><strong>Position Cursor:</strong> Move your mouse to the desired location on the PDF</li>
+            <li><strong>Click to Place:</strong> Single left-click to create a new location dot</li>
+            <li><strong>Automatic Numbering:</strong> The dot receives the next sequential number</li>
+            <li><strong>Default Message:</strong> Initial message is "NEW LOCATION" (change via right-click)</li>
+        </ol>
+    </div>
+
+    <h2>Location Dot Properties</h2>
+    <div class="feature-box">
+        <h3>Core Properties</h3>
+        <ul>
+            <li><strong>Internal ID:</strong> Unique system identifier (7 digits, zero-padded)</li>
+            <li><strong>Location Number:</strong> User-visible identifier (4 digits, zero-padded)</li>
+            <li><strong>Marker Type:</strong> Category determining color and purpose</li>
+            <li><strong>X,Y Position:</strong> Exact coordinates on the page</li>
+            <li><strong>Page Number:</strong> Which PDF page contains this location</li>
+        </ul>
+        
+        <h3>Content Properties</h3>
+        <ul>
+            <li><strong>Message:</strong> Primary description text</li>
+            <li><strong>Message 2:</strong> Secondary description text</li>
+            <li><strong>Notes:</strong> Detailed installation or reference information</li>
+        </ul>
+        
+        <h3>Status Properties</h3>
+        <ul>
+            <li><strong>Code Required:</strong> Boolean flag for locations requiring inspection codes</li>
+            <li><strong>Vinyl Backer:</strong> Boolean flag for locations needing vinyl backing</li>
+            <li><strong>Installed:</strong> Boolean flag for completion status</li>
+        </ul>
+    </div>
+
+    <h2>Visual Indicators and Symbols</h2>
+    <table>
+        <tr>
+            <th>Visual Element</th>
+            <th>Meaning</th>
+            <th>Appearance</th>
+        </tr>
+        <tr>
+            <td>Yellow Ring</td>
+            <td>Code Required flag set</td>
+            <td>Bright yellow outline around entire dot</td>
+        </tr>
+        <tr>
+            <td>Blue "V" Square</td>
+            <td>Vinyl Backer flag set</td>
+            <td>Small blue square with white "V" below dot</td>
+        </tr>
+        <tr>
+            <td>Green Diagonal Line</td>
+            <td>Installed flag set</td>
+            <td>Green line crossing through the entire dot</td>
+        </tr>
+        <tr>
+            <td>Orange Glow</td>
+            <td>Currently selected</td>
+            <td>Bright orange border and glow effect</td>
+        </tr>
+        <tr>
+            <td>Pulsing Orange</td>
+            <td>Search result highlight</td>
+            <td>Animated pulsing orange glow</td>
+        </tr>
+    </table>
+
+    <h2>Collision Detection System</h2>
+    <p>Mapping Slayer automatically prevents dots from being placed too close together, ensuring clean, readable layouts and preventing accidental overlap.</p>
+
+    <div class="feature-box">
+        <h3>Collision Rules</h3>
+        <ul>
+            <li><strong>Minimum Distance:</strong> (20 × dot size) + 1 pixel between dot centers</li>
+            <li><strong>Real-time Check:</strong> Validation occurs before dot creation</li>
+            <li><strong>Visual Feedback:</strong> Cursor changes or status message when collision detected</li>
+            <li><strong>Size Adaptation:</strong> Collision distance adjusts with dot size slider</li>
+        </ul>
+    </div>
+
+    <div class="tip">
+        If you need to place dots closer together, temporarily reduce the dot size using the slider in the footer, place your dots, then resize them back up.
+    </div>
+
+    <h2>Automatic Numbering System</h2>
+    <p>Location numbers are assigned automatically using a sophisticated system that maintains logical sequences across pages and marker types.</p>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Page-Based Sequences:</strong> Each page maintains its own numbering sequence</li>
+            <li><strong>Sequential Assignment:</strong> New dots get the next available number on that page</li>
+            <li><strong>Gap Filling:</strong> System fills gaps if locations are deleted</li>
+            <li><strong>Manual Override:</strong> Users can manually change location numbers via edit dialog</li>
+            <li><strong>Duplicate Prevention:</strong> System prevents duplicate numbers on same page</li>
+        </ol>
+    </div>
+
+    <h2>Dot Size and Scaling</h2>
+    <p>The dot size slider in the footer controls the visual size of all location markers simultaneously.</p>
+
+    <div class="feature-box">
+        <h3>Size Recommendations</h3>
+        <ul>
+            <li><strong>0.5-0.8:</strong> Dense layouts with many close locations</li>
+            <li><strong>1.0:</strong> Standard size for most applications</li>
+            <li><strong>1.2-1.5:</strong> Presentation mode for better visibility</li>
+            <li><strong>1.6-2.0:</strong> Large format printing or vision accessibility</li>
+            <li><strong>2.1-3.0:</strong> Extreme cases requiring maximum visibility</li>
+        </ul>
+    </div>
+
+    <h1 id="automap-features">5. Automap & Text Recognition</h1>
+
+    <h2>Understanding Automap Technology</h2>
+    <p>Automap is Mapping Slayer's intelligent text recognition system that automatically finds text patterns in PDFs and places location dots on matching content. This feature dramatically accelerates the annotation process for documents with repeated elements like room numbers, equipment codes, or fixture types.</p>
+
+    <div class="warning">
+        Automap requires PDFs with "live text" - text that can be selected and copied with your mouse. Scanned documents or image-based PDFs will not work with Automap unless they have been processed with OCR software.
+    </div>
+
+    <h2>Automap Prerequisites</h2>
+    <div class="feature-box">
+        <h3>PDF Requirements</h3>
+        <ul>
+            <li><strong>Live Text:</strong> Text must be selectable, not just images of text</li>
+            <li><strong>Text Quality:</strong> Clear, properly encoded text without corruption</li>
+            <li><strong>Language Support:</strong> Best results with English text</li>
+            <li><strong>Font Compatibility:</strong> Standard fonts work better than decorative ones</li>
+        </ul>
+        
+        <h3>Testing for Live Text</h3>
+        <ol>
+            <li>Try to select text with your mouse cursor</li>
+            <li>If you can highlight and copy text, Automap will work</li>
+            <li>If text appears as solid blocks that can't be selected, use OCR scraping instead</li>
+        </ol>
+    </div>
+
+    <h2>Basic Automap Operation</h2>
+    <div class="step-list">
+        <ol>
+            <li><strong>Select Target Marker Type:</strong> Choose the category for new dots from the dropdown</li>
+            <li><strong>Enter Search Term:</strong> Type the text you want to find in the input box</li>
+            <li><strong>Choose Search Mode:</strong> Select "Exact Phrase" or uncheck for "Contains Text"</li>
+            <li><strong>Execute Search:</strong> Click "AUTOMAP IT!" to start the process</li>
+            <li><strong>Monitor Progress:</strong> Watch the progress dialog for status updates</li>
+            <li><strong>Review Results:</strong> Check placed dots and make manual adjustments if needed</li>
+        </ol>
+    </div>
+
+    <h2>Search Modes Explained</h2>
+    <div class="feature-box">
+        <h3>Exact Phrase Mode (Default)</h3>
+        <ul>
+            <li><strong>Behavior:</strong> Finds only exact matches of your search term</li>
+            <li><strong>Case Sensitivity:</strong> Ignores case differences</li>
+            <li><strong>Word Boundaries:</strong> Respects word boundaries and spacing</li>
+            <li><strong>Best For:</strong> Specific codes, room numbers, equipment IDs</li>
+            <li><strong>Example:</strong> Searching "101" finds "101" but not "1101" or "S101"</li>
+        </ul>
+        
+        <h3>Contains Text Mode</h3>
+        <ul>
+            <li><strong>Behavior:</strong> Finds any text containing your search term</li>
+            <li><strong>Partial Matches:</strong> Matches substrings within larger text</li>
+            <li><strong>Flexibility:</strong> Captures variations and compound terms</li>
+            <li><strong>Best For:</strong> Equipment types, descriptive terms, partial codes</li>
+            <li><strong>Example:</strong> Searching "EXIT" finds "EXIT", "EXIT SIGN", "EMERGENCY EXIT"</li>
+        </ul>
+    </div>
+
+    <h2>Advanced Automap Strategies</h2>
+    <div class="tip">
+        Start with the most specific, unique terms first. Search for "FIRE EXTINGUISHER" before searching for just "FIRE" to minimize false matches and processing time.
+    </div>
+
+    <h3>Progressive Refinement Strategy</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Test on Single Page:</strong> Navigate to a representative page before running automap</li>
+            <li><strong>Start Specific:</strong> Use complete, unique terms for initial passes</li>
+            <li><strong>Review and Adjust:</strong> Check results and refine search terms</li>
+            <li><strong>Expand Gradually:</strong> Use broader terms only after specific ones are complete</li>
+            <li><strong>Clean Up:</strong> Remove false positives and adjust placement manually</li>
+        </ol>
+    </div>
+
+    <h3>Text Clustering and Grouping</h3>
+    <p>Automap uses intelligent text clustering to group related text elements into single location dots. This prevents multiple dots from being placed on multi-line descriptions or compound labels.</p>
+
+    <div class="feature-box">
+        <h3>Clustering Parameters</h3>
+        <ul>
+            <li><strong>Horizontal Tolerance:</strong> Maximum distance to group text left-to-right</li>
+            <li><strong>Vertical Tolerance:</strong> Maximum distance to group text top-to-bottom</li>
+            <li><strong>Automatic Optimization:</strong> System calculates best grouping distances</li>
+            <li><strong>Manual Adjustment:</strong> H and V values can be fine-tuned using scrape training</li>
+        </ul>
+    </div>
+
+    <h2>Automap Progress and Feedback</h2>
+    <p>The automap process provides detailed feedback through a progress modal that shows current status, completion percentage, and detailed activity logs.</p>
+
+    <table>
+        <tr>
+            <th>Status Message</th>
+            <th>Meaning</th>
+            <th>Action Required</th>
+        </tr>
+        <tr>
+            <td>"Preparing search..."</td>
+            <td>Initializing text analysis</td>
+            <td>Wait for processing</td>
+        </tr>
+        <tr>
+            <td>"Loading page content..."</td>
+            <td>Extracting text from PDF</td>
+            <td>Wait for completion</td>
+        </tr>
+        <tr>
+            <td>"Finding matches..."</td>
+            <td>Searching for your term</td>
+            <td>Monitor progress bar</td>
+        </tr>
+        <tr>
+            <td>"Placing dots..."</td>
+            <td>Creating location markers</td>
+            <td>Nearly complete</td>
+        </tr>
+        <tr>
+            <td>"Completed: Found X matches"</td>
+            <td>Process finished successfully</td>
+            <td>Review results</td>
+        </tr>
+        <tr>
+            <td>"No matches found"</td>
+            <td>Search term not located</td>
+            <td>Try different terms</td>
+        </tr>
+    </table>
+
+    <h2>Troubleshooting Automap Issues</h2>
+    <div class="feature-box">
+        <h3>No Matches Found</h3>
+        <ul>
+            <li><strong>Verify Text Selection:</strong> Ensure text can be manually selected</li>
+            <li><strong>Check Spelling:</strong> Automap is spelling-sensitive</li>
+            <li><strong>Try Variations:</strong> Test different forms of the same term</li>
+            <li><strong>Use Contains Mode:</strong> Switch from exact phrase to contains text</li>
+        </ul>
+        
+        <h3>Too Many False Positives</h3>
+        <ul>
+            <li><strong>Use Exact Phrase:</strong> Enable exact phrase matching</li>
+            <li><strong>Be More Specific:</strong> Use longer, more unique search terms</li>
+            <li><strong>Manual Cleanup:</strong> Delete unwanted dots after processing</li>
+            <li><strong>Filter Results:</strong> Use selection tools to bulk-delete incorrect matches</li>
+        </ul>
+        
+        <h3>Performance Issues</h3>
+        <ul>
+            <li><strong>Large Documents:</strong> Process one page at a time</li>
+            <li><strong>Complex Text:</strong> Use simpler search terms</li>
+            <li><strong>Memory Limits:</strong> Close other browser tabs and applications</li>
+            <li><strong>Browser Choice:</strong> Chrome typically provides best performance</li>
+        </ul>
+    </div>
+
+    <h2>Recent Searches and Efficiency</h2>
+    <p>Mapping Slayer remembers your recent search terms for quick reuse across similar projects or when refining searches.</p>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Automatic Storage:</strong> Successful searches are saved automatically</li>
+            <li><strong>Dropdown Access:</strong> Click in the search box to see recent terms</li>
+            <li><strong>Quick Selection:</strong> Click any recent term to use it again</li>
+            <li><strong>Persistent Storage:</strong> Recent searches persist across browser sessions</li>
+            <li><strong>Smart Limits:</strong> Only the 10 most recent searches are kept</li>
+        </ol>
+    </div>
+
+    <h1 id="scraping-text">6. Text Scraping & OCR</h1>
+
+    <h2>Understanding Text Scraping</h2>
+    <p>Text scraping allows you to manually select areas of the PDF and extract text content for automatic dot placement. This feature bridges the gap between manual placement and automap, giving you precise control over which text gets captured while still automating the extraction process.</p>
+
+    <h2>Basic Text Scraping (Live Text)</h2>
+    <p>Use this method for PDFs with selectable text when you want more control than automap provides.</p>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Select Active Marker Type:</strong> Choose the category for new dots</li>
+            <li><strong>Position Cursor:</strong> Move mouse to one corner of the text area</li>
+            <li><strong>Begin Selection:</strong> Hold Shift + Right-click and drag</li>
+            <li><strong>Draw Selection Box:</strong> Drag to encompass the text you want to capture</li>
+            <li><strong>Release to Process:</strong> Release mouse button to start text extraction</li>
+            <li><strong>Review Results:</strong> Check placed dots and extracted text</li>
+        </ol>
+    </div>
+
+    <div class="tip">
+        The green selection box indicates normal text scraping mode. Make sure to encompass all related text in your selection for best grouping results.
+    </div>
+
+    <h2>OCR Scraping (Image Text)</h2>
+    <p>For scanned documents or image-based PDFs where text cannot be selected, OCR (Optical Character Recognition) scraping uses computer vision to recognize and extract text.</p>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Select Active Marker Type:</strong> Choose appropriate category</li>
+            <li><strong>Position for OCR Area:</strong> Identify text within images or scans</li>
+            <li><strong>OCR Selection:</strong> Hold Ctrl + Shift + Right-click and drag</li>
+            <li><strong>Draw Purple Box:</strong> Purple selection box indicates OCR mode</li>
+            <li><strong>Wait for Processing:</strong> OCR analysis takes 10-30 seconds</li>
+            <li><strong>Review Recognition:</strong> Check accuracy of recognized text</li>
+        </ol>
+    </div>
+
+    <div class="warning">
+        OCR processing is significantly slower than regular text scraping and requires clear, high-contrast text for best results. The purple selection box indicates OCR mode is active.
+    </div>
+
+    <h2>Text Clustering System</h2>
+    <p>Both scraping methods use intelligent text clustering to group related text elements into logical location dots. Understanding this system helps you get better results.</p>
+
+    <div class="feature-box">
+        <h3>Clustering Algorithm</h3>
+        <ul>
+            <li><strong>Horizontal Grouping:</strong> Text within H tolerance pixels is grouped left-to-right</li>
+            <li><strong>Vertical Grouping:</strong> Text within V tolerance pixels is grouped top-to-bottom</li>
+            <li><strong>Line Detection:</strong> System identifies text lines before grouping</li>
+            <li><strong>Spatial Analysis:</strong> Considers text size and spacing in grouping decisions</li>
+        </ul>
+        
+        <h3>Default Tolerance Values</h3>
+        <ul>
+            <li><strong>H (Horizontal):</strong> 1.0 pixels - groups text horizontally</li>
+            <li><strong>V (Vertical):</strong> 25.0 pixels - groups text vertically</li>
+            <li><strong>Adaptive:</strong> Values can be adjusted through training process</li>
+        </ul>
+    </div>
+
+    <h2>Training the Scraper</h2>
+    <p>For complex documents with inconsistent text layouts, train the scraper to understand optimal grouping distances for your specific PDF.</p>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Enter Training Mode:</strong> Click "TRAIN SCRAPE" button (turns green)</li>
+            <li><strong>Select Training Area:</strong> Shift + Right-drag a large box around representative text</li>
+            <li><strong>Mark Text Groups:</strong> Draw smaller boxes around 5+ individual text elements</li>
+            <li><strong>Analyze Patterns:</strong> System calculates optimal H and V values</li>
+            <li><strong>Accept Training:</strong> Click "ACCEPT!" when ready (need minimum 5 samples)</li>
+            <li><strong>Apply Settings:</strong> New H and V values shown in green, applied to future scraping</li>
+        </ol>
+    </div>
+
+    <h3>Training Best Practices</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>Representative Area:</strong> Choose the most complex or typical section of your document</li>
+            <li><strong>Diverse Samples:</strong> Include different text sizes and layouts in your training</li>
+            <li><strong>Consistent Grouping:</strong> Be consistent about what constitutes a single "location"</li>
+            <li><strong>Multiple Attempts:</strong> Re-train if initial results aren't satisfactory</li>
+        </ul>
+    </div>
+
+    <h2>Scraping Results and Outcomes</h2>
+    <table>
+        <tr>
+            <th>Result Type</th>
+            <th>Condition</th>
+            <th>Outcome</th>
+        </tr>
+        <tr>
+            <td>Single Cluster</td>
+            <td>All text groups into one element</td>
+            <td>One dot placed with combined text as message</td>
+        </tr>
+        <tr>
+            <td>Multiple Clusters</td>
+            <td>Text separates into distinct groups</td>
+            <td>Multiple dots placed, each with its group's text</td>
+        </tr>
+        <tr>
+            <td>No Text Found</td>
+            <td>No selectable text in area</td>
+            <td>Error message, no dots placed</td>
+        </tr>
+        <tr>
+            <td>Collision Detected</td>
+            <td>Optimal placement conflicts with existing dot</td>
+            <td>Error message, alternative placement attempted</td>
+        </tr>
+    </table>
+
+    <h2>Optimizing Scraping Performance</h2>
+    <div class="feature-box">
+        <h3>Selection Techniques</h3>
+        <ul>
+            <li><strong>Precise Boundaries:</strong> Draw selection boxes tightly around target text</li>
+            <li><strong>Avoid Overlap:</strong> Don't include irrelevant text or graphics</li>
+            <li><strong>Complete Capture:</strong> Ensure all related text is within selection</li>
+            <li><strong>Consistent Size:</strong> Use similar selection sizes for similar content</li>
+        </ul>
+        
+        <h3>Performance Optimization</h3>
+        <ul>
+            <li><strong>Batch Processing:</strong> Scrape multiple related areas in sequence</li>
+            <li><strong>Page-by-Page:</strong> Process one page completely before moving to next</li>
+            <li><strong>Clear Cache:</strong> Refresh browser if performance degrades</li>
+            <li><strong>Adequate Zoom:</strong> Zoom in enough to see text clearly but not excessively</li>
+        </ul>
+    </div>
+
+    <h2>Troubleshooting Scraping Issues</h2>
+    <div class="feature-box">
+        <h3>Poor OCR Results</h3>
+        <ul>
+            <li><strong>Image Quality:</strong> Ensure text is clear and high-contrast</li>
+            <li><strong>Selection Size:</strong> Don't make selection boxes too large</li>
+            <li><strong>Text Size:</strong> Very small text may not OCR accurately</li>
+            <li><strong>Font Compatibility:</strong> Simple fonts work better than decorative ones</li>
+        </ul>
+        
+        <h3>Incorrect Grouping</h3>
+        <ul>
+            <li><strong>Adjust Tolerances:</strong> Use training mode to optimize H and V values</li>
+            <li><strong>Smaller Selections:</strong> Make more precise selection boxes</li>
+            <li><strong>Manual Splitting:</strong> Use multiple smaller scrapes instead of one large one</li>
+            <li><strong>Post-Processing:</strong> Edit resulting dots manually if needed</li>
+        </ul>
+    </div>
+
+    <h1 id="editing-locations">7. Editing & Managing Locations</h1>
+
+    <h2>Individual Location Editing</h2>
+    <p>Every location dot can be fully customized through the edit dialog, which provides access to all properties and settings for that specific location.</p>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Access Edit Dialog:</strong> Right-click on any location dot</li>
+            <li><strong>Modify Properties:</strong> Change any of the available fields</li>
+            <li><strong>Set Status Flags:</strong> Check/uncheck Code Required, Vinyl Backer, Installed</li>
+            <li><strong>Add Notes:</strong> Include detailed installation or reference information</li>
+            <li><strong>Save Changes:</strong> Click "UPDATE" to apply modifications</li>
+            <li><strong>Alternative Actions:</strong> Use "DELETE" to remove location entirely</li>
+        </ol>
+    </div>
+
+    <h3>Edit Dialog Fields</h3>
+    <table>
+        <tr>
+            <th>Field</th>
+            <th>Purpose</th>
+            <th>Validation</th>
+        </tr>
+        <tr>
+            <td>Marker Type</td>
+            <td>Change category and visual appearance</td>
+            <td>Must select from existing types</td>
+        </tr>
+        <tr>
+            <td>Location Number</td>
+            <td>Unique identifier within page</td>
+            <td>Must be unique on current page</td>
+        </tr>
+        <tr>
+            <td>Message</td>
+            <td>Primary description text</td>
+            <td>No restrictions</td>
+        </tr>
+        <tr>
+            <td>Message 2</td>
+            <td>Secondary description text</td>
+            <td>No restrictions</td>
+        </tr>
+        <tr>
+            <td>Notes</td>
+            <td>Detailed installation information</td>
+            <td>Multi-line text supported</td>
+        </tr>
+        <tr>
+            <td>Code Required</td>
+            <td>Requires inspection or compliance code</td>
+            <td>Boolean checkbox</td>
+        </tr>
+        <tr>
+            <td>Vinyl Backer</td>
+            <td>Needs vinyl backing material</td>
+            <td>Boolean checkbox</td>
+        </tr>
+        <tr>
+            <td>Installed</td>
+            <td>Installation completion status</td>
+            <td>Boolean checkbox</td>
+        </tr>
+    </table>
+
+    <h2>Bulk Editing Multiple Locations</h2>
+    <p>Efficiently edit multiple locations simultaneously using the group edit feature, which is essential for large projects and consistent updates.</p>
+
+    <h3>Selection Methods</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Click Selection:</strong> Hold Shift and click individual dots</li>
+            <li><strong>Box Selection:</strong> Hold Shift and left-drag to draw selection rectangle</li>
+            <li><strong>List Selection:</strong> Shift+click items in the location list</li>
+            <li><strong>Filter Selection:</strong> Use "FIND ALL" to select all matching locations</li>
+        </ol>
+    </div>
+
+    <h3>Group Edit Dialog</h3>
+    <p>When multiple locations are selected, right-clicking opens the group edit dialog with options to modify all selected items simultaneously.</p>
+
+    <div class="feature-box">
+        <h3>Group Edit Features</h3>
+        <ul>
+            <li><strong>Selective Updates:</strong> Choose which fields to update (leave others unchanged)</li>
+            <li><strong>Checkbox States:</strong> Three-state checkboxes show mixed values</li>
+            <li><strong>Bulk Operations:</strong> Change marker types, messages, or status flags</li>
+            <li><strong>Mass Deletion:</strong> Delete all selected locations with confirmation</li>
+        </ul>
+    </div>
+
+    <h3>Understanding Checkbox States</h3>
+    <table>
+        <tr>
+            <th>Visual State</th>
+            <th>Meaning</th>
+            <th>Action on Update</th>
+        </tr>
+        <tr>
+            <td>Checked ✓</td>
+            <td>All selected items have this flag set</td>
+            <td>Keeps flag set for all items</td>
+        </tr>
+        <tr>
+            <td>Unchecked ✗</td>
+            <td>All selected items have this flag unset</td>
+            <td>Keeps flag unset for all items</td>
+        </tr>
+        <tr>
+            <td>Indeterminate ▣</td>
+            <td>Mixed states among selected items</td>
+            <td>No change to individual flags</td>
+        </tr>
+    </table>
+
+    <h2>Moving and Positioning Locations</h2>
+    <div class="feature-box">
+        <h3>Single Location Movement</h3>
+        <ul>
+            <li><strong>Click and Drag:</strong> Simply click and drag any dot to new position</li>
+            <li><strong>Precision:</strong> Movement is pixel-precise</li>
+            <li><strong>Collision Prevention:</strong> Cannot move into collision with other dots</li>
+            <li><strong>Visual Feedback:</strong> Dot scales slightly during drag operation</li>
+        </ul>
+        
+        <h3>Multiple Location Movement</h3>
+        <ul>
+            <li><strong>Group Selection:</strong> Select multiple dots first</li>
+            <li><strong>Drag Any Selected:</strong> Drag any selected dot to move entire group</li>
+            <li><strong>Relative Positioning:</strong> All dots maintain relative positions</li>
+            <li><strong>Boundary Checking:</strong> Group movement respects page boundaries</li>
+        </ul>
+    </div>
+
+    <h2>Copy and Paste Operations</h2>
+    <p>Efficiently duplicate location configurations using the copy-paste system, which copies all properties except position and location number.</p>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Select Source:</strong> Click to select exactly one location dot</li>
+            <li><strong>Copy Properties:</strong> Press Ctrl+C (Cmd+C on Mac)</li>
+            <li><strong>Position Cursor:</strong> Move mouse to desired paste location</li>
+            <li><strong>Paste Location:</strong> Press Ctrl+V (Cmd+V on Mac)</li>
+            <li><strong>New Location Created:</strong> Inherits all properties with new number</li>
+        </ol>
+    </div>
+
+    <div class="feature-box">
+        <h3>Properties Copied</h3>
+        <ul>
+            <li>Marker type and visual appearance</li>
+            <li>Message and Message 2 text</li>
+            <li>Notes and detailed information</li>
+            <li>All status flags (Code Required, Vinyl Backer, Installed)</li>
+        </ul>
+        
+        <h3>Properties Not Copied</h3>
+        <ul>
+            <li>Location number (automatically assigned)</li>
+            <li>X,Y position (determined by paste location)</li>
+            <li>Page number (uses current page)</li>
+            <li>Internal system ID</li>
+        </ul>
+    </div>
+
+    <h2>Location List Management</h2>
+    <p>The location list in the left panel provides an alternative interface for managing locations, especially useful for projects with many items.</p>
+
+    <h3>List View Options</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>Flat List:</strong> All locations in sequential order</li>
+            <li><strong>Grouped by Type:</strong> Organized by marker type categories</li>
+            <li><strong>Current Page Only:</strong> Shows locations on current PDF page</li>
+            <li><strong>All Pages:</strong> Shows locations across entire project</li>
+        </ul>
+    </div>
+
+    <h3>List Interactions</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Navigation:</strong> Click any item to center it on the map</li>
+            <li><strong>Inline Editing:</strong> Click message text to edit directly</li>
+            <li><strong>Selection:</strong> Shift+click to select multiple items</li>
+            <li><strong>Context Menu:</strong> Right-click for full edit dialog</li>
+        </ol>
+    </div>
+
+    <h2>Undo and Redo System</h2>
+    <p>Mapping Slayer maintains a comprehensive history of all actions, allowing you to undo and redo operations with full confidence.</p>
+
+    <div class="feature-box">
+        <h3>Tracked Operations</h3>
+        <ul>
+            <li>Adding, moving, editing, and deleting locations</li>
+            <li>Bulk operations and group edits</li>
+            <li>Automap and scraping operations</li>
+            <li>Page navigation and project changes</li>
+            <li>Marker type modifications</li>
+        </ul>
+        
+        <h3>Undo System Limits</h3>
+        <ul>
+            <li><strong>History Depth:</strong> Last 50 operations stored</li>
+            <li><strong>Session Based:</strong> History clears when project is reloaded</li>
+            <li><strong>Description:</strong> Each operation has descriptive name</li>
+            <li><strong>Smart Merging:</strong> Related operations may be grouped</li>
+        </ul>
+    </div>
+
+    <table>
+        <tr>
+            <th>Shortcut</th>
+            <th>Action</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td>Ctrl+Z (Cmd+Z)</td>
+            <td>Undo</td>
+            <td>Reverse last operation</td>
+        </tr>
+        <tr>
+            <td>Ctrl+Y (Cmd+Y)</td>
+            <td>Redo</td>
+            <td>Repeat last undone operation</td>
+        </tr>
+        <tr>
+            <td>Ctrl+Shift+Z</td>
+            <td>Redo (Alt)</td>
+            <td>Alternative redo shortcut</td>
+        </tr>
+    </table>
+
+    <h1 id="navigation-search">8. Navigation & Search</h1>
+
+    <h2>PDF Document Navigation</h2>
+    <p>Mapping Slayer provides multiple methods for navigating through PDF documents and managing the viewport for optimal work efficiency.</p>
+
+    <h3>Basic Navigation Controls</h3>
+    <table>
+        <tr>
+            <th>Action</th>
+            <th>Method</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td>Pan (Move View)</td>
+            <td>Middle-click + drag</td>
+            <td>Move around document without affecting content</td>
+        </tr>
+        <tr>
+            <td>Zoom In/Out</td>
+            <td>Scroll wheel</td>
+            <td>Zoom centered on mouse cursor position</td>
+        </tr>
+        <tr>
+            <td>Next Page</td>
+            <td>Page Down or [>] button</td>
+            <td>Navigate to next PDF page</td>
+        </tr>
+        <tr>
+            <td>Previous Page</td>
+            <td>Page Up or [<] button</td>
+            <td>Navigate to previous PDF page</td>
+        </tr>
+        <tr>
+            <td>Reset View</td>
+            <td>Double-click empty space</td>
+            <td>Fit page to window (recommended zoom)</td>
+        </tr>
+    </table>
+
+    <h3>Advanced Navigation Features</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>Smooth Scrolling:</strong> Progressive zoom with momentum</li>
+            <li><strong>Boundary Respect:</strong> Cannot pan beyond document edges</li>
+            <li><strong>Zoom Limits:</strong> 10% to 1000% zoom range</li>
+            <li><strong>Cursor-Centered Zoom:</strong> Zoom focuses on mouse position</li>
+            <li><strong>State Persistence:</strong> Zoom level maintained across page changes</li>
+        </ul>
+    </div>
+
+    <h2>Page Management System</h2>
+    <p>For multi-page documents, Mapping Slayer provides comprehensive page management with custom labeling and efficient navigation.</p>
+
+    <h3>Page Navigation Controls</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Page Counter:</strong> Shows "PAGE X OF Y" for current position</li>
+            <li><strong>Navigation Buttons:</strong> [<] and [>] for sequential movement</li>
+            <li><strong>Direct Navigation:</strong> Click in page field to jump to specific page</li>
+            <li><strong>Keyboard Shortcuts:</strong> Page Up/Down for quick navigation</li>
+        </ol>
+    </div>
+
+    <h3>Custom Page Labels</h3>
+    <p>Assign meaningful names to pages for better organization and professional exports.</p>
+
+    <div class="feature-box">
+        <h3>Label Examples</h3>
+        <ul>
+            <li><strong>Floor Plans:</strong> "First Floor", "Second Floor", "Basement"</li>
+            <li><strong>Building Sections:</strong> "North Wing", "South Wing", "Central Core"</li>
+            <li><strong>Drawing Numbers:</strong> "A-101", "A-102", "E-201"</li>
+            <li><strong>Functional Areas:</strong> "Lobby", "Office Space", "Parking Garage"</li>
+        </ul>
+    </div>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Access Label Field:</strong> Click in the page label input box</li>
+            <li><strong>Enter Description:</strong> Type meaningful page identifier</li>
+            <li><strong>Automatic Save:</strong> Labels save automatically when typing stops</li>
+            <li><strong>Export Integration:</strong> Labels appear in all exports and legends</li>
+        </ol>
+    </div>
+
+    <h2>Search and Find System</h2>
+    <p>The comprehensive search system helps you quickly locate specific locations, text content, and perform bulk operations across your project.</p>
+
+    <h3>Basic Search Operation</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Enter Search Term:</strong> Type in the "FIND" input box in the header</li>
+            <li><strong>Real-time Results:</strong> Results appear immediately as you type</li>
+            <li><strong>Result Navigation:</strong> Press Enter to cycle through multiple matches</li>
+            <li><strong>Automatic Centering:</strong> Each result is centered and highlighted on map</li>
+            <li><strong>Result Counter:</strong> Shows "X of Y found" for current position</li>
+        </ol>
+    </div>
+
+    <h3>Search Scope and Behavior</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>Current Page Only:</strong> Searches locations on currently displayed page</li>
+            <li><strong>Location Numbers:</strong> Matches exact or partial location numbers</li>
+            <li><strong>Messages:</strong> Searches both Message and Message 2 fields</li>
+            <li><strong>Case Insensitive:</strong> Ignores uppercase/lowercase differences</li>
+            <li><strong>Partial Matching:</strong> Finds substrings within larger text</li>
+        </ul>
+    </div>
+
+    <h2>Advanced Search Features</h2>
+
+    <h3>Find All Operation</h3>
+    <p>Select all locations matching your search criteria for bulk operations.</p>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Enter Search Term:</strong> Type the text you want to find</li>
+            <li><strong>Click "FIND ALL":</strong> Selects all matching locations on current page</li>
+            <li><strong>Visual Feedback:</strong> All matches highlighted with orange selection</li>
+            <li><strong>Zoom to Fit:</strong> View automatically adjusts to show all results</li>
+            <li><strong>Bulk Operations:</strong> Edit, move, or delete all selected items</li>
+        </ol>
+    </div>
+
+    <h3>Search and Replace System</h3>
+    <p>Powerful text replacement across selected locations for consistent updates.</p>
+
+    <div class="feature-box">
+        <h3>Replace Operation Requirements</h3>
+        <ul>
+            <li><strong>Active Selection:</strong> Must have locations selected</li>
+            <li><strong>Matching Content:</strong> Selected items must contain search term</li>
+            <li><strong>Both Message Fields:</strong> Searches and replaces in Message and Message 2</li>
+            <li><strong>Confirmation:</strong> Shows count of affected locations before replacement</li>
+        </ul>
+    </div>
+
+    <div class="step-list">
+        <ol>
+            <li><strong>Find Target Text:</strong> Enter text to be replaced</li>
+            <li><strong>Select Locations:</strong> Use FIND ALL or manual selection</li>
+            <li><strong>Enter Replacement:</strong> Type new text in "REPLACE" field</li>
+            <li><strong>Verify Selection:</strong> Status shows "X selected, Y matches"</li>
+            <li><strong>Execute Replace:</strong> Click "REPLACE" button to apply changes</li>
+            <li><strong>Review Results:</strong> Status confirms number of locations updated</li>
+        </ol>
+    </div>
+
+    <h2>Location List Navigation</h2>
+    <p>The location list provides an alternative navigation method, especially useful for projects with many locations or complex organization needs.</p>
+
+    <h3>List Display Modes</h3>
+    <table>
+        <tr>
+            <th>Mode</th>
+            <th>Organization</th>
+            <th>Best For</th>
+        </tr>
+        <tr>
+            <td>Flat List</td>
+            <td>All locations in numerical order</td>
+            <td>Sequential workflows, small projects</td>
+        </tr>
+        <tr>
+            <td>Grouped by Type</td>
+            <td>Organized by marker type categories</td>
+            <td>Type-based workflows, large projects</td>
+        </tr>
+        <tr>
+            <td>Current Page</td>
+            <td>Shows only current page locations</td>
+            <td>Page-by-page work, performance</td>
+        </tr>
+        <tr>
+            <td>All Pages</td>
+            <td>Shows entire project</td>
+            <td>Global navigation, project overview</td>
+        </tr>
+    </table>
+
+    <h3>List Interaction Methods</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>Quick Navigation:</strong> Click any item to center it on map</li>
+            <li><strong>Cross-Page Jumping:</strong> Automatically changes pages if needed</li>
+            <li><strong>Inline Editing:</strong> Click message text to edit directly</li>
+            <li><strong>Selection Support:</strong> Shift+click for multiple selection</li>
+            <li><strong>Context Menus:</strong> Right-click for full edit options</li>
+        </ul>
+    </div>
+
+    <h2>Sorting and Organization</h2>
+
+    <h3>Sort Mode Options</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>By Location Number:</strong> Numerical order (default)</li>
+            <li><strong>By Message:</strong> Alphabetical by message content</li>
+            <li><strong>Toggle Control:</strong> Use "BY LOC" / "BY NAME" button</li>
+            <li><strong>Persistent Setting:</strong> Sort preference maintained across sessions</li>
+        </ol>
+    </div>
+
+    <h3>Grouped View Features</h3>
+    <p>When using grouped view, additional organization features become available:</p>
+
+    <div class="feature-box">
+        <ul>
+            <li><strong>Expandable Groups:</strong> Click to expand/collapse marker type groups</li>
+            <li><strong>Group Counters:</strong> Shows number of locations per type</li>
+            <li><strong>Color Coding:</strong> Group headers use marker type colors</li>
+            <li><strong>Hierarchical Navigation:</strong> Two-level organization structure</li>
+        </ul>
+    </div>
+
+    <h1 id="project-management">9. Project Management</h1>
+
+    <h2>Understanding the .mslay Format</h2>
+    <p>Mapping Slayer uses a custom .mslay file format that combines your annotations with the original PDF in a single, portable file. This approach ensures that projects are completely self-contained and can be shared easily.</p>
+
+    <div class="feature-box">
+        <h3>What's Included in .mslay Files</h3>
+        <ul>
+            <li><strong>Complete PDF:</strong> The entire original document</li>
+            <li><strong>All Location Data:</strong> Dots, messages, notes, and properties</li>
+            <li><strong>Marker Types:</strong> Custom categories, colors, and reference images</li>
+            <li><strong>Project Settings:</strong> Page labels, tolerances, and preferences</li>
+            <li><strong>Metadata:</strong> Creation date, version info, and project name</li>
+        </ul>
+    </div>
+
+    <h2>Saving Projects</h2>
+    <div class="step-list">
+        <ol>
+            <li><strong>Click Save Button:</strong> Use "SAVE PROJECT (.mslay)" in header</li>
+            <li><strong>Choose Location:</strong> Select folder and filename for project</li>
+            <li><strong>Automatic Naming:</strong> Default name based on original PDF name</li>
+            <li><strong>Processing Time:</strong> Large projects may take several seconds to save</li>
+            <li><strong>Confirmation:</strong> Status message confirms successful save</li>
+        </ol>
+    </div>
+
+    <div class="tip">
+        Use descriptive filenames with version numbers like "FloorPlan_Building_A_v1.mslay" to track project evolution and maintain multiple versions.
+    </div>
+
+    <h3>Save Timing and Strategy</h3>
+    <div class="feature-box">
+        <h3>When to Save</h3>
+        <ul>
+            <li><strong>Major Milestones:</strong> After completing each floor or section</li>
+            <li><strong>Before Experiments:</strong> Save before trying automap or bulk operations</li>
+            <li><strong>End of Sessions:</strong> Always save before closing browser</li>
+            <li><strong>Before Exports:</strong> Ensure latest changes are preserved</li>
+        </ul>
+        
+        <h3>Version Control Strategy</h3>
+        <ul>
+            <li><strong>Incremental Versions:</strong> v1, v2, v3 for major changes</li>
+            <li><strong>Date Stamps:</strong> Include dates for time-based tracking</li>
+            <li><strong>Milestone Names:</strong> "Draft", "Review", "Final" for project phases</li>
+            <li><strong>Backup Copies:</strong> Keep multiple versions for safety</li>
+        </ul>
+    </div>
+
+    <h2>Loading Projects and Files</h2>
+
+    <h3>File Loading Process</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Click Load Button:</strong> Use "LOAD PROJECT" in header</li>
+            <li><strong>Select File:</strong> Choose .pdf or .mslay file</li>
+            <li><strong>Automatic Detection:</strong> System identifies file type automatically</li>
+            <li><strong>Processing:</strong> Large files may take time to load</li>
+            <li><strong>Ready State:</strong> Interface enables when loading complete</li>
+        </ol>
+    </div>
+
+    <h3>File Type Behaviors</h3>
+    <table>
+        <tr>
+            <th>File Type</th>
+            <th>Loading Behavior</th>
+            <th>Initial State</th>
+        </tr>
+        <tr>
+            <td>New PDF</td>
+            <td>Creates fresh project</td>
+            <td>Default marker types, empty annotations</td>
+        </tr>
+        <tr>
+            <td>Existing .mslay</td>
+            <td>Restores complete project</td>
+            <td>All previous work restored</td>
+        </tr>
+        <tr>
+            <td>Legacy Projects</td>
+            <td>Automatic migration</td>
+            <td>Converted to current format</td>
+        </tr>
+    </table>
+
+    <h2>Project Migration and Compatibility</h2>
+    <p>Mapping Slayer automatically handles projects created with older versions, ensuring long-term accessibility of your work.</p>
+
+    <div class="feature-box">
+        <h3>Migration Features</h3>
+        <ul>
+            <li><strong>Automatic Detection:</strong> Identifies legacy project formats</li>
+            <li><strong>Seamless Upgrade:</strong> Converts old data to current structure</li>
+            <li><strong>Data Preservation:</strong> All location data and settings maintained</li>
+            <li><strong>Notification:</strong> Status message confirms successful migration</li>
+        </ul>
+    </div>
+
+    <h2>Renumbering and Organization</h2>
+    <p>Maintain logical, professional location numbering using the automated renumbering system.</p>
+
+    <h3>Renumbering Options</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Access Tool:</strong> Click "RENUMBER" button in map overlay</li>
+            <li><strong>Choose Scope:</strong> Select from four renumbering options</li>
+            <li><strong>Review Impact:</strong> System shows how many locations will be affected</li>
+            <li><strong>Confirm Operation:</strong> Click desired option to proceed</li>
+            <li><strong>Verify Results:</strong> Check that numbering meets expectations</li>
+        </ol>
+    </div>
+
+    <table>
+        <tr>
+            <th>Option</th>
+            <th>Scope</th>
+            <th>Numbering Logic</th>
+        </tr>
+        <tr>
+            <td>Current Page Only</td>
+            <td>Active page</td>
+            <td>Sequential by position (top-to-bottom, left-to-right)</td>
+        </tr>
+        <tr>
+            <td>Current Page by Marker Type</td>
+            <td>Active page</td>
+            <td>Group by type, then sequential within type</td>
+        </tr>
+        <tr>
+            <td>All Pages</td>
+            <td>Entire project</td>
+            <td>Global sequential across all pages</td>
+        </tr>
+        <tr>
+            <td>All Pages by Marker Type</td>
+            <td>Entire project</td>
+            <td>Group by type globally, sequential within type</td>
+        </tr>
+    </table>
+
+    <h2>Data Integrity and Backup</h2>
+
+    <div class="warning">
+        Mapping Slayer runs entirely in your browser. Your work exists only in browser memory until you save it to a .mslay file. Always save frequently to prevent data loss.
+    </div>
+
+    <h3>Data Safety Best Practices</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>Frequent Saves:</strong> Save after every major change or time interval</li>
+            <li><strong>Multiple Versions:</strong> Keep several saved versions for rollback options</li>
+            <li><strong>External Backup:</strong> Store .mslay files in cloud storage or backup systems</li>
+            <li><strong>Export Copies:</strong> Regularly export CSV data as additional backup</li>
+            <li><strong>Browser Stability:</strong> Avoid closing tabs accidentally</li>
+        </ul>
+    </div>
+
+    <h3>Session Management</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>Unsaved Changes Warning:</strong> Browser prompts before closing with unsaved work</li>
+            <li><strong>Memory Management:</strong> Close other tabs for large projects</li>
+            <li><strong>Performance Monitoring:</strong> Save and reload if performance degrades</li>
+            <li><strong>Recovery Strategy:</strong> Keep original PDF files for emergency reconstruction</li>
+        </ul>
+    </div>
+
+    <h1 id="export-options">10. Export Options</h1>
+
+    <h2>PDF Export System</h2>
+    <p>Create professional, annotated PDF documents with interactive features and detailed documentation pages.</p>
+
+    <h3>Export Format Options</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Initiate Export:</strong> Click "CREATE PDF" button in footer</li>
+            <li><strong>Choose Format:</strong> Select from three export types</li>
+            <li><strong>Processing:</strong> Wait for generation (may take several minutes for large projects)</li>
+            <li><strong>Download:</strong> PDF downloads automatically when complete</li>
+        </ol>
+    </div>
+
+    <table>
+        <tr>
+            <th>Export Type</th>
+            <th>Contents</th>
+            <th>Best Use Case</th>
+        </tr>
+        <tr>
+            <td>Current Map - With Detail Pages</td>
+            <td>Map + clickable detail pages for each location</td>
+            <td>Complete documentation, field installation guides</td>
+        </tr>
+        <tr>
+            <td>Current Map Only</td>
+            <td>Just current page with dots and legend</td>
+            <td>Quick reference, printing single pages</td>
+        </tr>
+        <tr>
+            <td>All Maps Only</td>
+            <td>All pages with dots, no detail pages</td>
+            <td>Overview documents, presentation materials</td>
+        </tr>
+    </table>
+
+    <h3>Interactive Detail Pages</h3>
+    <p>The "With Detail Pages" export creates comprehensive documentation with professional formatting.</p>
+
+    <div class="feature-box">
+        <h3>Detail Page Contents</h3>
+        <ul>
+            <li><strong>Location Header:</strong> Large location number and marker type</li>
+            <li><strong>Message Display:</strong> Primary and secondary messages</li>
+            <li><strong>Reference Image:</strong> Installation photo if available</li>
+            <li><strong>Status Checkboxes:</strong> Code Required, Vinyl Backer, Installed</li>
+            <li><strong>Notes Section:</strong> Detailed installation information</li>
+            <li><strong>Navigation:</strong> "Back to Map" button linking to map page</li>
+        </ul>
+        
+        <h3>Interactive Features</h3>
+        <ul>
+            <li><strong>Clickable Dots:</strong> Each dot links to its detail page</li>
+            <li><strong>Return Navigation:</strong> Detail pages link back to map</li>
+            <li><strong>Professional Layout:</strong> Clean, printable formatting</li>
+            <li><strong>Reference Integration:</strong> Design images included where available</li>
+        </ul>
+    </div>
+
+    <h2>CSV Data Export</h2>
+    <p>Export structured data for analysis, reporting, or integration with other business systems.</p>
+
+    <h3>CSV Export Process</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Click Export Button:</strong> Use "CREATE MESSAGE SCHEDULE"</li>
+            <li><strong>Filter Application:</strong> Only visible locations are exported</li>
+            <li><strong>Automatic Processing:</strong> CSV generates instantly</li>
+            <li><strong>Download File:</strong> Spreadsheet downloads automatically</li>
+            <li><strong>Open in Software:</strong> Compatible with Excel, Google Sheets, etc.</li>
+        </ol>
+    </div>
+
+    <h3>CSV Column Structure</h3>
+    <table>
+        <tr>
+            <th>Column Name</th>
+            <th>Content</th>
+            <th>Purpose</th>
+        </tr>
+        <tr>
+            <td>MARKER TYPE CODE</td>
+            <td>Short identifier</td>
+            <td>Category reference</td>
+        </tr>
+        <tr>
+            <td>MARKER TYPE NAME</td>
+            <td>Full category name</td>
+            <td>Human-readable description</td>
+        </tr>
+        <tr>
+            <td>MESSAGE</td>
+            <td>Primary description</td>
+            <td>Main location information</td>
+        </tr>
+        <tr>
+            <td>MESSAGE 2</td>
+            <td>Secondary description</td>
+            <td>Additional details</td>
+        </tr>
+        <tr>
+            <td>LOCATION NUMBER</td>
+            <td>Unique identifier</td>
+            <td>Reference number</td>
+        </tr>
+        <tr>
+            <td>MAP PAGE</td>
+            <td>PDF page number</td>
+            <td>Document reference</td>
+        </tr>
+        <tr>
+            <td>PAGE LABEL</td>
+            <td>Custom page name</td>
+            <td>Human-readable page reference</td>
+        </tr>
+        <tr>
+            <td>CODE REQUIRED</td>
+            <td>YES/NO</td>
+            <td>Compliance flag</td>
+        </tr>
+        <tr>
+            <td>VINYL BACKER</td>
+            <td>YES/NO</td>
+            <td>Material requirement flag</td>
+        </tr>
+        <tr>
+            <td>INSTALLED</td>
+            <td>YES/NO</td>
+            <td>Completion status</td>
+        </tr>
+        <tr>
+            <td>NOTES</td>
+            <td>Detailed text</td>
+            <td>Installation instructions</td>
+        </tr>
+    </table>
+
+    <h2>CSV Import and Updates</h2>
+    <p>Import changes from external spreadsheets to update location data in bulk.</p>
+
+    <h3>Import Process</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Export Current Data:</strong> Start with a CSV export from Mapping Slayer</li>
+            <li><strong>Edit Externally:</strong> Make changes in Excel, Google Sheets, etc.</li>
+            <li><strong>Save as CSV:</strong> Ensure file is saved in CSV format</li>
+            <li><strong>Import Changes:</strong> Use "UPDATE FROM MESSAGE SCHEDULE" button</li>
+            <li><strong>Review Results:</strong> Check import summary and error log</li>
+        </ol>
+    </div>
+
+    <div class="warning">
+        CSV import matches locations by LOCATION NUMBER and MAP PAGE. Do not change these fields when editing externally, or the import will fail to find matching locations.
+    </div>
+
+    <h3>Import Validation and Error Handling</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>Automatic Validation:</strong> System checks for required columns</li>
+            <li><strong>Match Verification:</strong> Confirms location and page number matches</li>
+            <li><strong>Error Logging:</strong> Detailed log file for skipped rows</li>
+            <li><strong>Partial Success:</strong> Updates successful rows, reports failures</li>
+        </ul>
+    </div>
+
+    <h2>Bluebeam Revu Integration (BETA)</h2>
+
+    <div class="beta-notice">
+        The Bluebeam Revu export feature is currently in BETA testing. While functional, it may have limitations or occasional issues. User feedback is appreciated for improvement.
+    </div>
+
+    <p>Export annotations in Bluebeam's native BAX format for integration with construction and architectural workflows.</p>
+
+    <h3>BETA Export Process</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Access Feature:</strong> Click "EXPORT REVU MARKUPS (BETA)" button</li>
+            <li><strong>Character Check:</strong> System scans for Revu-incompatible characters</li>
+            <li><strong>Review Changes:</strong> If problematic characters found, review substitution dialog</li>
+            <li><strong>Accept Modifications:</strong> Approve character changes for Revu compatibility</li>
+            <li><strong>Generate BAX:</strong> System creates Bluebeam-compatible markup file</li>
+            <li><strong>Download File:</strong> .bax file downloads automatically</li>
+            <li><strong>Import to Revu:</strong> Use File > Import > Markups in Bluebeam Revu</li>
+        </ol>
+    </div>
+
+    <h3>BETA Feature Limitations</h3>
+    <div class="feature-box">
+        <h3>Known Limitations</h3>
+        <ul>
+            <li><strong>Character Restrictions:</strong> Some special characters must be substituted</li>
+            <li><strong>Color Fidelity:</strong> Revu may adjust colors slightly during import</li>
+            <li><strong>Complex Annotations:</strong> Very complex projects may have import issues</li>
+            <li><strong>Version Compatibility:</strong> Tested primarily with recent Revu versions</li>
+        </ul>
+        
+        <h3>BETA Support</h3>
+        <ul>
+            <li><strong>Character Log:</strong> Detailed log of all character substitutions</li>
+            <li><strong>Fallback Options:</strong> PDF export always available as alternative</li>
+            <li><strong>Error Reporting:</strong> Issues are tracked for future improvements</li>
+            <li><strong>Regular Updates:</strong> Feature improvements released periodically</li>
+        </ul>
+    </div>
+
+    <h3>Character Substitution System</h3>
+    <p>Bluebeam Revu has restrictions on certain characters in markup files. The BETA export automatically handles these compatibility issues.</p>
+
+    <table>
+        <tr>
+            <th>Original Character</th>
+            <th>Substitution</th>
+            <th>Reason</th>
+        </tr>
+        <tr>
+            <td>&</td>
+            <td>and</td>
+            <td>XML compatibility</td>
+        </tr>
+        <tr>
+            <td><</td>
+            <td>(less than)</td>
+            <td>XML tag prevention</td>
+        </tr>
+    </table>
+
+    <div class="tip">
+        The character substitution log file provides a complete record of all changes made for Revu compatibility, allowing you to track any modifications to your original text.
+    </div>
+
+    <h1 id="keyboard-shortcuts">11. Keyboard Shortcuts</h1>
+
+    <h2>Essential Navigation Shortcuts</h2>
+    <table>
+        <tr>
+            <th>Action</th>
+            <th>Shortcut</th>
+            <th>Context</th>
+        </tr>
+        <tr>
+            <td>Pan Map</td>
+            <td>Middle-click + drag</td>
+            <td>Anywhere on map</td>
+        </tr>
+        <tr>
+            <td>Zoom In/Out</td>
+            <td>Scroll wheel</td>
+            <td>Over map area</td>
+        </tr>
+        <tr>
+            <td>Next Page</td>
+            <td>Page Down</td>
+            <td>When not typing in input fields</td>
+        </tr>
+        <tr>
+            <td>Previous Page</td>
+            <td>Page Up</td>
+            <td>When not typing in input fields</td>
+        </tr>
+        <tr>
+            <td>Next Marker Type</td>
+            <td>Down Arrow</td>
+            <td>When not typing in input fields</td>
+        </tr>
+        <tr>
+            <td>Previous Marker Type</td>
+            <td>Up Arrow</td>
+            <td>When not typing in input fields</td>
+        </tr>
+    </table>
+
+    <h2>Location Management Shortcuts</h2>
+    <table>
+        <tr>
+            <th>Action</th>
+            <th>Shortcut</th>
+            <th>Requirements</th>
+        </tr>
+        <tr>
+            <td>Add Location</td>
+            <td>Left-click</td>
+            <td>Click on empty map area</td>
+        </tr>
+        <tr>
+            <td>Edit Location</td>
+            <td>Right-click</td>
+            <td>Click on existing dot</td>
+        </tr>
+        <tr>
+            <td>Select Multiple</td>
+            <td>Shift + Left-drag</td>
+            <td>Drag selection box around dots</td>
+        </tr>
+        <tr>
+            <td>Add to Selection</td>
+            <td>Shift + Click</td>
+            <td>Click additional dots or list items</td>
+        </tr>
+        <tr>
+            <td>Delete Selected</td>
+            <td>Delete</td>
+            <td>Must have dots selected</td>
+        </tr>
+        <tr>
+            <td>Copy Location</td>
+            <td>Ctrl+C (Cmd+C on Mac)</td>
+            <td>Exactly one dot selected</td>
+        </tr>
+        <tr>
+            <td>Paste at Cursor</td>
+            <td>Ctrl+V (Cmd+V on Mac)</td>
+            <td>Must have copied a location first</td>
+        </tr>
+    </table>
+
+    <h2>Text Scraping Shortcuts</h2>
+    <table>
+        <tr>
+            <th>Action</th>
+            <th>Shortcut</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td>Text Scrape</td>
+            <td>Shift + Right-drag</td>
+            <td>Extract live text from selected area</td>
+        </tr>
+        <tr>
+            <td>OCR Scrape</td>
+            <td>Ctrl + Shift + Right-drag</td>
+            <td>OCR text recognition in selected area</td>
+        </tr>
+        <tr>
+            <td>Training Big Box</td>
+            <td>Shift + Right-drag (in training mode)</td>
+            <td>Select training area for scraper optimization</td>
+        </tr>
+        <tr>
+            <td>Training Small Box</td>
+            <td>Shift + Right-drag (after big box)</td>
+            <td>Mark individual text elements for training</td>
+        </tr>
+    </table>
+
+    <h2>Editing and Undo Shortcuts</h2>
+    <table>
+        <tr>
+            <th>Action</th>
+            <th>Shortcut</th>
+            <th>Availability</th>
+        </tr>
+        <tr>
+            <td>Undo</td>
+            <td>Ctrl+Z (Cmd+Z on Mac)</td>
+            <td>When action history exists</td>
+        </tr>
+        <tr>
+            <td>Redo</td>
+            <td>Ctrl+Y (Cmd+Y on Mac)</td>
+            <td>When undo history exists</td>
+        </tr>
+        <tr>
+            <td>Redo (Alternative)</td>
+            <td>Ctrl+Shift+Z</td>
+            <td>Alternative redo command</td>
+        </tr>
+        <tr>
+            <td>Clear Selection</td>
+            <td>Escape</td>
+            <td>When dots or dialogs are selected/open</td>
+        </tr>
+        <tr>
+            <td>Close Dialogs</td>
+            <td>Escape</td>
+            <td>When modal dialogs are open</td>
+        </tr>
+    </table>
+
+    <h2>Search and Navigation Shortcuts</h2>
+    <table>
+        <tr>
+            <th>Action</th>
+            <th>Shortcut</th>
+            <th>Context</th>
+        </tr>
+        <tr>
+            <td>Next Search Result</td>
+            <td>Enter</td>
+            <td>While focused in Find input</td>
+        </tr>
+        <tr>
+            <td>Execute Automap</td>
+            <td>Enter</td>
+            <td>While focused in Automap input</td>
+        </tr>
+        <tr>
+            <td>Execute Replace</td>
+            <td>Enter</td>
+            <td>While focused in Replace input</td>
+        </tr>
+        <tr>
+            <td>Save Input Changes</td>
+            <td>Enter</td>
+            <td>In various input fields</td>
+        </tr>
+    </table>
+
+    <h2>Productivity Tips for Shortcuts</h2>
+    <div class="feature-box">
+        <h3>Workflow Optimization</h3>
+        <ul>
+            <li><strong>Mouse + Keyboard:</strong> Use shortcuts while maintaining mouse positioning</li>
+            <li><strong>Selection Chains:</strong> Use Shift+click to build complex selections efficiently</li>
+            <li><strong>Page Navigation:</strong> Keep one hand on Page Up/Down for rapid page switching</li>
+            <li><strong>Quick Actions:</strong> Learn Ctrl+Z and Delete for rapid correction workflows</li>
+        </ul>
+        
+        <h3>Advanced Combinations</h3>
+        <ul>
+            <li><strong>Shift + Multiple Clicks:</strong> Build selections across map and list</li>
+            <li><strong>Escape + Action:</strong> Clear selection then perform new action</li>
