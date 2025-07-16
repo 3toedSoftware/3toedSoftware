@@ -162,21 +162,22 @@ function generateTextBoxRawData(mapX, mapY, content, pageHeight, outlineColor = 
 }
 
 function generateRawDataForCoordinates(mapX, mapY, content, pageHeight, markerTypeColor = '#F72020') {
-    // Use the Mechanical template for circles with proper fill
-    const templateRaw = "789c8d90dd6a835010845fc5bbe845dd5d3d1e3d2508f127554c62a3b6a5482e6c7aa0b6268a31d0be7dd5d0fb32b0ccc232cb37cb25c47e89ba436473662ba8a370d01486315966a3e538c601b2a04465d6010a79ea3caffd2e893353b71da110138e8e8ea910e7b66e2253c83248b78418afd50fd9c873a50f7d7df9aa34f07b590d757b0eaa41aac1bd818685641211b309ef902f10171ae4d7b74f356c9ababb480db2021efaf6da413cba34df27c52a4bc2a74d18edf308bc3cf6dbe67a9a22ab52d5666d433f5aed627fb5b9edeb34d20eb0dbaa5e922679b00fd7c5b3f798c6aff3afe1a793e0d7fdb19190c9e3f03fb6b5c2602a8f0b24c1e9568f978f9de6a38a29d36bfb77d9c38b82ae0bdb3f5e66108a71587768cdbcaefb0b571b6584";
+    // Use the working template from Bluebeam with "test message 123"
+    const workingTemplate = "789c8d91514fc2301485ff4ab317b7077adb8e39474689db5ce28306874113e2431957c16c6c590b8c7f6f8198a84fa6e9c3e93d6dbf7b4f1c43912d180dc88ffd06cf58b749d2f40b1146940b11127f784d83c017c4673ebd094f2721a75670eb7637aaf64d832b0fd20e95d934db4c1974b391602260210f78c4f9d01fb0eb2bc6ae3c2852379ef47545f6d869eb1e3b9c326722e365b33a125bd8ea51ffaec6ceda98760470381ca8d5b4e93e40976bac1558395829a3c0de048758392a9badc1ad793eb638760cf606d6a6ae2eb5dbe9fdfcfbafa4dae112553dcdf202f73b0bc96f2e2edd623976041596e682f10be1e09f09781445d09fdf96712b0d6a436ad45a7d20e1c28fa195319c3a911ecc76cb4ff7aeaa36ad460f1e1fdc7cfe9266b3f953916759f69a3f9e2dc62243bae9ca0aa1c0d2fc6feee9a55fedfe25f020274348178c30627dc9ccc6fc4238ccec3a4d0792a65b6127253cfcc928187e6724e517dc669d67";
     
     try {
         // Decode the template
-        const bytes = new Uint8Array(templateRaw.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+        const bytes = new Uint8Array(workingTemplate.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
         let decodedTemplate = pako.inflate(bytes, { to: 'string' });
         
-        // Convert coordinates from Canvas to PDF space
+        // Convert coordinates from Canvas to PDF space (matching original system)
         const scaleFactor = appState.pdfScale || 4.0;
         const pdfX = mapX / scaleFactor;
         const pdfY = pageHeight - (mapY / scaleFactor); // Fixed Y conversion: bottom-up PDF coordinate system
         
-        const annotationWidth = 20 * appState.dotSize;
-        const annotationHeight = 20 * appState.dotSize;
+        const effectiveMultiplier = appState.dotSize;
+        const annotationWidth = 20 * effectiveMultiplier;
+        const annotationHeight = 20 * effectiveMultiplier;
         const halfWidth = annotationWidth / 2;
         const halfHeight = annotationHeight / 2;
         
@@ -186,26 +187,44 @@ function generateRawDataForCoordinates(mapX, mapY, content, pageHeight, markerTy
         const y2 = pdfY + halfHeight;
         const newRectCoords = `${x1} ${y1} ${x2} ${y2}`;
         
-        // Replace coordinates
-        decodedTemplate = decodedTemplate.replace(/\/TempBBox\[[^\]]+\]/, `/TempBBox[${newRectCoords}]`);
+        // Replace coordinates in all possible formats
         decodedTemplate = decodedTemplate.replace(/\/Rect\[[^\]]+\]/, `/Rect[${newRectCoords}]`);
+        decodedTemplate = decodedTemplate.replace(/\/TempBBox\[[^\]]+\]/, `/TempBBox[${newRectCoords}]`);
         
-        // Convert hex color to RGB for fill and outline
+        // Convert hex color to RGB
         const r = parseInt(markerTypeColor.substr(1, 2), 16) / 255;
         const g = parseInt(markerTypeColor.substr(3, 2), 16) / 255;
         const b = parseInt(markerTypeColor.substr(5, 2), 16) / 255;
         
-        // Update colors
-        decodedTemplate = decodedTemplate.replace(/\/IC\[[^\]]+\]/, `/IC[${r} ${g} ${b}]`);
-        decodedTemplate = decodedTemplate.replace(/\/C\[[^\]]+\]/, `/C[${r} ${g} ${b}]`);
+        // Update border color (this exists and works)
+        decodedTemplate = decodedTemplate.replace(/\/C\[[^\]]+\]/g, `/C[${r} ${g} ${b}]`);
         
-        // Add content if provided
+        // ADD interior color field since the template doesn't have one
+        decodedTemplate = decodedTemplate.replace('/F 4/', `/IC[${r} ${g} ${b}]/F 4/`);
+        
+        console.log('Template after adding fill color:', decodedTemplate);
+        
+        // Replace the test message with our actual content
         if (content) {
             const safeContent = content.replace(/[()\\]/g, '\\$&');
-            if (decodedTemplate.includes('>>')) {
-                decodedTemplate = decodedTemplate.replace('>>', `/Contents(${safeContent})>>`);
-            }
+            console.log('Original content:', content);
+            console.log('Safe content:', safeContent);
+            console.log('Template before replacement:', decodedTemplate);
+            
+            // Replace "test message 123" with our content in all formats
+            decodedTemplate = decodedTemplate.replace(/test message 123/g, safeContent);
+            decodedTemplate = decodedTemplate.replace(/\/Contents\(test message 123\)/, `/Contents(${safeContent})`);
+            
+            console.log('Template after replacement:', decodedTemplate);
+        } else {
+            console.log('No content provided');
+            // If no content provided, clear out the test message
+            decodedTemplate = decodedTemplate.replace(/test message 123/g, '');
+            decodedTemplate = decodedTemplate.replace(/\/Contents\(test message 123\)/, '/Contents()');
         }
+        
+        // Replace author with Mapping Slayer
+        decodedTemplate = decodedTemplate.replace(/\/Author\([^)]*\)/, '/Author(Mapping Slayer)');
         
         // Re-compress
         const compressed = pako.deflate(decodedTemplate);
@@ -214,8 +233,8 @@ function generateRawDataForCoordinates(mapX, mapY, content, pageHeight, markerTy
         return hexString;
         
     } catch (error) {
-        console.error('Raw data generation failed:', error);
-        return templateRaw;
+        console.error('Template-based Raw data generation failed:', error);
+        return workingTemplate; // Return original template if modification fails
     }
 }
 
@@ -620,9 +639,13 @@ async function createBluebeamBAX(dots) {
             const childId = generateBluebeamID();
             const now = new Date().toISOString();
             
+            // Create combined message for the Circle Contents
+            const messages = [dot.message, dot.message2].filter(msg => msg && msg.trim());
+            const combinedMessage = messages.join(', ');
+            
             const textContent = dot.locationNumber;
             const textRawData = generateTextBoxRawData(dot.x, dot.y, textContent, pageHeight, markerType.color, markerType.textColor);
-            const circleRawData = generateRawDataForCoordinates(dot.x, dot.y, '', pageHeight, markerType.color);
+            const circleRawData = generateRawDataForCoordinates(dot.x, dot.y, combinedMessage, pageHeight, markerType.color);
             
             bax += `    <Annotation>
       <Page>${pageLabel}</Page>
@@ -646,7 +669,7 @@ async function createBluebeamBAX(dots) {
       <GroupChildren>
         <Child>
           <Page>${pageLabel}</Page>
-          <Contents />
+          <Contents>${combinedMessage}</Contents>
           <ModDate>${now}</ModDate>
           <Color>${markerType.color}</Color>
           <Type>Circle</Type>
