@@ -42,6 +42,7 @@ function groupTextIntoLines(textItems) {
 }
 
 async function finishScrape() {
+    console.log('🔍 SCRAPE START: finishScrape() called');
     if (!appState.scrapeBox) return;
 
     showCSVStatus("Scraping, please wait...", true, 20000);
@@ -99,26 +100,46 @@ async function finishScrape() {
                 await new Promise(resolve => setTimeout(resolve, 5));
             }
         }
-        
+
+        console.log('🔍 TEXT ITEMS: Found', capturedTextItems.length, 'text items');
         if (capturedTextItems.length > 0) {
             showCSVStatus("Clustering text...", true, 20000);
             await new Promise(resolve => setTimeout(resolve, 10));
             
             const clusters = clusterTextItems(capturedTextItems);
+            console.log('🔍 CLUSTER SNIFFER: Found', clusters.length, 'clusters');
+            console.log('🔍 Clusters:', clusters.map(c => c.text));
             
             showCSVStatus("Adding dots to data...", true, 20000);
             await new Promise(resolve => setTimeout(resolve, 10));
 
             if (clusters.length === 1) {
+                console.log('🔍 SCRAPE SNIFFER: Single cluster detected');
                 const cluster = clusters[0];
                 const message = cluster.items.map(item => item.text).join(' ').trim();
+                console.log('🔍 Message:', message);
+                console.log('🔍 Checking collision at:', cluster.centerX, cluster.centerY);
+                
                 if (!isCollision(cluster.centerX, cluster.centerY)) {
+                    console.log('🔍 No collision, proceeding with addDotToData');
+                    console.log('🔍 Dots before addDotToData:', getCurrentPageDots().size);
+                    
                     addDotToData(cluster.centerX, cluster.centerY, appState.activeMarkerType, message);
+                    
+                    console.log('🔍 Dots after addDotToData:', getCurrentPageDots().size);
                     showCSVStatus("Rendering dots...", true, 20000);
+                    
                     await renderDotsForCurrentPage(true);
+                    console.log('🔍 After renderDotsForCurrentPage, DOM dots:', document.querySelectorAll('.map-dot').length);
+                    
+                    updateAllSectionsForCurrentPage();
+                    console.log('🔍 After updateAllSectionsForCurrentPage, list items:', document.querySelectorAll('.location-item, .grouped-location-item').length);
+                    
                     UndoManager.capture('Scrape text');
                     showCSVStatus(`✅ Scraped: "${message}"`, true, 3000);
+                    console.log('🔍 Single dot scrape complete');
                 } else {
+                    console.log('🔍 Collision detected, skipping');
                     showCSVStatus("❌ Collision detected", false, 4000);
                 }
             } else {

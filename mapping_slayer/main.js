@@ -800,6 +800,7 @@ async function finishScrape() {
                     addDotToData(cluster.centerX, cluster.centerY, appState.activeMarkerType, message);
                     showCSVStatus("Rendering dots...", true, 20000);
                     await renderDotsForCurrentPage(true);
+                    updateAllSectionsForCurrentPage();
                     UndoManager.capture('Scrape text');
                     showCSVStatus(`✅ Scraped: "${message}"`, true, 3000);
                 } else {

@@ -132,7 +132,7 @@ function createDotElement(dot) {
     const iconSize = 8 * effectiveMultiplier;
     const installedCheckmark = dot.installed ? `<div class="dot-installed-checkmark" style="width: ${size}px; height: ${size}px; top: 0; left: 0; border: none; background: none; overflow: hidden;"><div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(45deg, transparent 47%, #00ff00 47%, #00ff00 53%, transparent 53%);"></div></div>` : '';
     const vinylBackerSymbol = dot.vinylBacker ? `<div class="dot-vinyl-backer" style="width: ${iconSize}px; height: ${iconSize}px; font-size: ${5 * effectiveMultiplier}px; top: ${3 * effectiveMultiplier + 24}px; left: 50%; transform: translateX(-50%); border-width: ${1 * effectiveMultiplier}px;"></div>` : '';
-    dotElement.innerHTML = `<span class="dot-number" style="${locationDisplay}">${dot.locationNumber}</span><div class="map-dot-message" style="color: ${markerTypeInfo.color}; font-size: ${messageFontSize}px;">${dot.message}</div><div class="map-dot-message2" style="color: ${markerTypeInfo.color}; font-size: ${messageFontSize}px; margin-top: ${15 * effectiveMultiplier}px;">${dot.message2 || ''}</div>${vinylBackerSymbol}${installedCheckmark}`;
+    dotElement.innerHTML = `<span class="dot-number" style="${locationDisplay}">${dot.locationNumber}</span><div class="map-dot-message" style="color: ${markerTypeInfo.color}; font-size: ${messageFontSize}px;">${dot.message}</div><div class="map-dot-message2" style="color: ${markerTypeInfo.color}; font-size: ${messageFontSize}px; margin-top: ${8 * effectiveMultiplier}px;">${dot.message2 || ''}</div>${vinylBackerSymbol}${installedCheckmark}`;
 
     if (dot.notes && dot.notes.trim()) {
         dotElement.setAttribute('title', dot.notes);
