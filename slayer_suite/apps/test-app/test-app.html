@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test App - Slayer Suite</title>
+</head>
+<body>
+    <div id="app-container"></div>
+
+    <script type="module">
+        import { initializeCore } from '../../core/index.js';
+        import TestApp from './test-app.js';
+        import TestApp2 from '../test-app-2/test-app-2.js';
+
+        // Initialize core systems
+        initializeCore(true); // Enable debug mode
+
+        // Create single shared container
+        const mainContainer = document.getElementById('app-container');
+
+        // Create and initialize both test apps in the same container
+        const testApp1 = new TestApp();
+        const testApp2 = new TestApp2();
+        
+        try {
+            // Initialize both apps in the same container
+            await testApp1.initialize(mainContainer);
+            await testApp2.initialize(mainContainer);
+            
+            // Start with Test App 1 active
+            await testApp1.activate();
+            
+            console.log('✅ Both test apps initialized successfully!');
+            console.log('🔄 Use the header navigation to switch between apps');
+            
+        } catch (error) {
+            console.error('❌ Test apps failed to initialize:', error);
+        }
+    </script>
+</body>
+</html>

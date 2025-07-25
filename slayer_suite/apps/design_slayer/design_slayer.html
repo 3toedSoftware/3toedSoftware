@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Slayer - Slayer Suite</title>
+    <link rel="stylesheet" href="./design-slayer.css">
+    
+    <style>
+        /* Override to work with Slayer Suite framework */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 60px); /* Account for unified header */
+            background: #1a1a1a;
+        }
+        
+        /* Hide the original header since we use unified header */
+        .header {
+            display: none;
+        }
+        
+        /* Main layout adjustments */
+        .left-panel {
+            position: fixed;
+            left: 0;
+            top: 60px; /* Account for unified header */
+            width: 350px;
+            height: calc(100vh - 120px); /* Account for header and footer */
+            background: #2a2b2d;
+            border-right: 1px solid #3d3e40;
+            overflow-y: auto;
+        }
+        
+        .center-panel {
+            margin-left: 350px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 60px; /* Account for footer */
+        }
+        
+        .footer-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #2a2b2d;
+            border-top: 1px solid #3d3e40;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container"></div>
+
+    <script type="module">
+        /**
+         * Main application initializer for Design Slayer.
+         */
+        async function initializeApp() {
+            try {
+                // Import the core framework
+                const { initializeCore } = await import('../../core/index.js');
+                
+                // Import the Design Slayer app
+                const DesignSlayerApp = (await import('./design-app.js')).default;
+
+                // Initialize the core framework
+                initializeCore(true); // Enable debug mode
+
+                // Get the container and create the app instance
+                const container = document.getElementById('app-container');
+                const designApp = new DesignSlayerApp();
+                
+                // Initialize and activate the app
+                await designApp.initialize(container);
+                await designApp.activate();
+                
+                console.log('✅ Design Slayer app initialized successfully!');
+                console.log('🎨 Ready for sign design');
+            } catch (error) {
+                console.error('❌ Design Slayer app failed to initialize:', error);
+                const container = document.getElementById('app-container');
+                container.innerHTML = `<div style="padding: 40px; text-align: center; color: #ff6b6b;">
+                    <h2>Initialization Error</h2>
+                    <p>Failed to load Design Slayer. Please check the console for details.</p>
+                    <p>${error.message}</p>
+                </div>`;
+            }
+        }
+
+        // Start the initialization process
+        initializeApp();
+    </script>
+</body>
+</html>
