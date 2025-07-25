@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slayer Suite - Professional Signage Workflow Platform</title>
+    <link rel="stylesheet" href="./shared/styles/suite-header.css">
+    
+    <!-- App-specific stylesheets should be loaded dynamically by each app, not globally -->
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css"/>
+    
+    <!-- External libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div id="app-container"></div>
+
+    <script type="module">
+        /**
+         * Dynamically loads a script and returns a promise
+         */
+        function loadScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+                document.head.appendChild(script);
+            });
+        }
+
+        /**
+         * Creates the main suite structure with permanent header
+         */
+        function createSuiteStructure() {
+            return `
+                <div class="slayer-app-container">
+                    <!-- Unified Header (always visible) -->
+                    <div class="slayer-header">
+                        <!-- User Menu -->
+                        <div class="user-menu">
+                            <div class="user-icon">3T</div>
+                            <div class="user-flyout">
+                                <div class="flyout-item">👤 Profile Settings</div>
+                                <div class="flyout-item">⚙️ Preferences</div>
+                                <div class="flyout-item">📊 Usage Stats</div>
+                                <div class="flyout-item">❓ Help & Support</div>
+                                <div class="flyout-item">📄 Documentation</div>
+                                <div class="flyout-item danger">🚪 Sign Out</div>
+                            </div>
+                        </div>
+
+                        <!-- Logo Section -->
+                        <div class="logo-section">
+                            <a href="#" class="suite-logo" id="suite-home-link">SLAYER SUITE</a>
+                            <span class="breadcrumb-separator" id="breadcrumb-sep" style="display: none;">/</span>
+                            <div class="app-logo" id="app-name-display" style="display: none;"></div>
+                        </div>
+
+                        <!-- App Navigation -->
+                        <div class="app-navigation">
+                            <button class="app-nav-btn" data-app="mapping_slayer" data-tooltip="Mapping Slayer">MS</button>
+                            <button class="app-nav-btn" data-app="survey_slayer" data-tooltip="Survey Slayer">SS</button>
+                            <button class="app-nav-btn" data-app="design_slayer" data-tooltip="Design Slayer">DS</button>
+                            <button class="app-nav-btn" data-app="thumbnail_slayer" data-tooltip="Thumbnail Slayer">TS</button>
+                            <button class="app-nav-btn" data-app="production_slayer" data-tooltip="Production Slayer">PS</button>
+                            <button class="app-nav-btn" data-app="install_slayer" data-tooltip="Install Slayer">IS</button>
+                            <button class="app-nav-btn" data-app="workflow_slayer" data-tooltip="Workflow Slayer">WS</button>
+                        </div>
+
+                        <!-- Header Controls -->
+                        <div class="header-controls">
+                            <div class="project-info">
+                                <span id="project-name">No Project</span>
+                                <div class="status-indicator">
+                                    <span class="status-dot status-saved" id="status-dot"></span>
+                                    <span class="status-text" id="status-text">Saved</span>
+                                </div>
+                            </div>
+                            <div class="save-load-buttons">
+                                <button class="btn btn-secondary btn-compact" id="load-project-btn">LOAD</button>
+                                <button class="btn btn-primary btn-compact" id="save-project-btn">SAVE</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Content Area (changes based on active app) -->
+                    <div class="app-content" id="app-content"></div>
+                </div>
+            `;
+        }
+
+        /**
+         * Creates welcome content for the content area
+         */
+        function createWelcomeContent() {
+            return `
+                <div class="welcome-container">
+                    <h1 class="welcome-title">SLAYER SUITE</h1>
+                    <p class="welcome-subtitle">Professional Signage Workflow Platform</p>
+                    <p class="welcome-description">
+                        A comprehensive suite of tools for managing signage projects from survey to installation.
+                        Click on any app button above to get started.
+                    </p>
+                </div>
+            `;
+        }
+
+        /**
+         * Main Slayer Suite initializer
+         */
+        async function initializeSlayerSuite() {
+            try {
+                // Load PDF.js for Mapping Slayer
+                console.log('Loading PDF.js library...');
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+                if (window.pdfjsLib) {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    console.log(' PDF.js configured successfully.');
+                }
+
+                // Import core framework
+                const { initializeCore, appBridge, saveManager } = await import('./core/index.js');
+                
+                // Import all app modules
+                const MappingSlayerApp = (await import('./apps/mapping_slayer/mapping-app.js')).default;
+                const DesignSlayerApp = (await import('./apps/design_slayer/design-app.js')).default;
+                const SurveySlayerApp = (await import('./apps/survey_slayer/survey-app.js')).default;
+                const ThumbnailSlayerApp = (await import('./apps/thumbnail_slayer/thumbnail-app.js')).default;
+                const ProductionSlayerApp = (await import('./apps/production_slayer/production-app.js')).default;
+                const InstallSlayerApp = (await import('./apps/install_slayer/install-app.js')).default;
+                const WorkflowSlayerApp = (await import('./apps/workflow_slayer/workflow-app.js')).default;
+
+                // Initialize core
+                initializeCore(true);
+                
+                // Expose appBridge to window for cross-app communication
+                window.appBridge = appBridge;
+
+                // Get main container and create suite structure
+                const mainContainer = document.getElementById('app-container');
+                mainContainer.innerHTML = createSuiteStructure();
+                
+                // Get the content area where apps will render
+                const contentArea = document.getElementById('app-content');
+                
+                // Initialize all apps
+                const apps = {
+                    mapping_slayer: new MappingSlayerApp(),
+                    design_slayer: new DesignSlayerApp(),
+                    survey_slayer: new SurveySlayerApp(),
+                    thumbnail_slayer: new ThumbnailSlayerApp(),
+                    production_slayer: new ProductionSlayerApp(),
+                    install_slayer: new InstallSlayerApp(),
+                    workflow_slayer: new WorkflowSlayerApp()
+                };
+
+                // Initialize all apps with their own containers in suite mode
+                for (const [name, app] of Object.entries(apps)) {
+                    // Create a container for each app
+                    const appContainer = document.createElement('div');
+                    appContainer.id = `${name}-container`;
+                    appContainer.style.display = 'none';
+                    appContainer.style.width = '100%';
+                    appContainer.style.height = '100%';
+                    contentArea.appendChild(appContainer);
+                    
+                    await app.initialize(appContainer, true);
+                }
+
+                // Initialize the save manager
+                await saveManager.initialize();
+
+                // Create a global suite object for navigation
+                window.slayerSuite = {
+                    switchToApp: async (appName) => {
+                        // Hide welcome content if it exists
+                        const welcomeContainer = contentArea.querySelector('.welcome-container');
+                        if (welcomeContainer) {
+                            welcomeContainer.style.display = 'none';
+                        }
+                        
+                        // Update header to show app name
+                        document.getElementById('breadcrumb-sep').style.display = 'inline';
+                        document.getElementById('app-name-display').style.display = 'inline';
+                        document.getElementById('app-name-display').textContent = apps[appName].displayName;
+                        
+                        // Update active button
+                        document.querySelectorAll('.app-nav-btn').forEach(btn => {
+                            btn.classList.remove('active');
+                            if (btn.dataset.app === appName) {
+                                btn.classList.add('active');
+                            }
+                        });
+                        
+                        // Switch to the app
+                        await appBridge.switchToApp(appName);
+                    },
+                    showWelcome: () => {
+                        // Deactivate current app
+                        if (appBridge.activeApp) {
+                            appBridge.activeApp.deactivate();
+                        }
+                        
+                        // Hide app-specific header elements
+                        document.getElementById('breadcrumb-sep').style.display = 'none';
+                        document.getElementById('app-name-display').style.display = 'none';
+                        
+                        // Clear active buttons
+                        document.querySelectorAll('.app-nav-btn').forEach(btn => {
+                            btn.classList.remove('active');
+                        });
+                        
+                        // Show welcome content - but preserve app containers!
+                        // First, hide all app containers
+                        Array.from(contentArea.children).forEach(child => {
+                            if (child.id && child.id.endsWith('-container')) {
+                                child.style.display = 'none';
+                            }
+                        });
+                        
+                        // Check if welcome already exists
+                        let welcomeDiv = contentArea.querySelector('.welcome-container');
+                        if (!welcomeDiv) {
+                            welcomeDiv = document.createElement('div');
+                            welcomeDiv.innerHTML = createWelcomeContent();
+                            contentArea.appendChild(welcomeDiv.firstElementChild);
+                        } else {
+                            welcomeDiv.style.display = 'flex';
+                        }
+                    }
+                };
+
+                // Setup header button handlers
+                document.querySelectorAll('.app-nav-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const targetApp = btn.dataset.app;
+                        if (targetApp) {
+                            window.slayerSuite.switchToApp(targetApp);
+                        }
+                    });
+                });
+                
+                // Setup suite logo handler
+                document.getElementById('suite-home-link').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.slayerSuite.showWelcome();
+                });
+
+                // Start with welcome content
+                window.slayerSuite.showWelcome();
+                
+                console.log(' Slayer Suite initialized successfully!');
+                console.log('=� Ready to rock and roll!');
+                
+            } catch (error) {
+                console.error('L Failed to initialize Slayer Suite:', error);
+                const container = document.getElementById('app-container');
+                container.innerHTML = `
+                    <div style="padding: 40px; text-align: center; color: #ff6b6b;">
+                        <h2>Initialization Error</h2>
+                        <p>Failed to load Slayer Suite. Please check the console for details.</p>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Start the suite
+        initializeSlayerSuite();
+    </script>
+</body>
+</html>
