@@ -1,0 +1,369 @@
+/* Slayer Suite Header and Navigation Styles */
+
+/* Global Box-Sizing Reset */
+* {
+    box-sizing: border-box;
+}
+
+/* Global Reset to Remove Default Margins and Scrollbars */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#app-container {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* App Content Container */
+.slayer-app-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    background: #1B1C1D;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 14px;
+}
+
+.app-content {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-content > div {
+    flex: 1;
+    width: 100%;
+}
+
+/* Override app-container for suite mode */
+#app-content .app-container {
+    grid-template-rows: 1fr 60px;
+    height: 100%;
+}
+
+#app-content .left-panel {
+    grid-row: 1;
+    grid-column: 1;
+}
+
+#app-content .center-panel,
+#app-content .map-section {
+    grid-row: 1;
+    grid-column: 2;
+}
+
+#app-content .footer-controls {
+    grid-row: 2;
+    grid-column: 1 / -1;
+}
+
+/* Header Styles */
+.slayer-header {
+    background: #333537;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    border-bottom: 1px solid #555;
+    height: 60px;
+    flex-shrink: 0;
+}
+
+/* User Menu */
+.user-menu { 
+    position: relative; 
+    margin-right: 30px; 
+}
+
+.user-icon {
+    width: 40px; 
+    height: 40px; 
+    border-radius: 50%; 
+    background: #f07727;
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer;
+    font-weight: bold; 
+    font-size: 14px; 
+    transition: all 0.3s ease;
+    color: #ffffff;
+}
+
+.user-icon:hover { 
+    background: #e55a00; 
+    transform: scale(1.05); 
+}
+
+.user-flyout {
+    position: absolute; 
+    top: 50px; 
+    left: 0; 
+    background: #2a2a2a;
+    border: 1px solid #555; 
+    border-radius: 6px; 
+    min-width: 200px;
+    opacity: 0; 
+    visibility: hidden; 
+    transform: translateY(-10px);
+    transition: all 0.3s ease; 
+    z-index: 1000;
+}
+
+.user-menu:hover .user-flyout {
+    opacity: 1; 
+    visibility: visible; 
+    transform: translateY(0);
+}
+
+.flyout-item {
+    padding: 12px 16px; 
+    border-bottom: 1px solid #444; 
+    cursor: pointer;
+    transition: background 0.2s; 
+    font-size: 14px;
+    color: #ffffff;
+}
+
+.flyout-item:hover { 
+    background: #3a3a3a; 
+}
+
+.flyout-item:last-child { 
+    border-bottom: none; 
+}
+
+.flyout-item.danger:hover { 
+    background: #5a2626; 
+    color: #ff6b6b; 
+}
+
+/* Logo Section */
+.logo-section { 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    margin-right: 30px; 
+    min-width: 400px; 
+}
+
+.suite-logo { 
+    font-size: 20px; 
+    font-weight: bold; 
+    color: #f07727; 
+    text-decoration: none; 
+}
+
+.breadcrumb-separator { 
+    color: #666; 
+    font-size: 20px; 
+}
+
+.app-logo { 
+    font-size: 20px; 
+    font-weight: bold; 
+    color: #ccc; 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+}
+
+/* App Navigation */
+.app-navigation { 
+    display: flex; 
+    gap: 8px; 
+    margin-right: auto; 
+}
+
+.app-nav-btn {
+    width: 40px; 
+    height: 40px; 
+    border: none; 
+    border-radius: 6px; 
+    cursor: pointer;
+    font-weight: bold; 
+    font-size: 12px; 
+    transition: all 0.3s ease;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    background: #555; 
+    color: #ccc; 
+    position: relative; 
+    flex-shrink: 0;
+}
+
+.app-nav-btn:hover { 
+    background: #666; 
+    color: #fff; 
+    transform: translateY(-2px); 
+}
+
+.app-nav-btn.active { 
+    background: #f07727; 
+    color: #ffffff; 
+    box-shadow: 0 0 10px rgba(240, 119, 39, 0.5); 
+}
+
+/* Header Controls */
+.header-controls { 
+    display: flex; 
+    align-items: center; 
+    gap: 20px; 
+}
+
+.save-load-buttons { 
+    display: flex; 
+    gap: 8px; 
+}
+
+.project-info { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    font-size: 11px; 
+    color: #aaa; 
+    margin-right: auto; 
+}
+
+.status-indicator { 
+    display: flex; 
+    align-items: center; 
+    gap: 4px; 
+}
+
+.status-dot { 
+    width: 6px; 
+    height: 6px; 
+    border-radius: 50%; 
+}
+
+.status-saved { 
+    background: #00b360; 
+}
+
+.status-unsaved { 
+    background: #f07727; 
+}
+
+#project-name { 
+    font-weight: bold; 
+    color: #ccc; 
+}
+
+/* Suite-specific Button Styles */
+.slayer-header .btn { 
+    border: none; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    font-weight: bold; 
+    transition: all 0.2s; 
+}
+
+.slayer-header .btn-primary { 
+    background: #f07727; 
+    color: #ffffff; 
+}
+
+.slayer-header .btn-primary:hover { 
+    background: #e55a00; 
+}
+
+.slayer-header .btn-secondary { 
+    background: #6c757d; 
+    color: white; 
+}
+
+.slayer-header .btn-secondary:hover { 
+    background: #5a6268; 
+}
+
+.slayer-header .btn-compact { 
+    padding: 4px 10px; 
+    font-size: 10px; 
+}
+
+/* Welcome Screen */
+.welcome-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background: #1B1C1D;
+    color: #ffffff;
+    text-align: center;
+    padding: 40px;
+}
+
+.welcome-title {
+    font-size: 48px;
+    font-weight: bold;
+    color: #f07727;
+    margin-bottom: 20px;
+}
+
+.welcome-subtitle {
+    font-size: 24px;
+    color: #ccc;
+    margin-bottom: 40px;
+}
+
+.welcome-description {
+    font-size: 18px;
+    color: #999;
+    max-width: 600px;
+    line-height: 1.6;
+    margin-bottom: 60px;
+}
+
+.app-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    max-width: 1000px;
+    width: 100%;
+}
+
+.app-card {
+    background: #2a2b2d;
+    border: 1px solid #3d3e40;
+    border-radius: 8px;
+    padding: 30px 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.app-card:hover {
+    background: #333537;
+    border-color: #f07727;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.app-icon {
+    font-size: 36px;
+    margin-bottom: 16px;
+}
+
+.app-name {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.app-status {
+    font-size: 12px;
+    color: #999;
+}
+
+.app-status.active {
+    color: #00b360;
+}
