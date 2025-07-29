@@ -55,8 +55,17 @@ const appState = {
     pageLabels: new Map(), // Maps pageNum → label string
 };
 
+let updateTimeout = null;
+
 function setDirtyState() {
     appState.isDirty = true;
+}
+
+function debouncedUpdate(callback, delay = 16) {
+    if (updateTimeout) {
+        clearTimeout(updateTimeout);
+    }
+    updateTimeout = setTimeout(callback, delay);
 }
 
 function getCurrentPageData() {

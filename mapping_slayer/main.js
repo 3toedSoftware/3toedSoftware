@@ -24,30 +24,7 @@ function init() {
     updateAutomapControls();
     updateToleranceInputs();
     
-    const getStateSnapshotForUndo = (description) => {
-        return {
-            description: description,
-            timestamp: Date.now(),
-            data: {
-                dotsByPage: serializeDotsByPage(appState.dotsByPage),
-                currentPdfPage: appState.currentPdfPage
-            }
-        };
-    };
-
-    const restoreStateFromUndo = (snapshotData) => {
-        appState.dotsByPage = deserializeDotsByPage(snapshotData.dotsByPage);
-        if (snapshotData.currentPdfPage !== appState.currentPdfPage) {
-            changePage(snapshotData.currentPdfPage);
-        } else {
-            renderDotsForCurrentPage();
-            updateAllSectionsForCurrentPage();
-        }
-        clearSelection();
-        appState.isDirty = true;
-    };
-
-    UndoManager.init(getStateSnapshotForUndo, restoreStateFromUndo, updateUndoUI);
+    UndoManager.init(updateUndoUI);
 }
 
 function setupEventListeners() {
@@ -561,8 +538,25 @@ function isModalOpen() {
 function deleteSelectedDots() {
     if (appState.selectedDots.size === 0) return;
     
+    // Collect dot data before deletion
+    const deletedDots = [];
+    appState.selectedDots.forEach(internalId => {
+        const dot = getCurrentPageDots().get(internalId);
+        if (dot) {
+            deletedDots.push({
+                pageNum: appState.currentPdfPage,
+                dot: { ...dot }
+            });
+        }
+    });
+    
+    // Delete the dots
     appState.selectedDots.forEach(internalId => { getCurrentPageDots().delete(internalId); });
-    UndoManager.capture(`Delete ${appState.selectedDots.size} dots`);
+    
+    // Capture the operation
+    UndoManager.captureOperation('deleteDots', `Delete ${appState.selectedDots.size} dots`, {
+        dots: deletedDots
+    });
 
     clearSelection(); 
     renderDotsForCurrentPage(); 
@@ -981,8 +975,18 @@ function addDot(x, y, markerTypeCode, message, isCodeRequired = false) {
     pageData.nextLocationNumber = highestLocationNum + 2;
     appState.nextInternalId++;
 
+    // Capture the operation for undo
+    UndoManager.captureOperation('addDot', 'Add dot', {
+        pageNum: appState.currentPdfPage,
+        dotId: internalId,
+        dot: { ...dot }
+    });
+
     createDotElement(dot);
-    updateAllSectionsForCurrentPage();
+    // Use debounced update for better performance when adding multiple dots
+    debouncedUpdate(() => {
+        updateAllSectionsForCurrentPage();
+    }, 100);
     setDirtyState();
 }
 
@@ -1024,7 +1028,7 @@ function handleMapClick(e) {
             const y = (e.clientY - rect.top - mapY) / scale;
             if (!isCollision(x, y)) {
                 addDot(x, y);
-                UndoManager.capture('Add dot');
+                // Undo is captured inside addDot function now
             }
         }
     }
@@ -1122,6 +1126,22 @@ function handleMapMouseMove(e) {
         const draggedInternalId = appState.dragTarget.dataset.dotId;
         const dotsToMove = appState.selectedDots.has(draggedInternalId) && appState.selectedDots.size > 1 ? appState.selectedDots : [draggedInternalId];
 
+        // Initialize drag movements tracking if not exists
+        if (!appState.dragMovements) {
+            appState.dragMovements = new Map();
+            dotsToMove.forEach(internalId => {
+                const dot = getCurrentPageDots().get(internalId);
+                if (dot) {
+                    appState.dragMovements.set(internalId, {
+                        oldX: dot.x,
+                        oldY: dot.y,
+                        newX: dot.x,
+                        newY: dot.y
+                    });
+                }
+            });
+        }
+
         dotsToMove.forEach(internalId => {
             const dot = getCurrentPageDots().get(internalId);
             const dotElement = document.querySelector(`.map-dot[data-dot-id="${internalId}"]`);
@@ -1130,6 +1150,13 @@ function handleMapMouseMove(e) {
                 dot.y += moveDeltaY;
                 Object.assign(dotElement.style, { left: `${dot.x}px`, top: `${dot.y}px` });
                 dotElement.classList.add('dragging');
+                
+                // Update new position in movements
+                const movement = appState.dragMovements.get(internalId);
+                if (movement) {
+                    movement.newX = dot.x;
+                    movement.newY = dot.y;
+                }
             }
         });
         appState.dragStart = { x: e.clientX, y: e.clientY };
@@ -1160,7 +1187,26 @@ function handleMapMouseUp(e) {
     }
     if (appState.dragTarget) {
         if (appState.hasMoved) {
-            UndoManager.capture('Move dot');
+            // Capture move operation with actual movement data
+            const movements = [];
+            if (appState.dragMovements) {
+                appState.dragMovements.forEach((movement, dotId) => {
+                    movements.push({
+                        pageNum: appState.currentPdfPage,
+                        dotId: dotId,
+                        oldX: movement.oldX,
+                        oldY: movement.oldY,
+                        newX: movement.newX,
+                        newY: movement.newY
+                    });
+                });
+                
+                UndoManager.captureOperation('moveDots', 'Move dot', {
+                    movements: movements
+                });
+                
+                appState.dragMovements = null;
+            }
         }
         document.querySelectorAll('.map-dot.dragging').forEach(dot => dot.classList.remove('dragging'));
     }
@@ -2116,6 +2162,9 @@ function updateDot() {
         }
     }
     
+    // Store old state before changes
+    const oldState = { ...dot };
+    
     dot.markerType = document.getElementById('edit-marker-type').value;
     dot.locationNumber = newLocationNumber;
     dot.message = document.getElementById('edit-message').value.trim();
@@ -2126,7 +2175,14 @@ function updateDot() {
     dot.notes = document.getElementById('edit-notes').value.trim();
     
     appState.activeMarkerType = dot.markerType;
-    UndoManager.capture('Edit dot');
+    
+    // Capture the operation
+    UndoManager.captureOperation('editDot', 'Edit dot', {
+        pageNum: appState.currentPdfPage,
+        dotId: appState.editingDot,
+        oldState: oldState,
+        newState: { ...dot }
+    });
 
     renderDotsForCurrentPage(); 
     updateAllSectionsForCurrentPage(); 
