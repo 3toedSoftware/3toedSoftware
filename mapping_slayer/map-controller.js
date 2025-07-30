@@ -82,122 +82,18 @@ async function renderPDFPage(pageNum) {
 }
 
 async function renderDotsForCurrentPage(useAsync = false) {
-    const mapContent = document.getElementById('map-content');
+    document.getElementById('map-content').querySelectorAll('.map-dot').forEach(dot => dot.remove());
     const visibleDots = getVisibleDots();
-    const existingDotElements = new Map();
     
-    // Build a map of existing dot elements
-    mapContent.querySelectorAll('.map-dot').forEach(dotEl => {
-        existingDotElements.set(dotEl.dataset.dotId, dotEl);
-    });
-    
-    // Track which dots we've processed
-    const processedIds = new Set();
-    
-    // Update or create dots
-    for (const [dotId, dot] of visibleDots) {
-        processedIds.add(dotId);
-        const existingElement = existingDotElements.get(dotId);
-        
-        if (existingElement) {
-            // Update existing dot instead of recreating
-            updateDotElement(existingElement, dot);
-        } else {
-            // Create new dot
-            createDotElement(dot);
-        }
-    }
-    
-    // Remove dots that are no longer visible
-    for (const [dotId, dotEl] of existingDotElements) {
-        if (!processedIds.has(dotId)) {
-            dotEl.remove();
-        }
-    }
-    
-    console.log(`Updated ${visibleDots.size} of ${getCurrentPageDots().size} dots`);
-}
-
-function updateDotElement(dotElement, dot) {
-    // Update position
-    dotElement.style.left = `${dot.x}px`;
-    dotElement.style.top = `${dot.y}px`;
-    
-    // Update marker type info
-    const markerTypeInfo = appState.markerTypes[dot.markerType] || { color: '#ff0000', textColor: '#FFFFFF' };
-    dotElement.style.backgroundColor = markerTypeInfo.color;
-    dotElement.style.color = markerTypeInfo.textColor;
-    
-    // Update size
-    const effectiveMultiplier = appState.dotSize * 2;
-    const size = 20 * effectiveMultiplier;
-    dotElement.style.width = `${size}px`;
-    dotElement.style.height = `${size}px`;
-    dotElement.style.fontSize = `${8 * effectiveMultiplier}px`;
-    
-    // Update selection state
-    if (appState.selectedDots.has(dot.internalId)) {
-        if (!dotElement.classList.contains('selected')) {
-            dotElement.classList.add('selected');
-            Object.assign(dotElement.style, {
-                boxShadow: '0 0 15px #00ff88, 0 0 30px #00ff88',
-                border: '2px solid #00ff88',
-                zIndex: '200'
-            });
-        }
+    if (useAsync && visibleDots.size > 50) {
+        // Use async rendering for large batches
+        await renderDotsAsync(visibleDots);
     } else {
-        if (dotElement.classList.contains('selected')) {
-            dotElement.classList.remove('selected');
-            Object.assign(dotElement.style, { boxShadow: '', border: '', zIndex: '' });
-        }
+        // Use synchronous rendering for small amounts
+        visibleDots.forEach(dot => createDotElement(dot));
     }
     
-    // Update code required state
-    if (dot.isCodeRequired) {
-        if (!dotElement.classList.contains('code-required-dot')) {
-            dotElement.classList.add('code-required-dot');
-            const innerOutline = Math.max(2, Math.round(2 * effectiveMultiplier));
-            const outerOutline = Math.max(3, Math.round(3 * effectiveMultiplier));
-            dotElement.style.boxShadow = `0 0 0 ${innerOutline}px #f2ff00, 0 0 0 ${outerOutline}px rgb(25, 25, 25)`;
-        }
-    } else {
-        dotElement.classList.remove('code-required-dot');
-        if (!appState.selectedDots.has(dot.internalId)) {
-            dotElement.style.boxShadow = '';
-        }
-    }
-    
-    // Update location number
-    const dotNumber = dotElement.querySelector('.dot-number');
-    if (dotNumber) {
-        dotNumber.textContent = dot.locationNumber;
-        dotNumber.style.display = appState.locationsVisible ? '' : 'none';
-    }
-    
-    // Update messages
-    const message1 = dotElement.querySelector('.map-dot-message');
-    if (message1) {
-        message1.textContent = dot.message;
-        message1.style.color = markerTypeInfo.color;
-        message1.style.fontSize = `${10 * effectiveMultiplier}px`;
-        message1.classList.toggle('visible', appState.messagesVisible);
-    }
-    
-    const message2 = dotElement.querySelector('.map-dot-message2');
-    if (message2) {
-        message2.textContent = dot.message2 || '';
-        message2.style.color = markerTypeInfo.color;
-        message2.style.fontSize = `${10 * effectiveMultiplier}px`;
-        message2.style.marginTop = `${8 * effectiveMultiplier}px`;
-        message2.classList.toggle('visible', appState.messages2Visible);
-    }
-    
-    // Update title (notes)
-    if (dot.notes && dot.notes.trim()) {
-        dotElement.setAttribute('title', dot.notes);
-    } else {
-        dotElement.removeAttribute('title');
-    }
+    console.log(`Rendered ${visibleDots.size} of ${getCurrentPageDots().size} dots`);
 }
 
 function createDotElement(dot) {

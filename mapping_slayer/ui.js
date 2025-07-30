@@ -55,45 +55,8 @@ function updateAllSectionsForCurrentPage() {
 
 function updateFilterCheckboxes() {
     const container = document.getElementById('filter-checkboxes');
-    const scrollPosition = container.scrollTop;
-    
-    // Only recreate if marker types have changed
-    const currentMarkerTypeCount = Object.keys(appState.markerTypes).length;
-    const existingCheckboxCount = container.querySelectorAll('.filter-checkbox').length;
-    
-    if (currentMarkerTypeCount === existingCheckboxCount && currentMarkerTypeCount > 0) {
-        // Just update existing checkboxes
-        const sortedMarkerTypeCodes = Object.keys(appState.markerTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-        
-        sortedMarkerTypeCodes.forEach((markerTypeCode, index) => {
-            const typeData = appState.markerTypes[markerTypeCode];
-            const count = Array.from(getCurrentPageDots().values()).filter(d => d.markerType === markerTypeCode).length;
-            const item = container.children[index];
-            
-            if (item) {
-                // Update count
-                const countLabel = item.querySelector('.checkbox-label');
-                if (countLabel) countLabel.textContent = `(${count})`;
-                
-                // Update active state
-                if (markerTypeCode === appState.activeMarkerType) {
-                    item.classList.add('legend-item-active');
-                } else {
-                    item.classList.remove('legend-item-active');
-                }
-                
-                // Update colors in color pickers
-                const colorWrappers = item.querySelectorAll('.color-picker-wrapper');
-                if (colorWrappers[0]) colorWrappers[0].style.backgroundColor = typeData.color;
-                if (colorWrappers[1]) colorWrappers[1].style.backgroundColor = typeData.textColor;
-            }
-        });
-        
-        container.scrollTop = scrollPosition;
-        return;
-    }
-    
-    // Full rebuild only when structure changes
+    const scrollPosition = container.scrollTop; // Store current scroll position
+
     container.innerHTML = '';
     const sortedMarkerTypeCodes = Object.keys(appState.markerTypes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
@@ -214,17 +177,26 @@ function initializeColorPickers(item, markerTypeCode, typeData) {
         pickr.on('change', (color) => { wrapper.style.backgroundColor = color.toHEXA().toString(); });
         pickr.on('save', (color) => {
             const newColor = color.toHEXA().toString();
-            if (colorType === 'dot') { appState.markerTypes[markerTypeCode].color = newColor; } 
-            else { appState.markerTypes[markerTypeCode].textColor = newColor; }
-            wrapper.style.backgroundColor = newColor;
-            setDirtyState();
-            updateAllSectionsForCurrentPage();
-            renderDotsForCurrentPage();
+            // Check if marker type still exists before updating
+            if (appState.markerTypes && appState.markerTypes[markerTypeCode]) {
+                if (colorType === 'dot') { 
+                    appState.markerTypes[markerTypeCode].color = newColor; 
+                } else { 
+                    appState.markerTypes[markerTypeCode].textColor = newColor; 
+                }
+                wrapper.style.backgroundColor = newColor;
+                setDirtyState();
+                updateAllSectionsForCurrentPage();
+                renderDotsForCurrentPage();
+            }
             pickr.hide();
         });
         pickr.on('hide', () => {
-            const currentColor = (colorType === 'dot') ? appState.markerTypes[markerTypeCode].color : appState.markerTypes[markerTypeCode].textColor;
-            wrapper.style.backgroundColor = currentColor;
+            // Check if marker type still exists before reading color
+            if (appState.markerTypes && appState.markerTypes[markerTypeCode]) {
+                const currentColor = (colorType === 'dot') ? appState.markerTypes[markerTypeCode].color : appState.markerTypes[markerTypeCode].textColor;
+                wrapper.style.backgroundColor = currentColor;
+            }
         });
     });
 }
