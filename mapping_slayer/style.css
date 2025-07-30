@@ -807,6 +807,9 @@ body {
     top: 0;
     left: 0;
     transform-origin: 0 0;
+}
+
+#map-content.zooming {
     transition: transform 0.3s ease-out;
 }
 

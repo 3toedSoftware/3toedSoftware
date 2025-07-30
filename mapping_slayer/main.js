@@ -1197,7 +1197,16 @@ function handleMapWheel(e) {
     appState.mapTransform.x = mouseX - (mouseX - appState.mapTransform.x) * (newScale / oldScale);
     appState.mapTransform.y = mouseY - (mouseY - appState.mapTransform.y) * (newScale / oldScale);
     appState.mapTransform.scale = newScale;
+    
+    // Add zooming class for smooth transition
+    const mapContent = document.getElementById('map-content');
+    mapContent.classList.add('zooming');
     applyMapTransform();
+    
+    // Remove zooming class after transition
+    setTimeout(() => {
+        mapContent.classList.remove('zooming');
+    }, 300);
 }
 
 function handleDotSizeChange(e) {
@@ -1287,7 +1296,15 @@ function zoomToFitDots(dotIds) {
     appState.mapTransform.x = (containerRect.width / 2) - (centerX * scale);
     appState.mapTransform.y = (containerRect.height / 2) - (centerY * scale);
     
+    // Add zooming class for smooth transition
+    const mapContent = document.getElementById('map-content');
+    mapContent.classList.add('zooming');
     applyMapTransform();
+    
+    // Remove zooming class after transition
+    setTimeout(() => {
+        mapContent.classList.remove('zooming');
+    }, 300);
 }
 
 function updateReplaceStatus() {

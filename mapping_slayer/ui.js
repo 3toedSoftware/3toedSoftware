@@ -171,8 +171,41 @@ function initializeColorPickers(item, markerTypeCode, typeData) {
 
         const pickr = Pickr.create({
             el: wrapper, theme: 'classic', useAsButton: true, default: initialColor,
-            components: { preview: true, opacity: false, hue: true, interaction: { hex: true, rgba: false, input: true, save: true, clear: false } }
+            components: { preview: true, opacity: false, hue: true, interaction: { hex: false, rgba: false, input: true, save: true, clear: false } }
         });
+
+        // Add eyedropper button for dot color picker only
+        if (colorType === 'dot' && 'EyeDropper' in window) {
+            pickr.on('init', instance => {
+                // Wait for the DOM to be ready
+                setTimeout(() => {
+                    const app = instance.getRoot().app;
+                    const saveBtn = app.querySelector('.pcr-save');
+                    
+                    if (saveBtn) {
+                        const eyedropperBtn = document.createElement('button');
+                        eyedropperBtn.className = 'pcr-save';
+                        eyedropperBtn.style.marginRight = '8px';
+                        eyedropperBtn.innerHTML = '⦿';
+                        eyedropperBtn.title = 'Pick color from screen';
+                        eyedropperBtn.type = 'button';
+                        
+                        eyedropperBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            try {
+                                const eyeDropper = new EyeDropper();
+                                const result = await eyeDropper.open();
+                                instance.setColor(result.sRGBHex);
+                            } catch (err) {
+                                console.log('EyeDropper cancelled or error:', err);
+                            }
+                        });
+                        
+                        saveBtn.parentNode.insertBefore(eyedropperBtn, saveBtn);
+                    }
+                }, 0);
+            });
+        }
 
         pickr.on('change', (color) => { wrapper.style.backgroundColor = color.toHEXA().toString(); });
         pickr.on('save', (color) => {

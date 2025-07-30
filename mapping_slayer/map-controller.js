@@ -161,7 +161,16 @@ function centerOnDot(internalId, zoomLevel = 1.5) {
     appState.mapTransform.scale = zoomLevel;
     appState.mapTransform.x = (containerRect.width / 2) - (dot.x * zoomLevel);
     appState.mapTransform.y = (containerRect.height / 2) - (dot.y * zoomLevel);
+    
+    // Add zooming class for smooth transition
+    const mapContent = document.getElementById('map-content');
+    mapContent.classList.add('zooming');
     applyMapTransform();
+    
+    // Remove zooming class after transition
+    setTimeout(() => {
+        mapContent.classList.remove('zooming');
+    }, 300);
 }
 
 async function renderDotsAsync(dots, statusCallback = null) {
