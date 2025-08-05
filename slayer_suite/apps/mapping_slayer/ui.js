@@ -8,6 +8,37 @@ import { cropTool } from './crop-tool.js';
 
 let previewTimeout = null;
 
+// Performance optimization: Cache dot counts by marker type
+const dotCountCache = new Map(); // markerType -> count
+let dotCountCacheValid = false;
+
+// Performance optimization: Track marker type UI elements
+const markerTypeElements = new Map(); // markerType -> DOM element
+
+// Performance optimization: Debounce marker checkbox updates
+let updateCheckboxesTimeout = null;
+const UPDATE_CHECKBOXES_DELAY = 100; // ms
+
+// Invalidate dot count cache when dots change
+function invalidateDotCountCache() {
+    dotCountCacheValid = false;
+}
+
+// Get dot count for a marker type (with caching)
+function getDotCountForMarkerType(markerType) {
+    if (!dotCountCacheValid) {
+        // Rebuild the entire cache
+        dotCountCache.clear();
+        const dots = getCurrentPageDots();
+        for (const dot of dots.values()) {
+            const count = dotCountCache.get(dot.markerType) || 0;
+            dotCountCache.set(dot.markerType, count + 1);
+        }
+        dotCountCacheValid = true;
+    }
+    return dotCountCache.get(markerType) || 0;
+}
+
 function showCSVStatus(message, isSuccess = true, duration = 5000) {
     const statusDiv = document.getElementById('csv-status');
     const contentDiv = document.getElementById('csv-status-content');
@@ -44,6 +75,8 @@ function updatePageLabelInput() {
 }
 
 function updateAllSectionsForCurrentPage() {
+    // Invalidate cache when page changes or needs full update
+    invalidateDotCountCache();
     updateFilterCheckboxes();
     updateLocationList();
     updateMapLegend();
@@ -51,12 +84,22 @@ function updateAllSectionsForCurrentPage() {
     updateEditModalOptions();
 }
 
+// Debounced version of updateFilterCheckboxes
 function updateFilterCheckboxes() {
+    if (updateCheckboxesTimeout) {
+        clearTimeout(updateCheckboxesTimeout);
+    }
+    updateCheckboxesTimeout = setTimeout(() => {
+        updateFilterCheckboxesImmediate();
+    }, UPDATE_CHECKBOXES_DELAY);
+}
+
+// Force immediate update (bypasses debouncing)
+function updateFilterCheckboxesImmediate() {
     const container = document.getElementById('filter-checkboxes');
     if (!container) return;
     
     const scrollPosition = container.scrollTop;
-    container.innerHTML = '';
     
     const sortedMarkerTypeCodes = Object.keys(appState.markerTypes).sort((a, b) => 
         a.localeCompare(b, undefined, { numeric: true })
@@ -64,71 +107,126 @@ function updateFilterCheckboxes() {
 
     if (sortedMarkerTypeCodes.length === 0) {
         container.innerHTML = '<div class="ms-empty-state" style="font-size: 12px; padding: 10px;">No marker types exist. Click + to add one.</div>';
+        markerTypeElements.clear();
         return;
     }
 
-    sortedMarkerTypeCodes.forEach(markerTypeCode => {
-        const typeData = appState.markerTypes[markerTypeCode];
-        const count = Array.from(getCurrentPageDots().values()).filter(d => d.markerType === markerTypeCode).length;
-        
-        const item = document.createElement('div');
-        item.className = 'ms-filter-checkbox';
-        if (markerTypeCode === appState.activeMarkerType) {
-            item.classList.add('ms-legend-item-active');
+    // Determine which marker types need to be added/removed/updated
+    const existingTypes = new Set(markerTypeElements.keys());
+    const currentTypes = new Set(sortedMarkerTypeCodes);
+    
+    // Remove marker types that no longer exist
+    for (const typeCode of existingTypes) {
+        if (!currentTypes.has(typeCode)) {
+            const element = markerTypeElements.get(typeCode);
+            if (element) {
+                element.remove();
+                markerTypeElements.delete(typeCode);
+            }
         }
+    }
+    
+    // Update or add marker types
+    sortedMarkerTypeCodes.forEach((markerTypeCode, index) => {
+        const typeData = appState.markerTypes[markerTypeCode];
+        const count = getDotCountForMarkerType(markerTypeCode);
         
-        // Build innerHTML with proper concatenation to avoid template literal issues
-        const checkboxInput = '<input type="checkbox" data-marker-type-code="' + markerTypeCode + '" checked>';
-        const countLabel = '<span class="ms-checkbox-label">(' + count + ')</span>';
-        const codeInput = '<input type="text" class="ms-marker-type-code-input" placeholder="Enter code..." value="' + markerTypeCode + '" data-original-code="' + markerTypeCode + '">';
-        const nameInput = '<input type="text" class="ms-marker-type-name-input" placeholder="Enter name..." value="' + typeData.name + '" data-original-name="' + typeData.name + '" data-code="' + markerTypeCode + '">';
-        const designRefSquare = '<div class="ms-design-reference-square" data-marker-type="' + markerTypeCode + '">' +
-            '<div class="ms-design-reference-empty" style="display: ' + (typeData.designReference ? 'none' : 'flex') + ';"><span class="ms-upload-plus-icon">+</span></div>' +
-            '<div class="ms-design-reference-filled" style="display: ' + (typeData.designReference ? 'flex' : 'none') + ';"><img class="ms-design-reference-thumbnail" src="' + (typeData.designReference || '') + '" alt="Design Reference"><button class="ms-design-reference-delete" type="button">&times;</button></div>' +
-            '</div>';
-        const fileInput = '<input type="file" class="ms-design-reference-input" accept="image/jpeg,image/jpg,image/png" style="display: none;" data-marker-type="' + markerTypeCode + '">';
-        const colorPickers = '<div class="ms-color-picker-wrapper" data-marker-type-code="' + markerTypeCode + '" data-color-type="dot"></div>' +
-            '<div class="ms-color-picker-wrapper" data-marker-type-code="' + markerTypeCode + '" data-color-type="text"></div>';
-        const deleteBtn = '<button class="ms-delete-marker-type-btn" data-marker-type-code="' + markerTypeCode + '">×</button>';
+        let item = markerTypeElements.get(markerTypeCode);
         
-        item.innerHTML = checkboxInput + countLabel +
-            '<div class="ms-marker-type-inputs">' + codeInput + nameInput + '</div>' +
-            '<div class="ms-design-reference-container">' + designRefSquare + fileInput + '</div>' +
-            '<div class="ms-marker-type-controls">' + colorPickers + deleteBtn + '</div>';
+        if (item) {
+            // Update existing element
+            const countLabel = item.querySelector('.ms-checkbox-label');
+            if (countLabel) {
+                countLabel.textContent = '(' + count + ')';
+            }
+            
+            // Update active state
+            if (markerTypeCode === appState.activeMarkerType) {
+                item.classList.add('ms-legend-item-active');
+            } else {
+                item.classList.remove('ms-legend-item-active');
+            }
+            
+            // Move to correct position if needed
+            const currentIndex = Array.from(container.children).indexOf(item);
+            if (currentIndex !== index) {
+                const nextSibling = container.children[index];
+                if (nextSibling && nextSibling !== item) {
+                    container.insertBefore(item, nextSibling);
+                } else {
+                    container.appendChild(item);
+                }
+            }
+        } else {
+            // Create new element
+            item = document.createElement('div');
+            item.className = 'ms-filter-checkbox';
+            if (markerTypeCode === appState.activeMarkerType) {
+                item.classList.add('ms-legend-item-active');
+            }
         
-        container.appendChild(item);
-        
-        setupDesignReferenceHandlers(item, markerTypeCode);
-        
-        const codeInputEl = item.querySelector('.ms-marker-type-code-input');
-        const nameInputEl = item.querySelector('.ms-marker-type-name-input');
-        
-        resizeInput(codeInputEl);
-        codeInputEl.addEventListener('input', () => resizeInput(codeInputEl));
-        codeInputEl.addEventListener('focus', () => resizeInput(codeInputEl));
-        codeInputEl.addEventListener('blur', () => resizeInput(codeInputEl));
-        
-        item.addEventListener('click', (e) => {
-            if (e.target.closest('input, .pcr-app, .ms-color-picker-wrapper, .ms-delete-marker-type-btn, .ms-design-reference-square')) return;
-            e.preventDefault();
-            appState.activeMarkerType = markerTypeCode;
-            updateFilterCheckboxes();
-        });
+            // Build innerHTML with proper concatenation to avoid template literal issues
+            const checkboxInput = '<input type="checkbox" data-marker-type-code="' + markerTypeCode + '" checked>';
+            const countLabel = '<span class="ms-checkbox-label">(' + count + ')</span>';
+            const codeInput = '<input type="text" class="ms-marker-type-code-input" placeholder="Enter code..." value="' + markerTypeCode + '" data-original-code="' + markerTypeCode + '">';
+            const nameInput = '<input type="text" class="ms-marker-type-name-input" placeholder="Enter name..." value="' + typeData.name + '" data-original-name="' + typeData.name + '" data-code="' + markerTypeCode + '">';
+            const designRefSquare = '<div class="ms-design-reference-square" data-marker-type="' + markerTypeCode + '">' +
+                '<div class="ms-design-reference-empty" style="display: ' + (typeData.designReference ? 'none' : 'flex') + ';"><span class="ms-upload-plus-icon">+</span></div>' +
+                '<div class="ms-design-reference-filled" style="display: ' + (typeData.designReference ? 'flex' : 'none') + ';"><img class="ms-design-reference-thumbnail" src="' + (typeData.designReference || '') + '" alt="Design Reference"><button class="ms-design-reference-delete" type="button">&times;</button></div>' +
+                '</div>';
+            const fileInput = '<input type="file" class="ms-design-reference-input" accept="image/jpeg,image/jpg,image/png" style="display: none;" data-marker-type="' + markerTypeCode + '">';
+            const colorPickers = '<div class="ms-color-picker-wrapper" data-marker-type-code="' + markerTypeCode + '" data-color-type="dot"></div>' +
+                '<div class="ms-color-picker-wrapper" data-marker-type-code="' + markerTypeCode + '" data-color-type="text"></div>';
+            const deleteBtn = '<button class="ms-delete-marker-type-btn" data-marker-type-code="' + markerTypeCode + '">×</button>';
+            
+            item.innerHTML = checkboxInput + countLabel +
+                '<div class="ms-marker-type-inputs">' + codeInput + nameInput + '</div>' +
+                '<div class="ms-design-reference-container">' + designRefSquare + fileInput + '</div>' +
+                '<div class="ms-marker-type-controls">' + colorPickers + deleteBtn + '</div>';
+            
+            setupDesignReferenceHandlers(item, markerTypeCode);
+            
+            const codeInputEl = item.querySelector('.ms-marker-type-code-input');
+            const nameInputEl = item.querySelector('.ms-marker-type-name-input');
+            
+            resizeInput(codeInputEl);
+            codeInputEl.addEventListener('input', () => resizeInput(codeInputEl));
+            codeInputEl.addEventListener('focus', () => resizeInput(codeInputEl));
+            codeInputEl.addEventListener('blur', () => resizeInput(codeInputEl));
+            
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('input, .pcr-app, .ms-color-picker-wrapper, .ms-delete-marker-type-btn, .ms-design-reference-square')) return;
+                e.preventDefault();
+                appState.activeMarkerType = markerTypeCode;
+                updateFilterCheckboxes();
+            });
 
-        // Double-click to select all dots of this marker type on current page
-        item.addEventListener('dblclick', (e) => {
-            if (e.target.closest('input, .pcr-app, .ms-color-picker-wrapper, .ms-delete-marker-type-btn, .ms-design-reference-square')) return;
-            e.preventDefault();
-            e.stopPropagation();
-            selectAllDotsOfMarkerType(markerTypeCode);
-        });
+            // Double-click to select all dots of this marker type on current page
+            item.addEventListener('dblclick', (e) => {
+                if (e.target.closest('input, .pcr-app, .ms-color-picker-wrapper, .ms-delete-marker-type-btn, .ms-design-reference-square')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                selectAllDotsOfMarkerType(markerTypeCode);
+            });
 
-        item.querySelector('input[type="checkbox"]').addEventListener('change', applyFilters);
-        codeInputEl.addEventListener('change', (e) => handleMarkerTypeCodeChange(e.target));
-        nameInputEl.addEventListener('change', (e) => handleMarkerTypeNameChange(e.target));
-        item.querySelector('.ms-delete-marker-type-btn').addEventListener('click', () => deleteMarkerType(markerTypeCode));
-        
-        initializeColorPickers(item, markerTypeCode, typeData);
+            item.querySelector('input[type="checkbox"]').addEventListener('change', applyFilters);
+            codeInputEl.addEventListener('change', (e) => handleMarkerTypeCodeChange(e.target));
+            nameInputEl.addEventListener('change', (e) => handleMarkerTypeNameChange(e.target));
+            item.querySelector('.ms-delete-marker-type-btn').addEventListener('click', () => deleteMarkerType(markerTypeCode));
+            
+            initializeColorPickers(item, markerTypeCode, typeData);
+            
+            // Store in cache
+            markerTypeElements.set(markerTypeCode, item);
+            
+            // Insert at correct position
+            const nextSibling = container.children[index];
+            if (nextSibling) {
+                container.insertBefore(item, nextSibling);
+            } else {
+                container.appendChild(item);
+            }
+        }
     });
 
     container.scrollTop = scrollPosition;
@@ -168,6 +266,9 @@ function resizeInput(input) {
     document.body.removeChild(temp);
 }
 
+// Lazy color picker initialization
+const colorPickerInstances = new Map(); // key: markerTypeCode-colorType, value: Pickr instance
+
 function initializeColorPickers(item, markerTypeCode, typeData) {
     if (!window.Pickr) {
         console.warn('Pickr color picker library not loaded');
@@ -178,12 +279,27 @@ function initializeColorPickers(item, markerTypeCode, typeData) {
         const colorType = wrapper.dataset.colorType;
         const initialColor = (colorType === 'dot') ? typeData.color : (typeData.textColor || '#FFFFFF');
         wrapper.style.backgroundColor = initialColor;
-
-        const pickr = Pickr.create({
-            el: wrapper, 
-            theme: 'classic', 
-            useAsButton: true, 
-            default: initialColor,
+        
+        // Add click handler for lazy initialization
+        wrapper.addEventListener('click', function lazyInitHandler(e) {
+            e.stopPropagation();
+            
+            const pickrKey = markerTypeCode + '-' + colorType;
+            
+            // Check if already initialized
+            if (colorPickerInstances.has(pickrKey)) {
+                return;
+            }
+            
+            // Remove the lazy init handler
+            wrapper.removeEventListener('click', lazyInitHandler);
+            
+            // Create the color picker
+            const pickr = Pickr.create({
+                el: wrapper, 
+                theme: 'classic', 
+                useAsButton: true, 
+                default: initialColor,
             components: { 
                 preview: true, 
                 opacity: false, 
@@ -375,27 +491,34 @@ function initializeColorPickers(item, markerTypeCode, typeData) {
             });
         });
 
-        pickr.on('change', (color) => { 
-            wrapper.style.backgroundColor = color.toHEXA().toString(); 
-        });
-        
-        pickr.on('save', (color) => {
-            const newColor = color.toHEXA().toString();
-            if (colorType === 'dot') { 
-                appState.markerTypes[markerTypeCode].color = newColor; 
-            } else { 
-                appState.markerTypes[markerTypeCode].textColor = newColor; 
-            }
-            wrapper.style.backgroundColor = newColor;
-            setDirtyState();
-            updateAllSectionsForCurrentPage();
-            renderDotsForCurrentPage();
-            pickr.hide();
-        });
-        
-        pickr.on('hide', () => {
-            const currentColor = (colorType === 'dot') ? appState.markerTypes[markerTypeCode].color : (appState.markerTypes[markerTypeCode].textColor || '#FFFFFF');
-            wrapper.style.backgroundColor = currentColor;
+            pickr.on('change', (color) => { 
+                wrapper.style.backgroundColor = color.toHEXA().toString(); 
+            });
+            
+            pickr.on('save', (color) => {
+                const newColor = color.toHEXA().toString();
+                if (colorType === 'dot') { 
+                    appState.markerTypes[markerTypeCode].color = newColor; 
+                } else { 
+                    appState.markerTypes[markerTypeCode].textColor = newColor; 
+                }
+                wrapper.style.backgroundColor = newColor;
+                setDirtyState();
+                updateAllSectionsForCurrentPage();
+                renderDotsForCurrentPage();
+                pickr.hide();
+            });
+            
+            pickr.on('hide', () => {
+                const currentColor = (colorType === 'dot') ? appState.markerTypes[markerTypeCode].color : (appState.markerTypes[markerTypeCode].textColor || '#FFFFFF');
+                wrapper.style.backgroundColor = currentColor;
+            });
+            
+            // Store the instance
+            colorPickerInstances.set(pickrKey, pickr);
+            
+            // Show the picker immediately
+            pickr.show();
         });
     });
 }
@@ -1175,6 +1298,8 @@ function handleMapClick(e) {
                 // Execute the add command
                 const command = new AddDotCommand(appState.currentPdfPage, dot);
                 CommandUndoManager.execute(command).then(() => {
+                    // Invalidate cache when dot is added
+                    invalidateDotCountCache();
                     // Update the UI after command executes
                     updateSingleDot(dot.internalId);
                     updateLocationList(); // Use full list update for consistency
@@ -1863,6 +1988,8 @@ function addDot(x, y, markerTypeCode, message, isCodeRequired = false) {
     // Execute the add command
     const command = new AddDotCommand(appState.currentPdfPage, dot);
     CommandUndoManager.execute(command).then(() => {
+        // Invalidate cache when dot is added
+        invalidateDotCountCache();
         // Update the UI after command executes
         updateSingleDot(dot.internalId);
         updateLocationList(); // Use full list update for consistency
@@ -2941,6 +3068,9 @@ async function deleteDot() {
     // Create and execute delete command
     const command = new DeleteDotCommand(appState.currentPdfPage, dot);
     await CommandUndoManager.execute(command);
+    
+    // Invalidate cache when dot is deleted
+    invalidateDotCountCache();
     
     setDirtyState();
     renderDotsForCurrentPage();
