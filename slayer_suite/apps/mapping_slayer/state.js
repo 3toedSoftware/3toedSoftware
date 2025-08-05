@@ -1,10 +1,10 @@
 // state.js - Mapping Slayer state management for unified framework
 
 import { UndoManager } from './undo-manager.js';
+import { CommandUndoManager } from './command-undo.js';
+import { appBridge } from '../../core/index.js';
 
-export const DEFAULT_MARKER_TYPES = [
-    { code: 'NEW', name: 'Marker Type Name', color: '#F72020', textColor: '#FFFFFF' },
-];
+export const DEFAULT_MARKER_TYPES = [];
 
 export const appState = {
     isDirty: false,
@@ -16,10 +16,13 @@ export const appState = {
     isPanning: false, 
     dragTarget: null,
     dragStart: { x: 0, y: 0 },
+    dragOriginalPositions: new Map(), // Stores original positions before dragging
     hasMoved: false,
     messagesVisible: false,
     messages2Visible: false,
     locationsVisible: true,
+    codeFilterMode: 'showCode', // 'codeOnly', 'hideCode', 'showCode'
+    instFilterMode: 'showInst', // 'instOnly', 'hideInst', 'showInst'
     searchResults: [],
     currentSearchIndex: -1,
     replaceText: '',
@@ -28,6 +31,7 @@ export const appState = {
     pdfRenderTask: null,
     pdfDoc: null,
     sourcePdfBuffer: null, 
+    sourcePdfName: null,
     currentPdfPage: 1,
     totalPages: 1,
     pdfScale: 4.0, 
@@ -53,13 +57,26 @@ export const appState = {
     automapExactPhrase: true,
     copiedDot: null,
     lastMousePosition: { x: 0, y: 0 },
-    scrapeHorizontalTolerance: 1,
+    scrapeHorizontalTolerance: 10,
     scrapeVerticalTolerance: 25,
     pageLabels: new Map(), // Maps pageNum → label string
+    annotationLines: new Map(), // Maps pageNum → Map of line objects
+    selectedAnnotationLines: new Set(), // Track selected annotation line IDs
+    isDrawingAnnotation: false,
+    annotationStartDot: null,
+    annotationTempLine: null,
+    draggingAnnotationEndpoint: null,
+    draggingAnnotationOriginalPos: null,
+    showAnnotationEndpoints: true,
+    nextAnnotationId: 1
 };
 
 export function setDirtyState() {
     appState.isDirty = true;
+    // Broadcast to save manager
+    if (appBridge) {
+        appBridge.broadcast('project:dirty');
+    }
 }
 
 export function getCurrentPageData() {
@@ -79,6 +96,17 @@ export function getDotsForPage(pageNum) {
 
 export function getCurrentPageDots() { 
     return getDotsForPage(appState.currentPdfPage); 
+}
+
+export function getAnnotationLinesForPage(pageNum) {
+    if (!appState.annotationLines.has(pageNum)) {
+        appState.annotationLines.set(pageNum, new Map());
+    }
+    return appState.annotationLines.get(pageNum);
+}
+
+export function getCurrentPageAnnotationLines() {
+    return getAnnotationLinesForPage(appState.currentPdfPage);
 }
 
 export function serializeDotsByPage(dotsByPageMap) {
@@ -112,40 +140,10 @@ export function deserializeDotsByPage(serializedObj) {
     return dotsByPageMap;
 }
 
-// Initialize UndoManager with callbacks
-export function initializeUndoManager() {
-    UndoManager.init(
-        // getStateSnapshot
-        () => {
-            return {
-                dotsByPage: serializeDotsByPage(appState.dotsByPage),
-                currentPdfPage: appState.currentPdfPage
-            };
-        },
-        // restoreState
-        async (snapshot) => {
-            appState.dotsByPage = deserializeDotsByPage(snapshot.dotsByPage);
-            appState.currentPdfPage = snapshot.currentPdfPage;
-            
-            // Update UI after restore using dynamic imports to avoid circular dependencies
-            try {
-                const { renderDotsForCurrentPage } = await import('./map-controller.js');
-                const { updateAllSectionsForCurrentPage, updatePageInfo } = await import('./ui.js');
-                
-                renderDotsForCurrentPage();
-                updateAllSectionsForCurrentPage();
-                updatePageInfo();
-            } catch (e) {
-                console.warn('UI update functions not available during restore');
-            }
-        },
-        // updateUI
-        () => {
-            // This will be called when undo/redo state changes
-            // We can add UI updates here if needed (like enabling/disabling buttons)
-        }
-    );
-}
+// DEPRECATED - Using CommandUndoManager instead
+// export function initializeUndoManager() {
+//     // This function is no longer used - keeping for reference only
+// }
 
 // Re-export UndoManager for convenience
-export { UndoManager };
+export { UndoManager, CommandUndoManager };

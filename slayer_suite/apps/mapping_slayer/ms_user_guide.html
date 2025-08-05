@@ -96,18 +96,18 @@
             color: #721c24;
         }
         
-        .beta-notice {
-            background: #e7f3ff;
-            border: 2px solid #0066cc;
-            border-radius: 8px;
+        .new-feature {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
             padding: 15px;
             margin: 15px 0;
         }
         
-        .beta-notice::before {
-            content: "🧪 BETA FEATURE: ";
+        .new-feature::before {
+            content: "✨ NEW: ";
             font-weight: bold;
-            color: #0066cc;
+            color: #155724;
         }
         
         .keyboard-shortcut {
@@ -229,7 +229,7 @@
     <div class="header">
         <div class="logo">MAPPING SLAYER</div>
         <div class="subtitle">Complete User Guide v5.0</div>
-        <div class="version">Comprehensive guide for AI-assisted learning<br>Updated for current feature set</div>
+        <div class="version">Professional PDF Annotation Tool<br>Updated December 2024</div>
     </div>
 
     <div class="toc">
@@ -237,7 +237,7 @@
         <ul>
             <li><a href="#getting-started">1. Getting Started</a></li>
             <li><a href="#interface-overview">2. Interface Overview</a></li>
-            <li><a href="#sign-types">3. Sign Types & Categories</a></li>
+            <li><a href="#marker-types">3. Marker Types & Categories</a></li>
             <li><a href="#adding-locations">4. Adding Location Dots</a></li>
             <li><a href="#automap-features">5. Automap & Text Recognition</a></li>
             <li><a href="#scraping-text">6. Text Scraping & OCR</a></li>
@@ -248,14 +248,14 @@
             <li><a href="#keyboard-shortcuts">11. Keyboard Shortcuts</a></li>
             <li><a href="#troubleshooting">12. Troubleshooting</a></li>
             <li><a href="#best-practices">13. Best Practices</a></li>
-            <li><a href="#technical-details">14. Technical Details</a></li>
+            <li><a href="#updates">14. Recent Updates & Changes</a></li>
         </ul>
     </div>
 
     <h1 id="getting-started">1. Getting Started</h1>
 
     <h2>What is Mapping Slayer?</h2>
-    <p>Mapping Slayer is a web-based PDF annotation tool designed for creating interactive location maps. It allows users to place numbered dots on architectural drawings, floor plans, or site maps while storing detailed information about each location. The tool is particularly valuable for construction projects, facility management, signage installation, and compliance documentation.</p>
+    <p>Mapping Slayer is a professional web-based PDF annotation tool designed for creating interactive location maps. It allows users to place numbered dots on architectural drawings, floor plans, or site maps while storing detailed information about each location. The tool is particularly valuable for construction projects, facility management, signage installation, and compliance documentation.</p>
 
     <h2>System Requirements</h2>
     <div class="feature-box">
@@ -289,7 +289,7 @@
     </div>
 
     <div class="tip">
-        Enable tooltips during your first session by clicking "TOOL TIPS" in the top-left corner. They provide contextual help for every interface element.
+        Enable tooltips during your first session by clicking "HELP" and then "TOOL TIPS" in the control modal. They provide contextual help for every interface element. When tooltips are enabled, the button turns orange.
     </div>
 
     <h2>Supported File Formats</h2>
@@ -365,11 +365,11 @@
 
     <h3>Left Panel - Project Management</h3>
     <div class="feature-box">
-        <h4>Sign Types Section (Top)</h4>
+        <h4>Marker Types Section (Top)</h4>
         <ul>
-            <li><strong>Section Header:</strong> "SIGN TYPES" with add button [+]</li>
+            <li><strong>Section Header:</strong> "MARKER TYPES" with add button [+]</li>
             <li><strong>Type List:</strong> All available marker categories</li>
-            <li><strong>Active Selection:</strong> Currently selected type (highlighted)</li>
+            <li><strong>Active Selection:</strong> Currently selected type (highlighted in orange)</li>
             <li><strong>Configuration:</strong> Code, name, colors, and reference images</li>
             <li><strong>Controls:</strong> Color pickers and delete buttons</li>
         </ul>
@@ -390,12 +390,13 @@
             <li><strong>PDF Viewer:</strong> Interactive document display</li>
             <li><strong>Location Dots:</strong> Visual markers on the map</li>
             <li><strong>Upload Area:</strong> Drag-and-drop file loading zone</li>
+            <li><strong>Cursor Behavior:</strong> Default arrow cursor over map, hand cursor over dots, grabbing cursor when dragging</li>
         </ul>
         
         <h4>Overlay Controls (Top-Left)</h4>
         <ul>
-            <li><strong>HELP:</strong> Open controls reference</li>
-            <li><strong>SHOW MSG:</strong> Toggle location messages</li>
+            <li><strong>HELP:</strong> Open controls reference and access tooltips</li>
+            <li><strong>SHOW MSG1:</strong> Toggle primary location messages</li>
             <li><strong>SHOW MSG2:</strong> Toggle secondary messages</li>
             <li><strong>SHOW LOC:</strong> Toggle location numbers</li>
             <li><strong>RENUMBER:</strong> Automatic location numbering</li>
@@ -403,8 +404,8 @@
         
         <h4>Legends (Top-Right)</h4>
         <ul>
-            <li><strong>Project Legend:</strong> All sign types across entire project</li>
-            <li><strong>Page Legend:</strong> Active sign types on current page</li>
+            <li><strong>Project Legend:</strong> All marker types across entire project</li>
+            <li><strong>Page Legend:</strong> Active marker types on current page</li>
             <li><strong>Collapse Controls:</strong> Minimize legends for more space</li>
         </ul>
         
@@ -417,9 +418,9 @@
         
         <h4>Scrape Controls (Bottom-Left)</h4>
         <ul>
-            <li><strong>H Tolerance:</strong> Horizontal text grouping distance</li>
-            <li><strong>V Tolerance:</strong> Vertical text grouping distance</li>
-            <li><strong>DOT SIZE Slider:</strong> Adjust marker size</li>
+            <li><strong>H Tolerance:</strong> Horizontal text grouping distance (pixels)</li>
+            <li><strong>V Tolerance:</strong> Vertical text grouping distance (pixels)</li>
+            <li><strong>DOT SIZE Slider:</strong> Adjust marker size (0.5 to 3.0)</li>
         </ul>
     </div>
 
@@ -427,7 +428,7 @@
     <div class="feature-box">
         <h4>Left Side - Automap</h4>
         <ul>
-            <li><strong>Sign Type Selector:</strong> Choose type for auto-placed dots</li>
+            <li><strong>Marker Type Selector:</strong> Choose type for auto-placed dots</li>
             <li><strong>Text Input:</strong> Search term for automatic placement</li>
             <li><strong>Exact Phrase Checkbox:</strong> Search mode selection</li>
             <li><strong>AUTOMAP IT! Button:</strong> Execute automatic mapping</li>
@@ -477,13 +478,13 @@
         </tr>
     </table>
 
-    <h1 id="sign-types">3. Sign Types & Categories</h1>
+    <h1 id="marker-types">3. Marker Types & Categories</h1>
 
-    <h2>Understanding Sign Types</h2>
-    <p>Sign types are the foundation of project organization in Mapping Slayer. They define categories of locations and determine how dots appear visually. Every location dot must belong to a sign type, which controls its color, appearance, and grouping in reports and exports.</p>
+    <h2>Understanding Marker Types</h2>
+    <p>Marker types (previously called sign types) are the foundation of project organization in Mapping Slayer. They define categories of locations and determine how dots appear visually. Every location dot must belong to a marker type, which controls its color, appearance, and grouping in reports and exports.</p>
 
     <div class="feature-box">
-        <h3>Sign Type Components</h3>
+        <h3>Marker Type Components</h3>
         <ul>
             <li><strong>Code:</strong> Short identifier (2-6 characters recommended)</li>
             <li><strong>Name:</strong> Full descriptive title</li>
@@ -493,16 +494,20 @@
         </ul>
     </div>
 
-    <h2>Creating and Managing Sign Types</h2>
+    <h2>Creating and Managing Marker Types</h2>
     <div class="step-list">
         <ol>
-            <li><strong>Add New Type:</strong> Click the [+] button in the Sign Types section</li>
+            <li><strong>Add New Type:</strong> Click the [+] button in the Marker Types section</li>
             <li><strong>Edit Code:</strong> Click the "NEW" code field and enter a short identifier</li>
             <li><strong>Set Name:</strong> Click the name field and enter a descriptive title</li>
             <li><strong>Choose Colors:</strong> Click the colored squares to open color pickers</li>
             <li><strong>Upload Reference (Optional):</strong> Click the [+] square to add installation images</li>
-            <li><strong>Activate Type:</strong> Click anywhere on the sign type row to select it</li>
+            <li><strong>Activate Type:</strong> Click anywhere on the marker type row to select it</li>
         </ol>
+    </div>
+
+    <div class="new-feature">
+        Newly created marker types are now automatically selected as the active type, saving you a click in your workflow.
     </div>
 
     <h3>Code Naming Best Practices</h3>
@@ -543,7 +548,7 @@
 
     <div class="step-list">
         <ol>
-            <li><strong>Click Upload Square:</strong> Click the [+] square next to any sign type</li>
+            <li><strong>Click Upload Square:</strong> Click the [+] square next to any marker type</li>
             <li><strong>Select Image:</strong> Choose a JPEG or PNG file from your computer</li>
             <li><strong>Automatic Processing:</strong> Image is resized and optimized automatically</li>
             <li><strong>Preview:</strong> Hover over the square to see a full-size preview</li>
@@ -567,7 +572,7 @@
         <ul>
             <li><strong>High Contrast:</strong> Choose colors that stand out against your PDF background</li>
             <li><strong>Industry Standards:</strong> Red for safety, blue for information, green for emergency</li>
-            <li><strong>Distinction:</strong> Ensure sign types are easily distinguishable</li>
+            <li><strong>Distinction:</strong> Ensure marker types are easily distinguishable</li>
             <li><strong>Printing:</strong> Consider how colors will appear when printed</li>
         </ul>
         
@@ -579,9 +584,9 @@
         </ul>
     </div>
 
-    <h2>Advanced Sign Type Management</h2>
+    <h2>Advanced Marker Type Management</h2>
     <div class="warning">
-        Deleting a sign type removes ALL locations of that type from your entire project. This action cannot be undone through the undo system.
+        Deleting a marker type removes ALL locations of that type from your entire project. This action cannot be undone through the undo system.
     </div>
 
     <h3>Editing Existing Types</h3>
@@ -593,9 +598,9 @@
     </ul>
 
     <h3>Active Type Selection</h3>
-    <p>The active sign type (highlighted in orange) determines what type of dot will be created when you click on the map. You can change the active type by:</p>
+    <p>The active marker type (highlighted in orange) determines what type of dot will be created when you click on the map. You can change the active type by:</p>
     <ul>
-        <li>Clicking on any sign type in the left panel</li>
+        <li>Clicking on any marker type in the left panel</li>
         <li>Using the Up/Down arrow keys (when not typing)</li>
         <li>Selecting it from the Automap dropdown</li>
     </ul>
@@ -607,7 +612,7 @@
 
     <div class="step-list">
         <ol>
-            <li><strong>Select Sign Type:</strong> Choose the appropriate category from the left panel</li>
+            <li><strong>Select Marker Type:</strong> Choose the appropriate category from the left panel</li>
             <li><strong>Position Cursor:</strong> Move your mouse to the desired location on the PDF</li>
             <li><strong>Click to Place:</strong> Single left-click to create a new location dot</li>
             <li><strong>Automatic Numbering:</strong> The dot receives the next sequential number</li>
@@ -621,14 +626,14 @@
         <ul>
             <li><strong>Internal ID:</strong> Unique system identifier (7 digits, zero-padded)</li>
             <li><strong>Location Number:</strong> User-visible identifier (4 digits, zero-padded)</li>
-            <li><strong>Sign Type:</strong> Category determining color and purpose</li>
+            <li><strong>Marker Type:</strong> Category determining color and purpose</li>
             <li><strong>X,Y Position:</strong> Exact coordinates on the page</li>
             <li><strong>Page Number:</strong> Which PDF page contains this location</li>
         </ul>
         
         <h3>Content Properties</h3>
         <ul>
-            <li><strong>Message:</strong> Primary description text</li>
+            <li><strong>Message 1:</strong> Primary description text</li>
             <li><strong>Message 2:</strong> Secondary description text</li>
             <li><strong>Notes:</strong> Detailed installation or reference information</li>
         </ul>
@@ -659,9 +664,9 @@
             <td>Small blue square with white "V" below dot</td>
         </tr>
         <tr>
-            <td>Green Diagonal Line</td>
+            <td>Green Check</td>
             <td>Installed flag set</td>
-            <td>Green line crossing through the entire dot</td>
+            <td>Green checkmark in top-right corner</td>
         </tr>
         <tr>
             <td>Orange Glow</td>
@@ -693,7 +698,7 @@
     </div>
 
     <h2>Automatic Numbering System</h2>
-    <p>Location numbers are assigned automatically using a sophisticated system that maintains logical sequences across pages and sign types.</p>
+    <p>Location numbers are assigned automatically using a sophisticated system that maintains logical sequences across pages and marker types.</p>
 
     <div class="step-list">
         <ol>
@@ -749,7 +754,7 @@
     <h2>Basic Automap Operation</h2>
     <div class="step-list">
         <ol>
-            <li><strong>Select Target Sign Type:</strong> Choose the category for new dots from the dropdown</li>
+            <li><strong>Select Target Marker Type:</strong> Choose the category for new dots from the dropdown</li>
             <li><strong>Enter Search Term:</strong> Type the text you want to find in the input box</li>
             <li><strong>Choose Search Mode:</strong> Select "Exact Phrase" or uncheck for "Contains Text"</li>
             <li><strong>Execute Search:</strong> Click "AUTOMAP IT!" to start the process</li>
@@ -804,7 +809,7 @@
             <li><strong>Horizontal Tolerance:</strong> Maximum distance to group text left-to-right</li>
             <li><strong>Vertical Tolerance:</strong> Maximum distance to group text top-to-bottom</li>
             <li><strong>Automatic Optimization:</strong> System calculates best grouping distances</li>
-            <li><strong>Manual Adjustment:</strong> H and V values can be fine-tuned using scrape training</li>
+            <li><strong>Manual Adjustment:</strong> H and V values can be fine-tuned in the scrape controls</li>
         </ul>
     </div>
 
@@ -894,12 +899,40 @@
     <h2>Understanding Text Scraping</h2>
     <p>Text scraping allows you to manually select areas of the PDF and extract text content for automatic dot placement. This feature bridges the gap between manual placement and automap, giving you precise control over which text gets captured while still automating the extraction process.</p>
 
+    <h2>H and V Tolerance Controls</h2>
+    <p>The H (Horizontal) and V (Vertical) tolerance controls in the bottom-left of the interface are crucial for controlling how text is grouped during scraping operations. These values determine how the system decides whether text elements belong together or should be treated as separate locations.</p>
+
+    <div class="feature-box">
+        <h3>Understanding Tolerance Values</h3>
+        <ul>
+            <li><strong>H Tolerance (Horizontal):</strong> Controls how far apart text can be horizontally and still be grouped together. Default: 1.0 pixels</li>
+            <li><strong>V Tolerance (Vertical):</strong> Controls how far apart text can be vertically and still be grouped together. Default: 25.0 pixels</li>
+            <li><strong>Units:</strong> Both values are measured in pixels at the current zoom level</li>
+            <li><strong>Impact:</strong> Lower values create more separate dots, higher values group more text together</li>
+        </ul>
+    </div>
+
+    <h3>Adjusting Tolerance Values</h3>
+    <div class="step-list">
+        <ol>
+            <li><strong>Locate Controls:</strong> Find the H and V input boxes in the bottom-left corner</li>
+            <li><strong>Current Values:</strong> The boxes show the current tolerance settings</li>
+            <li><strong>Manual Entry:</strong> Click in either box and type a new value</li>
+            <li><strong>Apply Changes:</strong> Press Enter or click outside the box to apply</li>
+            <li><strong>Test Results:</strong> Perform a scrape to see how the new values affect grouping</li>
+        </ol>
+    </div>
+
+    <div class="tip">
+        For room numbers on floor plans, try H=50 and V=10 to group multi-line room descriptions while keeping adjacent rooms separate. For equipment lists, use H=200 and V=5 to capture full descriptions in single dots.
+    </div>
+
     <h2>Basic Text Scraping (Live Text)</h2>
     <p>Use this method for PDFs with selectable text when you want more control than automap provides.</p>
 
     <div class="step-list">
         <ol>
-            <li><strong>Select Active Sign Type:</strong> Choose the category for new dots</li>
+            <li><strong>Select Active Marker Type:</strong> Choose the category for new dots</li>
             <li><strong>Position Cursor:</strong> Move mouse to one corner of the text area</li>
             <li><strong>Begin Selection:</strong> Hold Shift + Right-click and drag</li>
             <li><strong>Draw Selection Box:</strong> Drag to encompass the text you want to capture</li>
@@ -909,7 +942,7 @@
     </div>
 
     <div class="tip">
-        The green selection box indicates normal text scraping mode. Make sure to encompass all related text in your selection for best grouping results.
+        The green selection box indicates normal text scraping mode. Make sure to encompass all related text in your selection for best grouping results based on your H and V tolerance settings.
     </div>
 
     <h2>OCR Scraping (Image Text)</h2>
@@ -917,7 +950,7 @@
 
     <div class="step-list">
         <ol>
-            <li><strong>Select Active Sign Type:</strong> Choose appropriate category</li>
+            <li><strong>Select Active Marker Type:</strong> Choose appropriate category</li>
             <li><strong>Position for OCR Area:</strong> Identify text within images or scans</li>
             <li><strong>OCR Selection:</strong> Hold Ctrl + Shift + Right-click and drag</li>
             <li><strong>Draw Purple Box:</strong> Purple selection box indicates OCR mode</li>
@@ -934,43 +967,65 @@
     <p>Both scraping methods use intelligent text clustering to group related text elements into logical location dots. Understanding this system helps you get better results.</p>
 
     <div class="feature-box">
-        <h3>Clustering Algorithm</h3>
+        <h3>How Clustering Works</h3>
         <ul>
+            <li><strong>Line Detection:</strong> System first identifies horizontal lines of text</li>
             <li><strong>Horizontal Grouping:</strong> Text within H tolerance pixels is grouped left-to-right</li>
-            <li><strong>Vertical Grouping:</strong> Text within V tolerance pixels is grouped top-to-bottom</li>
-            <li><strong>Line Detection:</strong> System identifies text lines before grouping</li>
-            <li><strong>Spatial Analysis:</strong> Considers text size and spacing in grouping decisions</li>
+            <li><strong>Vertical Grouping:</strong> Lines within V tolerance pixels are merged into clusters</li>
+            <li><strong>Spatial Analysis:</strong> Final clusters become individual location dots</li>
         </ul>
         
-        <h3>Default Tolerance Values</h3>
-        <ul>
-            <li><strong>H (Horizontal):</strong> 1.0 pixels - groups text horizontally</li>
-            <li><strong>V (Vertical):</strong> 25.0 pixels - groups text vertically</li>
-            <li><strong>Adaptive:</strong> Values can be adjusted through training process</li>
-        </ul>
+        <h3>Common Tolerance Settings</h3>
+        <table>
+            <tr>
+                <th>Document Type</th>
+                <th>H Value</th>
+                <th>V Value</th>
+                <th>Result</th>
+            </tr>
+            <tr>
+                <td>Dense Floor Plans</td>
+                <td>20-50</td>
+                <td>5-15</td>
+                <td>Tight grouping, separate rooms</td>
+            </tr>
+            <tr>
+                <td>Equipment Lists</td>
+                <td>100-200</td>
+                <td>5-10</td>
+                <td>Full descriptions captured</td>
+            </tr>
+            <tr>
+                <td>Signage Schedules</td>
+                <td>50-100</td>
+                <td>20-40</td>
+                <td>Multi-line signs grouped</td>
+            </tr>
+            <tr>
+                <td>Scattered Labels</td>
+                <td>5-20</td>
+                <td>5-20</td>
+                <td>Individual items isolated</td>
+            </tr>
+        </table>
     </div>
 
-    <h2>Training the Scraper</h2>
-    <p>For complex documents with inconsistent text layouts, train the scraper to understand optimal grouping distances for your specific PDF.</p>
-
-    <div class="step-list">
-        <ol>
-            <li><strong>Enter Training Mode:</strong> Click "TRAIN SCRAPE" button (turns green)</li>
-            <li><strong>Select Training Area:</strong> Shift + Right-drag a large box around representative text</li>
-            <li><strong>Mark Text Groups:</strong> Draw smaller boxes around 5+ individual text elements</li>
-            <li><strong>Analyze Patterns:</strong> System calculates optimal H and V values</li>
-            <li><strong>Accept Training:</strong> Click "ACCEPT!" when ready (need minimum 5 samples)</li>
-            <li><strong>Apply Settings:</strong> New H and V values shown in green, applied to future scraping</li>
-        </ol>
-    </div>
-
-    <h3>Training Best Practices</h3>
+    <h2>Optimizing Scraping Performance</h2>
     <div class="feature-box">
+        <h3>Selection Techniques</h3>
         <ul>
-            <li><strong>Representative Area:</strong> Choose the most complex or typical section of your document</li>
-            <li><strong>Diverse Samples:</strong> Include different text sizes and layouts in your training</li>
-            <li><strong>Consistent Grouping:</strong> Be consistent about what constitutes a single "location"</li>
-            <li><strong>Multiple Attempts:</strong> Re-train if initial results aren't satisfactory</li>
+            <li><strong>Precise Boundaries:</strong> Draw selection boxes tightly around target text</li>
+            <li><strong>Avoid Overlap:</strong> Don't include irrelevant text or graphics</li>
+            <li><strong>Complete Capture:</strong> Ensure all related text is within selection</li>
+            <li><strong>Consistent Size:</strong> Use similar selection sizes for similar content</li>
+        </ul>
+        
+        <h3>Performance Optimization</h3>
+        <ul>
+            <li><strong>Batch Processing:</strong> Scrape multiple related areas in sequence</li>
+            <li><strong>Page-by-Page:</strong> Process one page completely before moving to next</li>
+            <li><strong>Clear Cache:</strong> Refresh browser if performance degrades</li>
+            <li><strong>Adequate Zoom:</strong> Zoom in enough to see text clearly but not excessively</li>
         </ul>
     </div>
 
@@ -999,28 +1054,9 @@
         <tr>
             <td>Collision Detected</td>
             <td>Optimal placement conflicts with existing dot</td>
-            <td>Error message, alternative placement attempted</td>
+            <td>Error message, location skipped</td>
         </tr>
     </table>
-
-    <h2>Optimizing Scraping Performance</h2>
-    <div class="feature-box">
-        <h3>Selection Techniques</h3>
-        <ul>
-            <li><strong>Precise Boundaries:</strong> Draw selection boxes tightly around target text</li>
-            <li><strong>Avoid Overlap:</strong> Don't include irrelevant text or graphics</li>
-            <li><strong>Complete Capture:</strong> Ensure all related text is within selection</li>
-            <li><strong>Consistent Size:</strong> Use similar selection sizes for similar content</li>
-        </ul>
-        
-        <h3>Performance Optimization</h3>
-        <ul>
-            <li><strong>Batch Processing:</strong> Scrape multiple related areas in sequence</li>
-            <li><strong>Page-by-Page:</strong> Process one page completely before moving to next</li>
-            <li><strong>Clear Cache:</strong> Refresh browser if performance degrades</li>
-            <li><strong>Adequate Zoom:</strong> Zoom in enough to see text clearly but not excessively</li>
-        </ul>
-    </div>
 
     <h2>Troubleshooting Scraping Issues</h2>
     <div class="feature-box">
@@ -1034,10 +1070,10 @@
         
         <h3>Incorrect Grouping</h3>
         <ul>
-            <li><strong>Adjust Tolerances:</strong> Use training mode to optimize H and V values</li>
-            <li><strong>Smaller Selections:</strong> Make more precise selection boxes</li>
-            <li><strong>Manual Splitting:</strong> Use multiple smaller scrapes instead of one large one</li>
-            <li><strong>Post-Processing:</strong> Edit resulting dots manually if needed</li>
+            <li><strong>Adjust H Value:</strong> Increase to group more horizontally, decrease to separate</li>
+            <li><strong>Adjust V Value:</strong> Increase to group more vertically, decrease to separate</li>
+            <li><strong>Test Settings:</strong> Try different values on a sample area first</li>
+            <li><strong>Manual Splitting:</strong> Use multiple smaller scrapes for better control</li>
         </ul>
     </div>
 
@@ -1065,7 +1101,7 @@
             <th>Validation</th>
         </tr>
         <tr>
-            <td>Sign Type</td>
+            <td>Marker Type</td>
             <td>Change category and visual appearance</td>
             <td>Must select from existing types</td>
         </tr>
@@ -1075,7 +1111,7 @@
             <td>Must be unique on current page</td>
         </tr>
         <tr>
-            <td>Message</td>
+            <td>Message 1</td>
             <td>Primary description text</td>
             <td>No restrictions</td>
         </tr>
@@ -1127,7 +1163,7 @@
         <ul>
             <li><strong>Selective Updates:</strong> Choose which fields to update (leave others unchanged)</li>
             <li><strong>Checkbox States:</strong> Three-state checkboxes show mixed values</li>
-            <li><strong>Bulk Operations:</strong> Change sign types, messages, or status flags</li>
+            <li><strong>Bulk Operations:</strong> Change marker types, messages, or status flags</li>
             <li><strong>Mass Deletion:</strong> Delete all selected locations with confirmation</li>
         </ul>
     </div>
@@ -1161,6 +1197,7 @@
         <h3>Single Location Movement</h3>
         <ul>
             <li><strong>Click and Drag:</strong> Simply click and drag any dot to new position</li>
+            <li><strong>Cursor Feedback:</strong> Grab cursor when hovering, grabbing cursor when dragging</li>
             <li><strong>Precision:</strong> Movement is pixel-precise</li>
             <li><strong>Collision Prevention:</strong> Cannot move into collision with other dots</li>
             <li><strong>Visual Feedback:</strong> Dot scales slightly during drag operation</li>
@@ -1191,8 +1228,8 @@
     <div class="feature-box">
         <h3>Properties Copied</h3>
         <ul>
-            <li>Sign type and visual appearance</li>
-            <li>Message and Message 2 text</li>
+            <li>Marker type and visual appearance</li>
+            <li>Message 1 and Message 2 text</li>
             <li>Notes and detailed information</li>
             <li>All status flags (Code Required, Vinyl Backer, Installed)</li>
         </ul>
@@ -1213,7 +1250,7 @@
     <div class="feature-box">
         <ul>
             <li><strong>Flat List:</strong> All locations in sequential order</li>
-            <li><strong>Grouped by Type:</strong> Organized by sign type categories</li>
+            <li><strong>Grouped by Type:</strong> Organized by marker type categories</li>
             <li><strong>Current Page Only:</strong> Shows locations on current PDF page</li>
             <li><strong>All Pages:</strong> Shows locations across entire project</li>
         </ul>
@@ -1239,7 +1276,7 @@
             <li>Bulk operations and group edits</li>
             <li>Automap and scraping operations</li>
             <li>Page navigation and project changes</li>
-            <li>Sign type modifications</li>
+            <li>Marker type modifications</li>
         </ul>
         
         <h3>Undo System Limits</h3>
@@ -1318,7 +1355,7 @@
         <ul>
             <li><strong>Smooth Scrolling:</strong> Progressive zoom with momentum</li>
             <li><strong>Boundary Respect:</strong> Cannot pan beyond document edges</li>
-            <li><strong>Zoom Limits:</strong> 10% to 1000% zoom range</li>
+            <li><strong>Zoom Limits:</strong> 10% to 500% zoom range</li>
             <li><strong>Cursor-Centered Zoom:</strong> Zoom focuses on mouse position</li>
             <li><strong>State Persistence:</strong> Zoom level maintained across page changes</li>
         </ul>
@@ -1332,7 +1369,7 @@
         <ol>
             <li><strong>Page Counter:</strong> Shows "PAGE X OF Y" for current position</li>
             <li><strong>Navigation Buttons:</strong> [<] and [>] for sequential movement</li>
-            <li><strong>Direct Navigation:</strong> Click in page field to jump to specific page</li>
+            <li><strong>Direct Navigation:</strong> Type page number in counter field</li>
             <li><strong>Keyboard Shortcuts:</strong> Page Up/Down for quick navigation</li>
         </ol>
     </div>
@@ -1378,7 +1415,7 @@
         <ul>
             <li><strong>Current Page Only:</strong> Searches locations on currently displayed page</li>
             <li><strong>Location Numbers:</strong> Matches exact or partial location numbers</li>
-            <li><strong>Messages:</strong> Searches both Message and Message 2 fields</li>
+            <li><strong>Messages:</strong> Searches both Message 1 and Message 2 fields</li>
             <li><strong>Case Insensitive:</strong> Ignores uppercase/lowercase differences</li>
             <li><strong>Partial Matching:</strong> Finds substrings within larger text</li>
         </ul>
@@ -1407,7 +1444,7 @@
         <ul>
             <li><strong>Active Selection:</strong> Must have locations selected</li>
             <li><strong>Matching Content:</strong> Selected items must contain search term</li>
-            <li><strong>Both Message Fields:</strong> Searches and replaces in Message and Message 2</li>
+            <li><strong>Both Message Fields:</strong> Searches and replaces in Message 1 and Message 2</li>
             <li><strong>Confirmation:</strong> Shows count of affected locations before replacement</li>
         </ul>
     </div>
@@ -1440,7 +1477,7 @@
         </tr>
         <tr>
             <td>Grouped by Type</td>
-            <td>Organized by sign type categories</td>
+            <td>Organized by marker type categories</td>
             <td>Type-based workflows, large projects</td>
         </tr>
         <tr>
@@ -1483,9 +1520,9 @@
 
     <div class="feature-box">
         <ul>
-            <li><strong>Expandable Groups:</strong> Click to expand/collapse sign type groups</li>
+            <li><strong>Expandable Groups:</strong> Click to expand/collapse marker type groups</li>
             <li><strong>Group Counters:</strong> Shows number of locations per type</li>
-            <li><strong>Color Coding:</strong> Group headers use sign type colors</li>
+            <li><strong>Color Coding:</strong> Group headers use marker type colors</li>
             <li><strong>Hierarchical Navigation:</strong> Two-level organization structure</li>
         </ul>
     </div>
@@ -1500,7 +1537,7 @@
         <ul>
             <li><strong>Complete PDF:</strong> The entire original document</li>
             <li><strong>All Location Data:</strong> Dots, messages, notes, and properties</li>
-            <li><strong>Sign Types:</strong> Custom categories, colors, and reference images</li>
+            <li><strong>Marker Types:</strong> Custom categories, colors, and reference images</li>
             <li><strong>Project Settings:</strong> Page labels, tolerances, and preferences</li>
             <li><strong>Metadata:</strong> Creation date, version info, and project name</li>
         </ul>
@@ -1563,7 +1600,7 @@
         <tr>
             <td>New PDF</td>
             <td>Creates fresh project</td>
-            <td>Default sign types, empty annotations</td>
+            <td>Default marker types, empty annotations</td>
         </tr>
         <tr>
             <td>Existing .mslay</td>
@@ -1616,7 +1653,7 @@
             <td>Sequential by position (top-to-bottom, left-to-right)</td>
         </tr>
         <tr>
-            <td>Current Page by Sign Type</td>
+            <td>Current Page by Marker Type</td>
             <td>Active page</td>
             <td>Group by type, then sequential within type</td>
         </tr>
@@ -1626,7 +1663,7 @@
             <td>Global sequential across all pages</td>
         </tr>
         <tr>
-            <td>All Pages by Sign Type</td>
+            <td>All Pages by Marker Type</td>
             <td>Entire project</td>
             <td>Group by type globally, sequential within type</td>
         </tr>
@@ -1703,12 +1740,13 @@
     <div class="feature-box">
         <h3>Detail Page Contents</h3>
         <ul>
-            <li><strong>Location Header:</strong> Large location number and sign type</li>
+            <li><strong>Location Header:</strong> Large location number and marker type</li>
             <li><strong>Message Display:</strong> Primary and secondary messages</li>
             <li><strong>Reference Image:</strong> Installation photo if available</li>
-            <li><strong>Status Checkboxes:</strong> Code Required, Vinyl Backer, Installed</li>
+            <li><strong>Status Display:</strong> Shows "Installed? YES/NO", "Code Required? YES/NO", "Vinyl Backer? YES/NO"</li>
             <li><strong>Notes Section:</strong> Detailed installation information</li>
             <li><strong>Navigation:</strong> "Back to Map" button linking to map page</li>
+            <li><strong>Marker Indicator:</strong> Colored circle showing the marker type color</li>
         </ul>
         
         <h3>Interactive Features</h3>
@@ -1718,6 +1756,10 @@
             <li><strong>Professional Layout:</strong> Clean, printable formatting</li>
             <li><strong>Reference Integration:</strong> Design images included where available</li>
         </ul>
+    </div>
+
+    <div class="new-feature">
+        PDF exports now display status flags as "Question? YES/NO" format instead of checkboxes, making the status clearer for field teams.
     </div>
 
     <h2>CSV Data Export</h2>
@@ -1742,17 +1784,17 @@
             <th>Purpose</th>
         </tr>
         <tr>
-            <td>SIGN TYPE CODE</td>
+            <td>MARKER TYPE CODE</td>
             <td>Short identifier</td>
             <td>Category reference</td>
         </tr>
         <tr>
-            <td>SIGN TYPE NAME</td>
+            <td>MARKER TYPE NAME</td>
             <td>Full category name</td>
             <td>Human-readable description</td>
         </tr>
         <tr>
-            <td>MESSAGE</td>
+            <td>MESSAGE 1</td>
             <td>Primary description</td>
             <td>Main location information</td>
         </tr>
@@ -1799,7 +1841,7 @@
     </table>
 
     <h2>CSV Import and Updates</h2>
-    <p>Import changes from external spreadsheets to update location data in bulk.</p>
+    <p>Import changes from external spreadsheets to update location data in bulk. The import process now includes automatic cleanup of locations not present in the imported CSV.</p>
 
     <h3>Import Process</h3>
     <div class="step-list">
@@ -1808,27 +1850,34 @@
             <li><strong>Edit Externally:</strong> Make changes in Excel, Google Sheets, etc.</li>
             <li><strong>Save as CSV:</strong> Ensure file is saved in CSV format</li>
             <li><strong>Import Changes:</strong> Use "UPDATE FROM MESSAGE SCHEDULE" button</li>
-            <li><strong>Review Results:</strong> Check import summary and error log</li>
+            <li><strong>Review Warning:</strong> If locations will be deleted, confirm the operation</li>
+            <li><strong>Check Results:</strong> Review import summary and deletion log if applicable</li>
         </ol>
+    </div>
+
+    <div class="new-feature">
+        CSV imports now automatically remove locations from the map that are not present in the imported CSV file. This ensures your map stays synchronized with your message schedule. A warning dialog appears if any deletions will occur, and a deletion log is generated for your records.
     </div>
 
     <div class="warning">
         CSV import matches locations by LOCATION NUMBER and MAP PAGE. Do not change these fields when editing externally, or the import will fail to find matching locations.
     </div>
 
-    <h3>Import Validation and Error Handling</h3>
+    <h3>Import Validation and Synchronization</h3>
     <div class="feature-box">
         <ul>
-            <li><strong>Automatic Validation:</strong> System checks for required columns</li>
+            <li><strong>Automatic Validation:</strong> System checks for required columns including MESSAGE or MESSAGE 1</li>
             <li><strong>Match Verification:</strong> Confirms location and page number matches</li>
-            <li><strong>Error Logging:</strong> Detailed log file for skipped rows</li>
+            <li><strong>Deletion Warning:</strong> Shows count of locations that will be removed</li>
+            <li><strong>Deletion Log:</strong> Creates detailed log file of removed locations</li>
             <li><strong>Partial Success:</strong> Updates successful rows, reports failures</li>
+            <li><strong>Synchronization:</strong> Map reflects exact contents of CSV after import</li>
         </ul>
     </div>
 
     <h2>Bluebeam Revu Integration (BETA)</h2>
 
-    <div class="beta-notice">
+    <div class="warning">
         The Bluebeam Revu export feature is currently in BETA testing. While functional, it may have limitations or occasional issues. User feedback is appreciated for improvement.
     </div>
 
@@ -1885,6 +1934,11 @@
             <td>(less than)</td>
             <td>XML tag prevention</td>
         </tr>
+        <tr>
+            <td>></td>
+            <td>(greater than)</td>
+            <td>XML tag prevention</td>
+        </tr>
     </table>
 
     <div class="tip">
@@ -1921,12 +1975,12 @@
             <td>When not typing in input fields</td>
         </tr>
         <tr>
-            <td>Next Sign Type</td>
+            <td>Next Marker Type</td>
             <td>Down Arrow</td>
             <td>When not typing in input fields</td>
         </tr>
         <tr>
-            <td>Previous Sign Type</td>
+            <td>Previous Marker Type</td>
             <td>Up Arrow</td>
             <td>When not typing in input fields</td>
         </tr>
@@ -1992,16 +2046,6 @@
             <td>OCR Scrape</td>
             <td>Ctrl + Shift + Right-drag</td>
             <td>OCR text recognition in selected area</td>
-        </tr>
-        <tr>
-            <td>Training Big Box</td>
-            <td>Shift + Right-drag (in training mode)</td>
-            <td>Select training area for scraper optimization</td>
-        </tr>
-        <tr>
-            <td>Training Small Box</td>
-            <td>Shift + Right-drag (after big box)</td>
-            <td>Mark individual text elements for training</td>
         </tr>
     </table>
 
@@ -2082,3 +2126,322 @@
         <ul>
             <li><strong>Shift + Multiple Clicks:</strong> Build selections across map and list</li>
             <li><strong>Escape + Action:</strong> Clear selection then perform new action</li>
+            <li><strong>Middle Mouse + Wheel:</strong> Pan and zoom simultaneously</li>
+            <li><strong>Copy + Rapid Paste:</strong> Quickly duplicate similar locations</li>
+        </ul>
+    </div>
+
+    <h1 id="troubleshooting">12. Troubleshooting</h1>
+
+    <h2>Common Issues and Solutions</h2>
+
+    <h3>Performance Problems</h3>
+    <div class="feature-box">
+        <h4>Slow Response or Lag</h4>
+        <ul>
+            <li><strong>Close Other Tabs:</strong> Free up browser memory</li>
+            <li><strong>Reduce Dot Size:</strong> Smaller dots render faster</li>
+            <li><strong>Work Page by Page:</strong> Use "Current Page Only" view mode</li>
+            <li><strong>Clear Browser Cache:</strong> Remove accumulated temporary data</li>
+            <li><strong>Save and Reload:</strong> Refresh the application state</li>
+        </ul>
+        
+        <h4>Browser Crashes</h4>
+        <ul>
+            <li><strong>Update Browser:</strong> Ensure you're using the latest version</li>
+            <li><strong>Disable Extensions:</strong> Some extensions conflict with web apps</li>
+            <li><strong>Increase Memory:</strong> Close other applications</li>
+            <li><strong>Try Chrome:</strong> Generally provides best performance</li>
+        </ul>
+    </div>
+
+    <h3>Import/Export Issues</h3>
+    <div class="feature-box">
+        <h4>CSV Import Failures</h4>
+        <ul>
+            <li><strong>Column Headers:</strong> Must match exactly - "MARKER TYPE CODE", "MESSAGE 1" or "MESSAGE", etc.</li>
+            <li><strong>Encoding:</strong> Save as UTF-8 CSV to preserve special characters</li>
+            <li><strong>Location Numbers:</strong> Must match existing locations exactly</li>
+            <li><strong>Page Numbers:</strong> Must be valid page numbers in the PDF</li>
+        </ul>
+        
+        <h4>PDF Export Problems</h4>
+        <ul>
+            <li><strong>Large Files:</strong> Export may take several minutes - be patient</li>
+            <li><strong>Memory Limits:</strong> Close other tabs for large exports</li>
+            <li><strong>Download Blocked:</strong> Check browser download settings</li>
+            <li><strong>Corrupted File:</strong> Try exporting smaller sections first</li>
+        </ul>
+    </div>
+
+    <h3>Text Recognition Issues</h3>
+    <div class="feature-box">
+        <h4>Automap Not Finding Text</h4>
+        <ul>
+            <li><strong>Check PDF Type:</strong> Ensure text is selectable, not an image</li>
+            <li><strong>Verify Spelling:</strong> Search terms must match exactly</li>
+            <li><strong>Try Contains Mode:</strong> Less restrictive than exact phrase</li>
+            <li><strong>Check Text Encoding:</strong> Some PDFs have corrupted text layers</li>
+        </ul>
+        
+        <h4>Poor Scraping Results</h4>
+        <ul>
+            <li><strong>Adjust H Value:</strong> Increase for wider text grouping</li>
+            <li><strong>Adjust V Value:</strong> Increase for taller text grouping</li>
+            <li><strong>Smaller Selections:</strong> Process text in smaller chunks</li>
+            <li><strong>OCR Quality:</strong> Ensure good contrast for OCR mode</li>
+        </ul>
+    </div>
+
+    <h3>Display and Interface Issues</h3>
+    <div class="feature-box">
+        <h4>Missing Interface Elements</h4>
+        <ul>
+            <li><strong>Zoom Level:</strong> Reset browser zoom to 100%</li>
+            <li><strong>Window Size:</strong> Ensure adequate window dimensions</li>
+            <li><strong>JavaScript:</strong> Must be enabled in browser</li>
+            <li><strong>Ad Blockers:</strong> May interfere with some features</li>
+        </ul>
+        
+        <h4>Dots Not Visible</h4>
+        <ul>
+            <li><strong>Toggle Visibility:</strong> Check SHOW LOC button state</li>
+            <li><strong>Dot Size:</strong> Increase size slider if too small</li>
+            <li><strong>Page Navigation:</strong> Ensure you're on the correct page</li>
+            <li><strong>Color Contrast:</strong> Change marker type colors if needed</li>
+        </ul>
+    </div>
+
+    <h2>Error Messages and Meanings</h2>
+    <table>
+        <tr>
+            <th>Error Message</th>
+            <th>Cause</th>
+            <th>Solution</th>
+        </tr>
+        <tr>
+            <td>"Missing required columns"</td>
+            <td>CSV format incorrect</td>
+            <td>Check column headers match exactly</td>
+        </tr>
+        <tr>
+            <td>"No Live Text Found"</td>
+            <td>PDF is image-based</td>
+            <td>Use OCR scraping mode instead</td>
+        </tr>
+        <tr>
+            <td>"Collision detected"</td>
+            <td>Dot placement blocked</td>
+            <td>Move to different location or adjust dot size</td>
+        </tr>
+        <tr>
+            <td>"Location not found"</td>
+            <td>CSV references missing dot</td>
+            <td>Check location number and page match</td>
+        </tr>
+        <tr>
+            <td>"Invalid file type"</td>
+            <td>Wrong file format</td>
+            <td>Use only .pdf or .mslay files</td>
+        </tr>
+    </table>
+
+    <h2>Browser-Specific Issues</h2>
+    <div class="feature-box">
+        <h3>Chrome</h3>
+        <ul>
+            <li><strong>Best Performance:</strong> Recommended browser</li>
+            <li><strong>Memory Usage:</strong> Can consume significant RAM</li>
+            <li><strong>Extension Conflicts:</strong> Disable if issues occur</li>
+        </ul>
+        
+        <h3>Firefox</h3>
+        <ul>
+            <li><strong>Good Alternative:</strong> Full feature support</li>
+            <li><strong>Privacy Mode:</strong> May block some features</li>
+            <li><strong>PDF Handling:</strong> Ensure built-in viewer disabled</li>
+        </ul>
+        
+        <h3>Safari</h3>
+        <ul>
+            <li><strong>Mac Integration:</strong> Works well on macOS</li>
+            <li><strong>File Access:</strong> May require permission grants</li>
+            <li><strong>WebGL:</strong> Ensure hardware acceleration enabled</li>
+        </ul>
+    </div>
+
+    <h2>Getting Help</h2>
+    <div class="feature-box">
+        <h3>Self-Help Resources</h3>
+        <ul>
+            <li><strong>This Guide:</strong> Comprehensive reference for all features</li>
+            <li><strong>Tooltips:</strong> Enable for contextual help on every element</li>
+            <li><strong>Help Modal:</strong> Quick reference for keyboard shortcuts</li>
+        </ul>
+        
+        <h3>Reporting Issues</h3>
+        <ul>
+            <li><strong>Browser Console:</strong> Check for JavaScript errors (F12)</li>
+            <li><strong>Screenshots:</strong> Capture error messages and states</li>
+            <li><strong>Steps to Reproduce:</strong> Document exact actions causing issues</li>
+            <li><strong>System Info:</strong> Note browser, OS, and file details</li>
+        </ul>
+    </div>
+
+    <h1 id="best-practices">13. Best Practices</h1>
+
+    <h2>Project Organization</h2>
+    <div class="feature-box">
+        <h3>File Management</h3>
+        <ul>
+            <li><strong>Naming Convention:</strong> Use descriptive project names with dates</li>
+            <li><strong>Version Control:</strong> Save incremental versions during major changes</li>
+            <li><strong>Folder Structure:</strong> Organize by project, building, or client</li>
+            <li><strong>Backup Strategy:</strong> Keep copies in multiple locations</li>
+        </ul>
+        
+        <h3>Marker Type Strategy</h3>
+        <ul>
+            <li><strong>Plan Categories:</strong> Define all types before starting</li>
+            <li><strong>Consistent Codes:</strong> Use standard abbreviations across projects</li>
+            <li><strong>Color Coding:</strong> Establish company-wide color standards</li>
+            <li><strong>Documentation:</strong> Create a marker type reference sheet</li>
+        </ul>
+    </div>
+
+    <h2>Efficiency Tips</h2>
+    <div class="feature-box">
+        <h3>Workflow Optimization</h3>
+        <ul>
+            <li><strong>Page-by-Page:</strong> Complete each page before moving on</li>
+            <li><strong>Automap First:</strong> Use automated tools before manual placement</li>
+            <li><strong>Bulk Operations:</strong> Edit multiple locations simultaneously</li>
+            <li><strong>Keyboard Shortcuts:</strong> Master shortcuts for speed</li>
+        </ul>
+        
+        <h3>Quality Control</h3>
+        <ul>
+            <li><strong>Regular Reviews:</strong> Check work frequently</li>
+            <li><strong>Export Tests:</strong> Verify exports match expectations</li>
+            <li><strong>Number Sequences:</strong> Use renumbering for logical order</li>
+            <li><strong>Cross-Check:</strong> Compare with source documents</li>
+        </ul>
+    </div>
+
+    <h2>Collaboration Guidelines</h2>
+    <div class="feature-box">
+        <h3>Team Workflows</h3>
+        <ul>
+            <li><strong>Standard Types:</strong> Share marker type definitions</li>
+            <li><strong>Division of Labor:</strong> Assign pages or sections</li>
+            <li><strong>Regular Syncs:</strong> Merge work through CSV exports</li>
+            <li><strong>Communication:</strong> Document changes in notes fields</li>
+        </ul>
+        
+        <h3>Client Deliverables</h3>
+        <ul>
+            <li><strong>Professional PDFs:</strong> Use detail pages for documentation</li>
+            <li><strong>CSV Backups:</strong> Provide data in accessible format</li>
+            <li><strong>Status Tracking:</strong> Use flags for progress reporting</li>
+            <li><strong>Clear Legends:</strong> Ensure marker types are well-documented</li>
+        </ul>
+    </div>
+
+    <h2>Advanced Techniques</h2>
+    <div class="feature-box">
+        <h3>Complex Projects</h3>
+        <ul>
+            <li><strong>Multi-Building:</strong> Use page labels for building identification</li>
+            <li><strong>Phased Work:</strong> Use Installed flag for phase tracking</li>
+            <li><strong>Change Orders:</strong> Track with Code Required flag</li>
+            <li><strong>Special Requirements:</strong> Document in notes field</li>
+        </ul>
+        
+        <h3>Data Management</h3>
+        <ul>
+            <li><strong>External Editing:</strong> Use Excel for complex data manipulation</li>
+            <li><strong>Batch Updates:</strong> Modify CSV for mass changes</li>
+            <li><strong>Integration:</strong> Export to other business systems</li>
+            <li><strong>Archival:</strong> Save final .mslay files for records</li>
+        </ul>
+    </div>
+
+    <h1 id="updates">14. Recent Updates & Changes</h1>
+
+    <h2>Version 5.0 Major Updates</h2>
+    <div class="new-feature">
+        The following features have been added or significantly updated in the current version of Mapping Slayer.
+    </div>
+
+    <h3>User Interface Improvements</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>Cursor Behavior:</strong> Default arrow cursor over map, grab cursor over dots, grabbing cursor when dragging</li>
+            <li><strong>Tooltips Toggle:</strong> Button now turns orange when tooltips are enabled</li>
+            <li><strong>Help Modal:</strong> Improved access through dedicated HELP button</li>
+            <li><strong>Auto-Selection:</strong> Newly created marker types are automatically selected</li>
+        </ul>
+    </div>
+
+    <h3>Export Enhancements</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>PDF Status Display:</strong> Changed from checkboxes to "Question? YES/NO" format</li>
+            <li><strong>Marker Indicators:</strong> Detail pages now show colored circles instead of squares</li>
+            <li><strong>CSV Headers:</strong> Updated from "SIGN TYPE" to "MARKER TYPE" for consistency</li>
+            <li><strong>Column Flexibility:</strong> Import accepts both "MESSAGE" and "MESSAGE 1" columns</li>
+        </ul>
+    </div>
+
+    <h3>Import and Synchronization</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>CSV Sync:</strong> Import now removes locations not present in the CSV file</li>
+            <li><strong>Deletion Warning:</strong> Clear warning dialog before removing locations</li>
+            <li><strong>Deletion Log:</strong> Generates detailed log of removed locations</li>
+            <li><strong>Improved Validation:</strong> Better error messages for import issues</li>
+        </ul>
+    </div>
+
+    <h3>Text Scraping Updates</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>Simplified Controls:</strong> H and V tolerance inputs replace complex training system</li>
+            <li><strong>Direct Input:</strong> Manually enter tolerance values for precise control</li>
+            <li><strong>Real-time Application:</strong> Changes apply immediately to scraping operations</li>
+            <li><strong>Better Defaults:</strong> Optimized default values for common use cases</li>
+        </ul>
+    </div>
+
+    <h3>Terminology Updates</h3>
+    <div class="feature-box">
+        <ul>
+            <li><strong>"Sign Types" → "Marker Types":</strong> Updated throughout the interface</li>
+            <li><strong>Export Headers:</strong> CSV columns reflect new terminology</li>
+            <li><strong>Documentation:</strong> User guide updated with current terms</li>
+        </ul>
+    </div>
+
+    <h2>Future Considerations</h2>
+    <p>Mapping Slayer continues to evolve based on user feedback and industry needs. The development team focuses on:</p>
+    <ul>
+        <li>Performance optimization for larger projects</li>
+        <li>Enhanced collaboration features</li>
+        <li>Improved mobile device support</li>
+        <li>Additional export format options</li>
+        <li>Advanced automation capabilities</li>
+    </ul>
+
+    <div class="tip">
+        Stay updated with the latest features by checking the version number in the interface. New features are often added without requiring updates to your saved projects.
+    </div>
+
+    <hr>
+    
+    <div style="text-align: center; margin-top: 40px; color: #999;">
+        <p>Mapping Slayer User Guide v5.0</p>
+        <p>© 2024 - Professional PDF Annotation Tool</p>
+        <p>Last Updated: December 2024</p>
+    </div>
+</body>
+</html>

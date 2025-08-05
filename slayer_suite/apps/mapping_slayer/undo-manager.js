@@ -3,7 +3,7 @@
 const UndoManager = {
     history: [],
     currentIndex: -1,
-    maxHistory: 50,
+    maxHistory: 10,
     isUndoing: false,
     getStateSnapshot: null,
     restoreState: null,

@@ -11,6 +11,7 @@ import { LAYER_DEFINITIONS, SCALE_FACTOR } from './config.js';
 import * as UI from './ui.js';
 import * as Canvas from './canvas.js';
 import * as Viewer3D from './viewer3D.js';
+import { fontManager } from './font-manager.js';
 
 // --- Layer Management ---
 
@@ -39,6 +40,11 @@ function addLayer(type) {
         onCanvas: false,
         showDimensions: false,
     };
+    
+    // Add brailleSourceText for Braille layers
+    if (definition.isBraille) {
+        newLayer.brailleSourceText = definition.defaultBrailleSourceText || 'Sample Text';
+    }
 
     const newLayersList = [newLayer, ...state.layersList];
     updateState({ layersList: newLayersList });
@@ -152,6 +158,14 @@ const eventHandlers = {
         Canvas.updateGridSize();
         UI.updateStackVisualization();
         Canvas.updateDimensionsVisuals();
+        
+        // Update resize handles for selected paragraph text layer
+        if (state.currentLayer && state.currentLayer.onCanvas) {
+            const definition = LAYER_DEFINITIONS[state.currentLayer.type];
+            if (definition.isParagraphText) {
+                Canvas.updateCanvasLayer(state.currentLayer);
+            }
+        }
     },
 
     // Tooling and Controls Handlers

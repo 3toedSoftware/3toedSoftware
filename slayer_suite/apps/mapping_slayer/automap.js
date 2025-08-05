@@ -34,7 +34,7 @@ function showAutomapProgress(mainStatus, progressPercent) {
 function addActivityFeedItem(message, type = 'info') { // type can be 'info', 'success', 'error'
     const feedEl = document.getElementById('mapping-slayer-automap-activity-feed');
     const item = document.createElement('div');
-    item.className = `activity-feed-item ${type}`;
+    item.className = `ms-activity-feed-item ${type}`;
     item.textContent = message;
     
     feedEl.appendChild(item);
@@ -299,17 +299,32 @@ async function automapSingleLocation() {
         await sleep(200);
 
         if (dotsToAdd.length > 0) {
-            // Add dots to data without rendering
+            // Use Command Pattern for multiple dots
+            const { CommandUndoManager, CompositeCommand, AddDotCommand } = await import('./command-undo.js');
+            const { createDotObject } = await import('./ui.js');
+            
+            const compositeCommand = new CompositeCommand(`Automap: ${searchTerm} (${dotsToAdd.length} locations)`);
+            
             dotsToAdd.forEach(dotInfo => {
-                addDotToData(dotInfo.x, dotInfo.y, markerTypeCode, dotInfo.message);
+                const dot = createDotObject(dotInfo.x, dotInfo.y, markerTypeCode, dotInfo.message);
+                if (dot) {
+                    const addCommand = new AddDotCommand(appState.currentPdfPage, dot);
+                    compositeCommand.add(addCommand);
+                }
             });
+            
+            if (compositeCommand.commands.length > 0) {
+                await CommandUndoManager.execute(compositeCommand);
+            }
             
             // Render all new dots asynchronously
             showAutomapProgress("Rendering dots on map...", 95);
             await renderDotsForCurrentPage(true);
             
-            // Capture undo state after automap
-            UndoManager.capture(`Automap: ${searchTerm}`);
+            // Update UI sections
+            const { updateAllSectionsForCurrentPage } = await import('./ui.js');
+            updateAllSectionsForCurrentPage();
+            
             updateRecentSearches(searchTerm);
             textInput.value = '';
         }

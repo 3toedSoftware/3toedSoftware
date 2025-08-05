@@ -217,7 +217,7 @@ const TooltipManager = {
             
             // Map dots
             {
-                selector: '.map-dot',
+                selector: '.ms-map-dot',
                 text: 'Location dot. Click to select, drag to move. Hold Shift and click to select multiple. Right-click to edit.',
                 position: 'top'
             }
@@ -233,7 +233,7 @@ const TooltipManager = {
     
     enable() {
         this.isEnabled = true;
-        document.body.classList.add('tooltips-enabled');
+        document.body.classList.add('ms-tooltips-enabled');
         
         // Save state
         try {
@@ -247,7 +247,7 @@ const TooltipManager = {
     
     disable() {
         this.isEnabled = false;
-        document.body.classList.remove('tooltips-enabled');
+        document.body.classList.remove('ms-tooltips-enabled');
         this.hideTooltip();
         
         // Save state
@@ -272,7 +272,7 @@ const TooltipManager = {
         const button = document.getElementById('tooltips-btn');
         if (button) {
             button.textContent = this.isEnabled ? 'TOOL TIPS ON' : 'TOOL TIPS OFF';
-            button.classList.toggle('active', this.isEnabled);
+            button.classList.toggle('ms-active', this.isEnabled);
         }
     },
     
@@ -326,7 +326,7 @@ const TooltipManager = {
         if (!this.isEnabled) return;
         
         // Hide tooltip on click unless clicking the tooltip itself
-        if (!e.target.closest('.tooltip-popup')) {
+        if (!e.target.closest('.ms-tooltip-popup')) {
             this.hideTooltip();
         }
     },
@@ -337,7 +337,7 @@ const TooltipManager = {
         this.hideTooltip();
         
         const tooltip = document.createElement('div');
-        tooltip.className = 'tooltip-popup';
+        tooltip.className = 'ms-tooltip-popup';
         tooltip.textContent = tooltipDef.text;
         document.body.appendChild(tooltip);
         
@@ -345,7 +345,7 @@ const TooltipManager = {
         
         // Show with animation
         setTimeout(() => {
-            tooltip.classList.add('visible');
+            tooltip.classList.add('ms-visible');
         }, 10);
         
         this.activeTooltip = {
@@ -402,7 +402,7 @@ const TooltipManager = {
     
     hideTooltip() {
         if (this.activeTooltip) {
-            this.activeTooltip.tooltip.classList.remove('visible');
+            this.activeTooltip.tooltip.classList.remove('ms-visible');
             setTimeout(() => {
                 if (this.activeTooltip && this.activeTooltip.tooltip.parentNode) {
                     this.activeTooltip.tooltip.remove();

@@ -60,7 +60,7 @@ const ProjectIO = {
     },
 
     /**
-     * Loads a given file, which can be a new .pdf or a .mslay project file.
+     * Loads a given file, which can be a .pdf, .mslay, or .slayer project file.
      * It handles both types and returns the necessary data for the application.
      * @param {File} file - The file selected by the user.
      * @returns {Promise<object|null>} A promise that resolves to an object containing the loaded data.
@@ -115,9 +115,20 @@ const ProjectIO = {
                     pdfBuffer: fileBuffer  // Return the original, unconsumed buffer
                 };
             }
+            // --- Handle .slayer project files (suite-level) ---
+            else if (fileName.endsWith('.slayer')) {
+                console.log('🔄 Detected .slayer file - delegating to suite project manager');
+                // This is a suite-level project file - should be handled by the main project manager
+                // Return a special indicator so the app knows to let the suite handle this
+                return {
+                    isSlayerFile: true,
+                    requiresSuiteHandling: true,
+                    file: file
+                };
+            }
             // --- Handle unsupported file types ---
             else {
-                 alert('Unsupported file type. Please upload a .pdf or .mslay file.');
+                 alert('Unsupported file type. Please upload a .pdf, .mslay, or .slayer file.');
                  return null;
             }
 

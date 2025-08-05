@@ -8,6 +8,7 @@ import { state, updateState, getLinkedGroup } from './state.js';
 import { LAYER_DEFINITIONS, SCALE_FACTOR, GRID_LEVELS } from './config.js';
 import { updateStackVisualization } from './ui.js';
 import { renderAlignedText, getTextBaseline } from './text-renderer.js';
+import { translateToGrade2Braille } from './braille-translator-v2.js';
 
 // --- DOM Element Selectors ---
 const getElement = (id) => document.getElementById(id);
@@ -96,19 +97,29 @@ export function createCanvasLayer(layer, onSelectLayer, onStartDrag) {
         const dropZone = dom.faceViewport.querySelector('.drop-zone');
         if (dropZone) dropZone.style.display = 'none';
     }
-    const faceElement = document.createElement('div');
-    faceElement.className = 'face-plate';
-    faceElement.id = layer.id + '-canvas';
+    const signLayerElement = document.createElement('div');
+    signLayerElement.className = 'sign-layer';
+    signLayerElement.id = layer.id + '-canvas';
+    signLayerElement.setAttribute('data-layer-type', layer.type);
     
-    faceElement.addEventListener('click', (e) => {
+    signLayerElement.addEventListener('click', (e) => {
         e.stopPropagation();
+        console.log(`[Position Debug] Layer clicked:`, layer.id);
+        const beforeSelect = signLayerElement.getBoundingClientRect();
+        console.log(`[Position Debug] Position before select:`, {
+            left: beforeSelect.left,
+            top: beforeSelect.top
+        });
         onSelectLayer(layer);
     });
-    faceElement.addEventListener('mousedown', (e) => {
-        if (e.button === 0) onStartDrag(e, layer);
+    signLayerElement.addEventListener('mousedown', (e) => {
+        // Don't start dragging if we're in edit mode for this layer
+        if (e.button === 0 && state.editingLayerId !== layer.id) {
+            onStartDrag(e, layer);
+        }
     });
 
-    dom.faceViewport.appendChild(faceElement);
+    dom.faceViewport.appendChild(signLayerElement);
     updateCanvasLayer(layer);
 }
 
@@ -117,11 +128,21 @@ export function createCanvasLayer(layer, onSelectLayer, onStartDrag) {
  * @param {object} layer - The layer object to update.
  */
 export function updateCanvasLayer(layer) {
-    const faceElement = getElement(layer.id + '-canvas');
-    if (faceElement) {
+    const signLayerElement = getElement(layer.id + '-canvas');
+    if (signLayerElement) {
         const definition = LAYER_DEFINITIONS[layer.type];
         
-        Object.assign(faceElement.style, {
+        // Debug: Log position before update
+        const beforeRect = signLayerElement.getBoundingClientRect();
+        console.log(`[Position Debug] Before update - Layer ${layer.id}:`, {
+            left: beforeRect.left,
+            top: beforeRect.top,
+            width: beforeRect.width,
+            height: beforeRect.height,
+            isSelected: state.currentLayer && state.currentLayer.id === layer.id
+        });
+        
+        Object.assign(signLayerElement.style, {
             left: layer.x + 'px',
             top: layer.y + 'px',
             width: (layer.width * SCALE_FACTOR) + 'px',
@@ -136,31 +157,49 @@ export function updateCanvasLayer(layer) {
         if (definition.isText) {
             // Check if this is a paragraph text layer
             if (definition.isParagraphText) {
-                renderParagraphText(faceElement, layer, definition);
+                renderParagraphText(signLayerElement, layer, definition);
                 
                 // Add resize handles if selected
                 if (state.currentLayer && state.currentLayer.id === layer.id) {
-                    addResizeHandles(faceElement, layer);
+                    addResizeHandles(signLayerElement, layer);
                 }
             } else {
-                renderTextContent(faceElement, layer, definition);
+                renderTextContent(signLayerElement, layer, definition);
+                
+                // Add resize handles for Braille layers when selected
+                if (definition.isBraille && state.currentLayer && state.currentLayer.id === layer.id) {
+                    addResizeHandles(signLayerElement, layer);
+                }
             }
             
+            // Debug: Log position after text render
+            setTimeout(() => {
+                const afterRect = signLayerElement.getBoundingClientRect();
+                console.log(`[Position Debug] After text render - Layer ${layer.id}:`, {
+                    left: afterRect.left,
+                    top: afterRect.top,
+                    width: afterRect.width,
+                    height: afterRect.height,
+                    leftShift: afterRect.left - beforeRect.left,
+                    topShift: afterRect.top - beforeRect.top
+                });
+            }, 0);
+            
             // Add or remove ADA height guide based on checkbox state
-            const existingGuide = faceElement.querySelector('.ada-height-guide');
+            const existingGuide = signLayerElement.querySelector('.ada-height-guide');
             
             if (layer.showAdaGuide) {
                 // Always re-render to update position when text properties change
                 if (existingGuide) {
                     existingGuide.remove();
                 }
-                renderAdaHeightGuide(faceElement, layer);
+                renderAdaHeightGuide(signLayerElement, layer);
             } else if (existingGuide) {
                 existingGuide.remove();
             }
         } else {
             // Clear any text content for non-text layers
-            faceElement.innerHTML = '';
+            signLayerElement.innerHTML = '';
         }
     }
 }
@@ -262,28 +301,34 @@ function renderParagraphText(element, layer, definition) {
     // Remove any existing content
     element.innerHTML = '';
     
-    // Create container for vertical alignment
-    const container = document.createElement('div');
-    container.style.cssText = `
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: ${layer.verticalAlign === 'top' ? 'flex-start' : 
-                          layer.verticalAlign === 'bottom' ? 'flex-end' : 'center'};
-    `;
+    console.log(`[Position Debug] renderParagraphText called for layer ${layer.id}`);
     
-    // Create editable text area
+    // Create editable text area without container
     const textArea = document.createElement('div');
     textArea.className = 'paragraph-text-editor';
     textArea.contentEditable = false; // Will be made editable on click
+    
+    // Calculate position based on vertical alignment
+    let topPosition = '0';
+    if (layer.verticalAlign === 'middle' || layer.verticalAlign === 'center') {
+        topPosition = '50%';
+    } else if (layer.verticalAlign === 'bottom') {
+        topPosition = 'auto';
+    }
+    
     textArea.style.cssText = `
-        width: 100%;
-        padding: 5px;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: ${topPosition};
+        ${layer.verticalAlign === 'bottom' ? 'bottom: 0;' : ''}
+        ${layer.verticalAlign === 'middle' || layer.verticalAlign === 'center' ? 'transform: translateY(-50%);' : ''}
+        padding: 4px;
+        margin: 0;
         box-sizing: border-box;
         outline: none;
         cursor: text;
-        overflow: visible;
+        overflow: hidden;
         font: ${layer.fontSize || definition.defaultFontSize}px "${layer.font || definition.defaultFont}";
         color: ${layer.textColor || definition.defaultTextColor || '#000000'};
         line-height: ${layer.lineSpacing || definition.defaultLineSpacing || 1.2};
@@ -308,10 +353,53 @@ function renderParagraphText(element, layer, definition) {
         // Update layer text as user types
         layer.text = textArea.innerText;
         updateState({ layersList: [...state.layersList] });
+        
+        // Check for text overflow after input
+        checkTextOverflow(element, textArea);
     });
     
-    container.appendChild(textArea);
-    element.appendChild(container);
+    // Ensure Delete key and other text editing keys work properly
+    textArea.addEventListener('keydown', (e) => {
+        // Allow all text editing keys when contentEditable is true
+        if (textArea.contentEditable === 'true') {
+            // Stop propagation to prevent any parent handlers from interfering
+            e.stopPropagation();
+        }
+    });
+    
+    element.appendChild(textArea);
+    
+    // Debug: Log text area computed styles after append
+    setTimeout(() => {
+        console.log(`[Position Debug] TextArea computed styles:`, {
+            padding: window.getComputedStyle(textArea).padding,
+            margin: window.getComputedStyle(textArea).margin,
+            boxSizing: window.getComputedStyle(textArea).boxSizing,
+            position: window.getComputedStyle(textArea).position,
+            top: window.getComputedStyle(textArea).top,
+            left: window.getComputedStyle(textArea).left
+        });
+        
+        // Check for overflow on initial render
+        checkTextOverflow(element, textArea);
+    }, 0);
+}
+
+/**
+ * Checks if text overflows its container and adds visual indicator
+ * @param {HTMLElement} signLayerElement - The sign layer element
+ * @param {HTMLElement} textArea - The text area element
+ */
+function checkTextOverflow(signLayerElement, textArea) {
+    // Check if text overflows vertically or horizontally
+    const hasOverflow = textArea.scrollHeight > textArea.clientHeight || 
+                       textArea.scrollWidth > textArea.clientWidth;
+    
+    if (hasOverflow) {
+        signLayerElement.classList.add('text-overflow');
+    } else {
+        signLayerElement.classList.remove('text-overflow');
+    }
 }
 
 /**
@@ -323,39 +411,16 @@ function addResizeHandles(element, layer) {
     // Remove existing handles
     element.querySelectorAll('.resize-handle').forEach(h => h.remove());
     
-    // Define handle positions
-    const handles = [
-        { class: 'nw', cursor: 'nw-resize', top: 0, left: 0 },
-        { class: 'n', cursor: 'n-resize', top: 0, left: '50%', transform: 'translateX(-50%)' },
-        { class: 'ne', cursor: 'ne-resize', top: 0, right: 0 },
-        { class: 'e', cursor: 'e-resize', top: '50%', right: 0, transform: 'translateY(-50%)' },
-        { class: 'se', cursor: 'se-resize', bottom: 0, right: 0 },
-        { class: 's', cursor: 's-resize', bottom: 0, left: '50%', transform: 'translateX(-50%)' },
-        { class: 'sw', cursor: 'sw-resize', bottom: 0, left: 0 },
-        { class: 'w', cursor: 'w-resize', top: '50%', left: 0, transform: 'translateY(-50%)' }
-    ];
+    // Define handle positions - simplified since CSS handles positioning
+    const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
     
-    handles.forEach(handle => {
+    handles.forEach(handleClass => {
         const handleEl = document.createElement('div');
-        handleEl.className = `resize-handle resize-handle-${handle.class}`;
-        handleEl.style.cssText = `
-            position: absolute;
-            width: 8px;
-            height: 8px;
-            background: #4A90E2;
-            border: 1px solid white;
-            cursor: ${handle.cursor};
-            z-index: 100;
-            ${handle.top !== undefined ? `top: ${handle.top}` : ''};
-            ${handle.bottom !== undefined ? `bottom: ${handle.bottom}` : ''};
-            ${handle.left !== undefined ? `left: ${handle.left}` : ''};
-            ${handle.right !== undefined ? `right: ${handle.right}` : ''};
-            ${handle.transform ? `transform: ${handle.transform}` : ''};
-        `;
+        handleEl.className = `resize-handle resize-handle-${handleClass}`;
         
         handleEl.addEventListener('mousedown', (e) => {
             e.stopPropagation();
-            startResize(e, layer, handle.class);
+            startResize(e, layer, handleClass);
         });
         
         element.appendChild(handleEl);
@@ -371,10 +436,12 @@ function enterEditMode(textArea, layer) {
     textArea.style.cursor = 'text';
     textArea.style.background = 'rgba(255, 255, 255, 0.9)';
     
-    // Select all text
+    // Don't select all text automatically - let user drag to select
+    // Just place cursor at the end
+    const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(textArea);
-    const selection = window.getSelection();
+    range.collapse(false); // Collapse to end
     selection.removeAllRanges();
     selection.addRange(range);
     
@@ -395,6 +462,15 @@ function exitEditMode(textArea, layer) {
         layersList: [...state.layersList],
         editingLayerId: null 
     });
+    
+    // Update the side view to reflect text changes
+    updateStackVisualization();
+    
+    // Check for overflow after exiting edit mode
+    const signLayerElement = textArea.closest('.sign-layer');
+    if (signLayerElement) {
+        checkTextOverflow(signLayerElement, textArea);
+    }
 }
 
 /**
@@ -411,8 +487,10 @@ function startResize(e, layer, handleClass) {
     const startTop = layer.y;
     
     const onMouseMove = (moveEvent) => {
-        const deltaX = moveEvent.clientX - startX;
-        const deltaY = moveEvent.clientY - startY;
+        // Account for zoom level when calculating mouse movement
+        const currentZoom = state.faceViewState.zoom;
+        const deltaX = (moveEvent.clientX - startX) / currentZoom;
+        const deltaY = (moveEvent.clientY - startY) / currentZoom;
         
         let newWidth = startWidth;
         let newHeight = startHeight;
@@ -474,12 +552,32 @@ function renderTextContent(element, layer, definition) {
     
     // Handle Braille conversion
     if (definition.isBraille) {
-        // Create a modified layer object with uppercase text
-        const brailleLayer = {
-            ...layer,
-            text: (layer.text || definition.defaultText || '').toUpperCase()
-        };
-        renderAlignedText(element, brailleLayer, definition);
+        console.log('[CANVAS] Braille layer detected:', layer.id);
+        console.log('[CANVAS] brailleSourceText:', layer.brailleSourceText);
+        
+        // Get the source text
+        const sourceText = layer.brailleSourceText || definition.defaultBrailleSourceText || '';
+        console.log('[CANVAS] Braille source text:', sourceText);
+        
+        // Translate to Grade 2 Braille using the worker
+        translateToGrade2Braille(sourceText).then(brailleText => {
+            console.log('[CANVAS] Translated to Braille:', brailleText);
+            
+            // Create a modified layer object with the Braille text
+            const brailleLayer = {
+                ...layer,
+                text: brailleText
+            };
+            
+            renderAlignedText(element, brailleLayer, definition);
+            
+            // Update the layer's text property
+            layer.text = brailleText;
+        }).catch(error => {
+            console.error('[CANVAS] Braille translation error:', error);
+            // Fallback to showing source text
+            renderAlignedText(element, layer, definition);
+        });
     } else {
         renderAlignedText(element, layer, definition);
     }
@@ -501,20 +599,85 @@ export function removeCanvasLayer(layerId) {
  * Updates the visual selection state of all layers on the canvas.
  */
 export function updateSelectionVisuals() {
+    console.log('[Position Debug] updateSelectionVisuals called');
+    
     // Remove all resize handles
     document.querySelectorAll('.resize-handle').forEach(h => h.remove());
     
-    document.querySelectorAll('.face-plate').forEach(el => el.classList.remove('selected'));
+    document.querySelectorAll('.sign-layer').forEach(el => {
+        const wasSelected = el.classList.contains('selected');
+        if (wasSelected) {
+            const beforeRect = el.getBoundingClientRect();
+            console.log(`[Position Debug] Removing selected from ${el.id}:`, {
+                left: beforeRect.left,
+                top: beforeRect.top
+            });
+            
+            // Check text editor position before removing selected
+            const textEditor = el.querySelector('.paragraph-text-editor');
+            if (textEditor) {
+                const textRect = textEditor.getBoundingClientRect();
+                console.log(`[Position Debug] Text editor position before deselection:`, {
+                    left: textRect.left,
+                    top: textRect.top,
+                    relativeLeft: textRect.left - beforeRect.left,
+                    relativeTop: textRect.top - beforeRect.top
+                });
+            }
+        }
+        el.classList.remove('selected');
+    });
+    
     if (state.currentLayer && state.currentLayer.onCanvas) {
         const linkedLayers = getLinkedGroup(state.currentLayer);
         linkedLayers.forEach(linkedLayer => {
             const canvasElement = getElement(linkedLayer.id + '-canvas');
             if (canvasElement) {
+                const beforeRect = canvasElement.getBoundingClientRect();
+                console.log(`[Position Debug] Before adding selected to ${canvasElement.id}:`, {
+                    left: beforeRect.left,
+                    top: beforeRect.top
+                });
+                
                 canvasElement.classList.add('selected');
                 
-                // Add resize handles for paragraph text
+                const afterRect = canvasElement.getBoundingClientRect();
+                console.log(`[Position Debug] After adding selected:`, {
+                    left: afterRect.left,
+                    top: afterRect.top,
+                    leftShift: afterRect.left - beforeRect.left,
+                    topShift: afterRect.top - beforeRect.top
+                });
+                
+                // Check inner elements for text layers
                 const definition = LAYER_DEFINITIONS[linkedLayer.type];
-                if (definition.isParagraphText && linkedLayer.id === state.currentLayer.id) {
+                if (definition.isText) {
+                    const textEditor = canvasElement.querySelector('.paragraph-text-editor');
+                    const container = canvasElement.querySelector('div');
+                    
+                    if (textEditor) {
+                        const textRect = textEditor.getBoundingClientRect();
+                        console.log(`[Position Debug] Text editor position after selection:`, {
+                            left: textRect.left,
+                            top: textRect.top,
+                            relativeLeft: textRect.left - afterRect.left,
+                            relativeTop: textRect.top - afterRect.top
+                        });
+                    }
+                    
+                    if (container) {
+                        const containerRect = container.getBoundingClientRect();
+                        console.log(`[Position Debug] Container position after selection:`, {
+                            left: containerRect.left,
+                            top: containerRect.top,
+                            relativeLeft: containerRect.left - afterRect.left,
+                            relativeTop: containerRect.top - afterRect.top
+                        });
+                    }
+                }
+                
+                // Add resize handles for paragraph text and Braille text
+                if ((definition.isParagraphText || definition.isBraille) && linkedLayer.id === state.currentLayer.id) {
                     addResizeHandles(canvasElement, linkedLayer);
                 }
             }
@@ -531,6 +694,8 @@ export function updateSelectionVisuals() {
 export function updateViewport() {
     if (dom.faceViewport) {
         dom.faceViewport.style.transform = `translate(${state.faceViewState.x}px, ${state.faceViewState.y}px) scale(${state.faceViewState.zoom})`;
+        // Set CSS custom property for zoom level so child elements can use it
+        dom.faceViewport.style.setProperty('--zoom-scale', state.faceViewState.zoom);
     }
 }
 
@@ -642,21 +807,35 @@ export function updateDimensionsVisuals() {
         
         if (definition.isText) {
             // For text layers, calculate actual dimensions
-            import('./text-renderer.js').then(({ calculateTextDimensions }) => {
-                const dims = calculateTextDimensions(
-                    layer.text || definition.defaultText || '',
-                    layer.font || definition.defaultFont || 'Arial',
-                    layer.fontSize || definition.defaultFontSize || 24,
-                    layer.lineSpacing || definition.defaultLineSpacing || 1.2
-                );
-                
-                // Width Dimension
-                const widthLine = createDimLine('h', layer.x, minY - vOffset, dims.width * SCALE_FACTOR, `${dims.width.toFixed(3)}" ${layer.name}`);
-                dom.dimensionsContainer.appendChild(widthLine);
-                
-                // Height Dimension (use Y position for text baseline)
-                const heightLine = createDimLine('v', minX - hOffset, layer.y, dims.height * SCALE_FACTOR, `${dims.height.toFixed(3)}" ${layer.name}`);
-                dom.dimensionsContainer.appendChild(heightLine);
+            import('./text-renderer.js').then(({ calculateTextDimensions, measureCapitalXHeight }) => {
+                if (definition.isParagraphText) {
+                    // For paragraph text, only show X-height dimension
+                    const fontSize = layer.fontSize || definition.defaultFontSize || 24;
+                    const fontFamily = layer.font || definition.defaultFont || 'Arial';
+                    const xHeightPixels = measureCapitalXHeight(fontSize, fontFamily);
+                    const xHeightInches = xHeightPixels / SCALE_FACTOR;
+                    
+                    // Only show height dimension for X-height
+                    // Add 10px offset to align with text baseline (accounting for padding)
+                    const heightLine = createDimLine('v', minX - hOffset, layer.y + 10, xHeightPixels, `${xHeightInches.toFixed(3)}"`);
+                    dom.dimensionsContainer.appendChild(heightLine);
+                } else {
+                    // For regular text layers, show both dimensions
+                    const dims = calculateTextDimensions(
+                        layer.text || definition.defaultText || '',
+                        layer.font || definition.defaultFont || 'Arial',
+                        layer.fontSize || definition.defaultFontSize || 24,
+                        layer.lineSpacing || definition.defaultLineSpacing || 1.2
+                    );
+                    
+                    // Width Dimension
+                    const widthLine = createDimLine('h', layer.x, minY - vOffset, dims.width * SCALE_FACTOR, `${dims.width.toFixed(3)}" ${layer.name}`);
+                    dom.dimensionsContainer.appendChild(widthLine);
+                    
+                    // Height Dimension (use Y position for text baseline)
+                    const heightLine = createDimLine('v', minX - hOffset, layer.y, dims.height * SCALE_FACTOR, `${dims.height.toFixed(3)}" ${layer.name}`);
+                    dom.dimensionsContainer.appendChild(heightLine);
+                }
             });
         } else {
             // Non-text layers use stored dimensions
@@ -739,6 +918,21 @@ export function updateAllCanvasLayers() {
         updateCanvasLayer(layer);
     });
 }
+
+// Function to update all Braille layers specifically
+export function updateAllBrailleLayers() {
+    console.log('[CANVAS] Updating all Braille layers...');
+    state.layersList.filter(layer => {
+        const definition = LAYER_DEFINITIONS[layer.type];
+        return layer.onCanvas && definition && definition.isBraille;
+    }).forEach(layer => {
+        console.log('[CANVAS] Updating Braille layer:', layer.id);
+        updateCanvasLayer(layer);
+    });
+}
+
+// Make it globally available for the Braille translator
+window.updateAllBrailleLayers = updateAllBrailleLayers;
 
 // --- Helpers ---
 

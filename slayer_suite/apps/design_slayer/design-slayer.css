@@ -20,62 +20,28 @@ body {
     user-select: none;
 }
 
-/* Container for the entire Design Slayer app when loaded in Suite */
+/* Container for the entire Design Slayer app */
 .design-slayer-app {
-    display: grid;
-    grid-template-columns: 350px 1fr;
-    grid-template-rows: 1fr 60px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
     height: 100%;
-    gap: 2px;
     background: #333537;
     position: relative;
 }
 
-/* Override styles when in standalone mode */
+/* Main app container for Design Slayer */
+#design_slayer-container {
+    height: 100%;
+}
+
 .app-container {
-    display: grid;
-    grid-template-columns: 350px 1fr;
-    grid-template-rows: 60px 1fr 60px;
-    height: 100vh;
-    gap: 2px;
-    background: #333537;
-}
-
-.header {
-    grid-column: 1 / -1;
-    background: #333537;
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    border-bottom: 1px solid #555;
-    min-width: 0;
-    height: 60px;
-}
-
-.app-title {
-    font-size: 24px;
-    font-weight: bold;
-    color: #f07727;
-}
-
-.header-controls {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-left: auto;
-}
-
-.save-load-group {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
+    height: 100%;
+    background: #1a1a1a;
 }
 
-.save-load-buttons {
-    display: flex;
-    gap: 3px;
-}
 
 /* Drop zone styling for layer reordering */
 .layer-drop-zone {
@@ -155,16 +121,19 @@ body {
     max-width: 220px;
 }
 
-.left-panel {
-    background: #333537;
+.design-slayer-left-panel {
+    position: fixed;
+    left: 0;
+    width: 350px;
+    height: calc(100% - 60px);
+    background: #2a2b2d;
+    border-right: 1px solid #3d3e40;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid #555;
-    height: 100%;
-    overflow: hidden;
 }
 
-.panel-section {
+.design-slayer-panel-section {
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -173,7 +142,7 @@ body {
     border-bottom: 1px solid #444;
 }
 
-.panel-header {
+.design-slayer-panel-header {
     background: #333537;
     color: #ffffff;
     padding: 12px;
@@ -186,7 +155,7 @@ body {
     flex-shrink: 0;
 }
 
-.panel-content {
+.design-slayer-panel-content {
     flex: 1;
     overflow-y: auto;
     padding: 10px;
@@ -488,7 +457,11 @@ body {
     font-size: 14px;
 }
 
-.center-panel {
+.design-slayer-center-panel {
+    margin-left: 350px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     background: #1a1a1a;
     position: relative;
     overflow: hidden;
@@ -496,9 +469,9 @@ body {
 
 .design-workspace {
     display: flex;
-    gap: 20px;
-    padding: 20px;
-    height: 100%;
+    gap: 10px;
+    padding: 10px;
+    height: calc(100vh - 120px)
 }
 
 .design-view {
@@ -610,11 +583,11 @@ body {
     color: #f07727;
 }
 
-/* Face plate styling */
-.face-plate {
+/* Sign layer styling */
+.sign-layer {
     position: absolute;
     background: #e0e0e0;
-    border: none;
+    border: 1px solid transparent;
     cursor: move;
     user-select: none;
     display: flex;
@@ -622,20 +595,41 @@ body {
     justify-content: center;
     font-size: 12px;
     font-weight: bold;
+    overflow: hidden;
     color: #333;
     box-shadow: none;
     box-sizing: border-box;
 }
 
-.face-plate.selected {
+/* Text layers should not use flex centering - content positioned from top-left */
+.sign-layer[data-layer-type="paragraph-text"],
+.sign-layer[data-layer-type="braille-text"] {
+    align-items: flex-start;
+    justify-content: flex-start;
+    position: relative;
+    display: block;
+}
+
+.sign-layer.selected {
     z-index: 200;
     border: 1px solid #f07727 !important;
 }
 
+/* Remove orange border for selected text layers */
+.sign-layer.selected[data-layer-type="paragraph-text"],
+.sign-layer.selected[data-layer-type="braille-text"] {
+    border: 1px solid transparent !important;
+}
+
+/* Red border indicator for text overflow */
+.sign-layer.text-overflow {
+    border: 2px solid #ff0000 !important;
+}
+
 /* Side view specific styling */
-.side-canvas .face-plate {
+.side-canvas .sign-layer {
     background: #d0d0d0;
-    border: none;
+    border: 1px solid transparent;
 }
 
 /* Dimension styling */
@@ -693,24 +687,28 @@ body {
     white-space: nowrap;
 }
 
-.footer-controls {
-    grid-column: 1 / -1;
-    background: #333537;
+.design-slayer-footer-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #2a2b2d;
+    border-top: 1px solid #3d3e40;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 15px;
-    border-top: 1px solid #555;
-    min-height: 50px;
+    padding: 0 20px;
+    z-index: 100;
 }
 
-.control-group {
+.design-slayer-control-group {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.control-group .btn {
+.design-slayer-control-group .btn {
     vertical-align: top;
 }
 
@@ -1092,6 +1090,30 @@ select.prop-font {
     max-width: 100%;
 }
 
+/* Font dropdown styling */
+select.prop-font option[value="__upload__"] {
+    font-weight: bold;
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+select.prop-font optgroup {
+    font-style: normal;
+    font-weight: bold;
+    color: #666;
+}
+
+select.prop-font optgroup option {
+    font-weight: normal;
+    padding-left: 10px;
+}
+
+/* Style the upload option */
+select.prop-font option[value="__upload__"]:hover {
+    background-color: #f07727;
+    color: white;
+}
+
 /* Checkbox styling */
 .property-label input[type="checkbox"] {
     margin-right: 8px;
@@ -1113,25 +1135,229 @@ select.prop-font {
 .paragraph-text-editor {
     background: transparent;
     transition: background 0.2s;
+    /* Force pixel-perfect rendering */
+    transform: translateZ(0);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 .paragraph-text-editor[contenteditable="true"] {
     background: rgba(255, 255, 255, 0.95) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    /* Removed box-shadow to prevent layout shift */
 }
 
 /* Resize handles */
 .resize-handle {
     pointer-events: auto;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #4A90E2;
+    border: 1px solid white;
+    z-index: 100;
+    /* Apply inverse scale to maintain constant size */
+    transform: scale(calc(1 / var(--zoom-scale, 1)));
 }
 
 .resize-handle:hover {
     background: #2E7CD6 !important;
-    transform: scale(1.2);
+}
+
+/* Handle positions with proper transform origins */
+.resize-handle-nw {
+    top: 0;
+    left: 0;
+    cursor: nw-resize;
+    transform-origin: right bottom;
+    transform: scale(calc(1 / var(--zoom-scale, 1)));
+}
+
+.resize-handle-n {
+    top: 0;
+    left: 50%;
+    cursor: n-resize;
+    transform-origin: center bottom;
+    transform: translateX(-50%) scale(calc(1 / var(--zoom-scale, 1)));
+}
+
+.resize-handle-ne {
+    top: 0;
+    right: 0;
+    cursor: ne-resize;
+    transform-origin: left bottom;
+    transform: scale(calc(1 / var(--zoom-scale, 1)));
+}
+
+.resize-handle-e {
+    top: 50%;
+    right: 0;
+    cursor: e-resize;
+    transform-origin: left center;
+    transform: translateY(-50%) scale(calc(1 / var(--zoom-scale, 1)));
+}
+
+.resize-handle-se {
+    bottom: 0;
+    right: 0;
+    cursor: se-resize;
+    transform-origin: left top;
+    transform: scale(calc(1 / var(--zoom-scale, 1)));
+}
+
+.resize-handle-s {
+    bottom: 0;
+    left: 50%;
+    cursor: s-resize;
+    transform-origin: center top;
+    transform: translateX(-50%) scale(calc(1 / var(--zoom-scale, 1)));
+}
+
+.resize-handle-sw {
+    bottom: 0;
+    left: 0;
+    cursor: sw-resize;
+    transform-origin: right top;
+    transform: scale(calc(1 / var(--zoom-scale, 1)));
+}
+
+.resize-handle-w {
+    top: 50%;
+    left: 0;
+    cursor: w-resize;
+    transform-origin: right center;
+    transform: translateY(-50%) scale(calc(1 / var(--zoom-scale, 1)));
 }
 
 /* Selected paragraph text */
-.face-plate.selected .paragraph-text-editor {
-    border: 1px solid #4A90E2;
+.sign-layer.selected .paragraph-text-editor {
+    /* Removed blue border for cleaner look */
+    border: none;
 }
+
+/* Template Controls - Hidden but preserved for future use */
+/*
+.template-controls {
+    margin-top: 8px;
+    display: flex;
+    gap: 5px;
+}
+
+.template-controls button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 10px;
+    font-size: 11px;
+}
+
+.template-controls svg {
+    width: 12px;
+    height: 12px;
+}
+*/
+
+/* Template Library Modal - Hidden but preserved for future use */
+/*
+.modal-content.template-library {
+    width: 80%;
+    max-width: 800px;
+    height: 70%;
+    background: #2a2b2d;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #3d3e40;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 20px;
+}
+
+.modal-body {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.template-card {
+    background: #1e1f20;
+    border: 1px solid #3d3e40;
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.template-card:hover {
+    border-color: #f07727;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.template-preview {
+    height: 120px;
+    background: #2a2b2d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #3d3e40;
+}
+
+.template-icon {
+    color: #6c6d6f;
+}
+
+.template-info {
+    padding: 15px;
+}
+
+.template-info h3 {
+    margin: 0 0 8px 0;
+    color: #fff;
+    font-size: 16px;
+}
+
+.template-info p {
+    margin: 4px 0;
+    color: #8e8f91;
+    font-size: 12px;
+}
+
+.template-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.template-actions button {
+    flex: 1;
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.template-grid .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c6d6f;
+    font-size: 14px;
+}
+*/

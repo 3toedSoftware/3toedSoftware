@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thumbnail Slayer - Slayer Suite</title>
+</head>
+<body>
+    <div id="app-container"></div>
+
+    <script type="module">
+        async function initializeApp() {
+            try {
+                const { initializeCore } = await import('../../core/index.js');
+                const ThumbnailSlayerApp = (await import('./thumbnail-app.js')).default;
+
+                initializeCore(true);
+
+                const container = document.getElementById('app-container');
+                const thumbnailApp = new ThumbnailSlayerApp();
+                
+                await thumbnailApp.initialize(container);
+                await thumbnailApp.activate();
+                
+                console.log('✅ Thumbnail Slayer app initialized successfully!');
+            } catch (error) {
+                console.error('❌ Thumbnail Slayer app failed to initialize:', error);
+            }
+        }
+
+        initializeApp();
+    </script>
+</body>
+</html>

@@ -134,21 +134,28 @@ async function finishScrape() {
                 console.log('🔍 Checking collision at:', cluster.centerX, cluster.centerY);
                 
                 if (!isCollision(cluster.centerX, cluster.centerY)) {
-                    console.log('🔍 No collision, proceeding with addDotToData');
-                    console.log('🔍 Dots before addDotToData:', getCurrentPageDots().size);
+                    console.log('🔍 No collision, proceeding with Command Pattern');
+                    console.log('🔍 Dots before command:', getCurrentPageDots().size);
                     
-                    addDotToData(cluster.centerX, cluster.centerY, appState.activeMarkerType, message);
+                    // Use Command Pattern for single dot too
+                    const { CommandUndoManager, AddDotCommand } = await import('./command-undo.js');
+                    const { createDotObject } = await import('./ui.js');
                     
-                    console.log('🔍 Dots after addDotToData:', getCurrentPageDots().size);
+                    const dot = createDotObject(cluster.centerX, cluster.centerY, appState.activeMarkerType, message);
+                    if (dot) {
+                        const command = new AddDotCommand(appState.currentPdfPage, dot);
+                        await CommandUndoManager.execute(command);
+                    }
+                    
+                    console.log('🔍 Dots after command:', getCurrentPageDots().size);
                     showCSVStatus("Rendering dots...", true, 20000);
                     
                     await renderDotsForCurrentPage(true);
-                    console.log('🔍 After renderDotsForCurrentPage, DOM dots:', document.querySelectorAll('.map-dot').length);
+                    console.log('🔍 After renderDotsForCurrentPage, DOM dots:', document.querySelectorAll('.ms-map-dot').length);
                     
                     updateAllSectionsForCurrentPage();
-                    console.log('🔍 After updateAllSectionsForCurrentPage, list items:', document.querySelectorAll('.location-item, .grouped-location-item').length);
+                    console.log('🔍 After updateAllSectionsForCurrentPage, list items:', document.querySelectorAll('.ms-location-item, .ms-grouped-location-item').length);
                     
-                    UndoManager.capture('Scrape text');
                     showCSVStatus(`✅ Scraped: "${message}"`, true, 3000);
                     console.log('🔍 Single dot scrape complete');
                 } else {
@@ -169,15 +176,28 @@ async function finishScrape() {
                 });
                 
                 if (dotsToAdd.length > 0) {
+                    // Use Command Pattern for multiple dots
+                    const { CommandUndoManager, CompositeCommand, AddDotCommand } = await import('./command-undo.js');
+                    const { createDotObject } = await import('./ui.js');
+                    
+                    const compositeCommand = new CompositeCommand(`Scrape ${dotsToAdd.length} locations`);
+                    
                     dotsToAdd.forEach(dotInfo => {
-                        addDotToData(dotInfo.x, dotInfo.y, appState.activeMarkerType, dotInfo.message);
+                        const dot = createDotObject(dotInfo.x, dotInfo.y, appState.activeMarkerType, dotInfo.message);
+                        if (dot) {
+                            const addCommand = new AddDotCommand(appState.currentPdfPage, dot);
+                            compositeCommand.add(addCommand);
+                        }
                     });
+                    
+                    if (compositeCommand.commands.length > 0) {
+                        await CommandUndoManager.execute(compositeCommand);
+                    }
                     
                     showCSVStatus("Rendering dots...", true, 20000);
                     await renderDotsForCurrentPage(true);
                     updateAllSectionsForCurrentPage();
                     
-                    UndoManager.capture('Batch scrape text');
                     showCSVStatus(`✅ Scraped ${dotsToAdd.length} locations`, true, 3000);
                 } else if (clusters.length > 0) {
                     showCSVStatus("❌ No valid locations found (all collided)", false, 4000);
@@ -254,7 +274,8 @@ async function finishOCRScrape() {
                 addDotToData(centerX, centerY, appState.activeMarkerType, cleanText);
                 await renderDotsForCurrentPage();
                 updateAllSectionsForCurrentPage();
-                UndoManager.capture('OCR scrape');
+                // TODO: Convert to Command Pattern
+                // UndoManager.capture('OCR scrape');
                 showCSVStatus(`✅ OCR found: "${cleanText}"`, true, 5000);
             } else {
                 showCSVStatus("❌ Collision detected", false, 4000);

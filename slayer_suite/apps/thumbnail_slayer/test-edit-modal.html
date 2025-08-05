@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Edit Modal - Thumbnail Slayer</title>
+    <link rel="stylesheet" href="thumbnail-slayer.css">
+    <style>
+        body {
+            padding: 20px;
+            background: #1a1a1a;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .test-thumbnail {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 style="color: #f07727; margin-bottom: 30px;">Edit Modal Test</h1>
+        
+        <div class="test-grid">
+            <!-- Test thumbnail with standard fields -->
+            <div class="thumbnail-item" data-item-id="test1">
+                <div class="thumbnail-container">
+                    <div class="thumbnail-top-bar">
+                        <div class="thumbnail-location-badge">123</div>
+                        <div class="thumbnail-icons">
+                            <button class="thumbnail-edit-btn" title="Edit text fields" onclick="openTestModal('standard')">✏️</button>
+                            <span class="icon-notes" title="Notes">📝</span>
+                            <span class="icon-code active" title="Code Required">⭐</span>
+                            <span class="icon-vinyl" title="Vinyl Backer">V</span>
+                            <span class="icon-installed active" title="Installed">✓</span>
+                        </div>
+                    </div>
+                    <div class="thumbnail-image test-thumbnail">
+                        <div style="text-align: center; color: #666; margin-top: 150px;">
+                            <p>Standard Sign</p>
+                            <p>Message: "Welcome"</p>
+                            <p>Message 2: "Please Enter"</p>
+                        </div>
+                    </div>
+                    <div class="thumbnail-bottom-bar">
+                        STD Standard Sign
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Test thumbnail with custom fields -->
+            <div class="thumbnail-item" data-item-id="test2">
+                <div class="thumbnail-container">
+                    <div class="thumbnail-top-bar">
+                        <div class="thumbnail-location-badge">456</div>
+                        <div class="thumbnail-icons">
+                            <button class="thumbnail-edit-btn" title="Edit text fields" onclick="openTestModal('custom')">✏️</button>
+                            <span class="icon-notes active" title="Has notes">📝</span>
+                            <span class="icon-code" title="Code Required">⭐</span>
+                            <span class="icon-vinyl active" title="Vinyl Backer">V</span>
+                            <span class="icon-installed" title="Installed">✓</span>
+                        </div>
+                    </div>
+                    <div class="thumbnail-image test-thumbnail">
+                        <div style="text-align: center; color: #666; margin-top: 150px;">
+                            <p>Custom Sign Type</p>
+                            <p>Room Name: "Conference A"</p>
+                            <p>Department: "Engineering"</p>
+                            <p>Floor: "3rd"</p>
+                        </div>
+                    </div>
+                    <div class="thumbnail-bottom-bar">
+                        CUST Custom Directory
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2 style="color: #f07727; margin-bottom: 20px;">List View Test</h2>
+        <div class="list-view">
+            <table class="list-table">
+                <thead>
+                    <tr>
+                        <th>Location</th>
+                        <th>Sign Type</th>
+                        <th>Message 1</th>
+                        <th>Message 2</th>
+                        <th>Sheet</th>
+                        <th>Details</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="list-row">
+                        <td class="loc-cell">123</td>
+                        <td class="type-cell">
+                            <span class="sign-code">STD</span>
+                            <span class="sign-name">Standard Sign</span>
+                        </td>
+                        <td class="msg-cell">Welcome</td>
+                        <td class="msg-cell">Please Enter</td>
+                        <td class="sheet-cell">Page 1</td>
+                        <td class="details-cell">
+                            <span title="Notes">📝</span>
+                            <span title="Code Required">⭐</span>
+                            <span title="Installed">✅</span>
+                        </td>
+                        <td class="actions-cell">
+                            <button class="list-edit-btn" onclick="openTestModal('standard')" title="Edit text fields">✏️</button>
+                        </td>
+                    </tr>
+                    <tr class="list-row">
+                        <td class="loc-cell">456</td>
+                        <td class="type-cell">
+                            <span class="sign-code">CUST</span>
+                            <span class="sign-name">Custom Directory</span>
+                        </td>
+                        <td class="msg-cell">Conference A</td>
+                        <td class="msg-cell">Engineering</td>
+                        <td class="sheet-cell">Page 2</td>
+                        <td class="details-cell">
+                            <span title="Notes">📝</span>
+                            <span title="Vinyl Backer">🎨</span>
+                        </td>
+                        <td class="actions-cell">
+                            <button class="list-edit-btn" onclick="openTestModal('custom')" title="Edit text fields">✏️</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Test data
+        const testItems = {
+            standard: {
+                id: 'test1',
+                locationId: 'loc_123_1',
+                locationNumber: '123',
+                signTypeCode: 'STD',
+                signTypeName: 'Standard Sign',
+                message: 'Welcome',
+                message2: 'Please Enter',
+                signTypeInfo: {
+                    textFields: [
+                        { fieldName: 'message', displayName: 'Message', required: true, maxLength: 50 },
+                        { fieldName: 'message2', displayName: 'Message 2', required: false, maxLength: 50 }
+                    ]
+                }
+            },
+            custom: {
+                id: 'test2',
+                locationId: 'loc_456_2',
+                locationNumber: '456',
+                signTypeCode: 'CUST',
+                signTypeName: 'Custom Directory',
+                roomName: 'Conference A',
+                department: 'Engineering',
+                floor: '3rd',
+                signTypeInfo: {
+                    textFields: [
+                        { fieldName: 'roomName', displayName: 'Room Name', required: true, maxLength: 30 },
+                        { fieldName: 'department', displayName: 'Department', required: true, maxLength: 40 },
+                        { fieldName: 'floor', displayName: 'Floor', required: false, maxLength: 10 }
+                    ]
+                }
+            }
+        };
+
+        function openTestModal(type) {
+            const item = testItems[type];
+            openEditModal(item);
+        }
+
+        // Mock functions
+        function showSuccess(message) {
+            showNotification(message, 'success');
+        }
+
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.classList.add('show'), 10);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Include the openEditModal function
+        function openEditModal(item) {
+            const modal = document.createElement('div');
+            modal.className = 'edit-modal-overlay';
+            
+            const signType = item.signTypeInfo;
+            let textFields = [];
+            
+            if (signType && Array.isArray(signType.textFields) && signType.textFields.length > 0) {
+                textFields = signType.textFields;
+            } else {
+                textFields = [
+                    { fieldName: 'message', displayName: 'Message', required: false, maxLength: 50 },
+                    { fieldName: 'message2', displayName: 'Message 2', required: false, maxLength: 50 }
+                ];
+                
+                const knownFields = ['id', 'locationId', 'locationNumber', 'pageNumber', 'sheetName', 
+                                   'signType', 'signTypeCode', 'signTypeName', 'signTypeInfo',
+                                   'x', 'y', 'installed', 'vinylBacker', 'codeRequired', 'notes',
+                                   'message1', 'status', 'modified'];
+                
+                Object.keys(item).forEach(key => {
+                    if (!knownFields.includes(key) && typeof item[key] === 'string' && 
+                        !textFields.find(f => f.fieldName === key)) {
+                        textFields.push({
+                            fieldName: key,
+                            displayName: key.charAt(0).toUpperCase() + key.slice(1),
+                            required: false,
+                            maxLength: 100
+                        });
+                    }
+                });
+            }
+            
+            modal.innerHTML = `
+                <div class="edit-modal">
+                    <div class="edit-modal-header">
+                        <h3>Edit Sign Text - Location ${item.locationNumber}</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="edit-modal-body">
+                        <div class="edit-modal-sign-info">
+                            <span class="sign-type-badge">${item.signTypeCode || 'DEFAULT'}</span>
+                            <span class="sign-type-name">${item.signTypeName || 'Default Sign'}</span>
+                        </div>
+                        <div class="edit-fields">
+                            ${textFields.map(field => {
+                                const fieldValue = item[field.fieldName] || '';
+                                const displayName = field.displayName || field.fieldName;
+                                const isRequired = field.required ? '<span class="field-required">*</span>' : '';
+                                const maxLength = field.maxLength || 100;
+                                
+                                return `
+                                    <div class="edit-field-group">
+                                        <label for="field-${field.fieldName}">
+                                            ${displayName}${isRequired}
+                                            <span class="field-counter" data-field="${field.fieldName}">${fieldValue.length}/${maxLength}</span>
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            id="field-${field.fieldName}" 
+                                            class="edit-field-input" 
+                                            data-field="${field.fieldName}"
+                                            value="${fieldValue.replace(/"/g, '&quot;')}"
+                                            maxlength="${maxLength}"
+                                            ${field.required ? 'required' : ''}
+                                        />
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    <div class="edit-modal-footer">
+                        <button class="btn btn-secondary modal-cancel">Cancel</button>
+                        <button class="btn btn-primary modal-save">Save Changes</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            const closeModal = () => {
+                modal.remove();
+            };
+            
+            modal.querySelector('.modal-close').addEventListener('click', closeModal);
+            modal.querySelector('.modal-cancel').addEventListener('click', closeModal);
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+            
+            modal.querySelectorAll('.edit-field-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const fieldName = e.target.dataset.field;
+                    const counter = modal.querySelector(`.field-counter[data-field="${fieldName}"]`);
+                    if (counter) {
+                        counter.textContent = `${e.target.value.length}/${e.target.maxLength}`;
+                    }
+                });
+            });
+            
+            modal.querySelector('.modal-save').addEventListener('click', async () => {
+                const updates = {};
+                let hasChanges = false;
+                
+                modal.querySelectorAll('.edit-field-input').forEach(input => {
+                    const fieldName = input.dataset.field;
+                    const newValue = input.value.trim();
+                    const oldValue = item[fieldName] || '';
+                    
+                    if (newValue !== oldValue) {
+                        updates[fieldName] = newValue;
+                        hasChanges = true;
+                    }
+                });
+                
+                if (!hasChanges) {
+                    closeModal();
+                    return;
+                }
+                
+                const saveBtn = modal.querySelector('.modal-save');
+                const originalText = saveBtn.textContent;
+                saveBtn.textContent = 'Saving...';
+                saveBtn.disabled = true;
+                
+                // Simulate save
+                setTimeout(() => {
+                    Object.entries(updates).forEach(([field, value]) => {
+                        item[field] = value;
+                    });
+                    
+                    closeModal();
+                    showSuccess('Sign text updated successfully');
+                }, 1000);
+            });
+            
+            const firstInput = modal.querySelector('.edit-field-input');
+            if (firstInput) {
+                firstInput.focus();
+                firstInput.select();
+            }
+        }
+    </script>
+</body>
+</html>

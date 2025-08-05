@@ -1,8 +1,10 @@
 // ui.js - Fixed version with proper syntax
 
 // Import the state system
-import { appState, getCurrentPageDots, getDotsForPage, setDirtyState, getCurrentPageData, UndoManager } from './state.js';
-import { renderDotsForCurrentPage, renderPDFPage, centerOnDot, applyMapTransform, updateSingleDot } from './map-controller.js';
+import { appState, getCurrentPageDots, getDotsForPage, setDirtyState, getCurrentPageData, UndoManager, CommandUndoManager, getCurrentPageAnnotationLines } from './state.js';
+import { renderDotsForCurrentPage, renderPDFPage, centerOnDot, applyMapTransform, updateSingleDot, updateViewportDotsThrottled } from './map-controller.js';
+import { AddDotCommand, DeleteDotCommand, EditDotCommand, MoveDotCommand, CompositeCommand, AddAnnotationLineCommand, DeleteAnnotationLineCommand, MoveAnnotationLineEndpointCommand } from './command-undo.js';
+import { cropTool } from './crop-tool.js';
 
 let previewTimeout = null;
 
@@ -11,8 +13,8 @@ function showCSVStatus(message, isSuccess = true, duration = 5000) {
     const contentDiv = document.getElementById('csv-status-content');
     if (statusDiv && contentDiv) {
         contentDiv.textContent = message;
-        statusDiv.className = 'csv-status visible ' + (isSuccess ? 'success' : 'error');
-        setTimeout(() => statusDiv.classList.remove('visible'), duration);
+        statusDiv.className = 'ms-csv-status ms-visible ' + (isSuccess ? 'ms-success' : 'ms-error');
+        setTimeout(() => statusDiv.classList.remove('ms-visible'), duration);
     }
 }
 
@@ -61,7 +63,7 @@ function updateFilterCheckboxes() {
     );
 
     if (sortedMarkerTypeCodes.length === 0) {
-        container.innerHTML = '<div class="empty-state" style="font-size: 12px; padding: 10px;">No marker types exist. Click + to add one.</div>';
+        container.innerHTML = '<div class="ms-empty-state" style="font-size: 12px; padding: 10px;">No marker types exist. Click + to add one.</div>';
         return;
     }
 
@@ -70,36 +72,36 @@ function updateFilterCheckboxes() {
         const count = Array.from(getCurrentPageDots().values()).filter(d => d.markerType === markerTypeCode).length;
         
         const item = document.createElement('div');
-        item.className = 'filter-checkbox';
+        item.className = 'ms-filter-checkbox';
         if (markerTypeCode === appState.activeMarkerType) {
-            item.classList.add('legend-item-active');
+            item.classList.add('ms-legend-item-active');
         }
         
         // Build innerHTML with proper concatenation to avoid template literal issues
         const checkboxInput = '<input type="checkbox" data-marker-type-code="' + markerTypeCode + '" checked>';
-        const countLabel = '<span class="checkbox-label">(' + count + ')</span>';
-        const codeInput = '<input type="text" class="marker-type-code-input" placeholder="Enter code..." value="' + typeData.code + '" data-original-code="' + typeData.code + '">';
-        const nameInput = '<input type="text" class="marker-type-name-input" placeholder="Enter name..." value="' + typeData.name + '" data-original-name="' + typeData.name + '" data-code="' + typeData.code + '">';
-        const designRefSquare = '<div class="design-reference-square" data-marker-type="' + markerTypeCode + '">' +
-            '<div class="design-reference-empty" style="display: ' + (typeData.designReference ? 'none' : 'flex') + ';"><span class="upload-plus-icon">+</span></div>' +
-            '<div class="design-reference-filled" style="display: ' + (typeData.designReference ? 'flex' : 'none') + ';"><img class="design-reference-thumbnail" src="' + (typeData.designReference || '') + '" alt="Design Reference"><button class="design-reference-delete" type="button">&times;</button></div>' +
+        const countLabel = '<span class="ms-checkbox-label">(' + count + ')</span>';
+        const codeInput = '<input type="text" class="ms-marker-type-code-input" placeholder="Enter code..." value="' + typeData.code + '" data-original-code="' + typeData.code + '">';
+        const nameInput = '<input type="text" class="ms-marker-type-name-input" placeholder="Enter name..." value="' + typeData.name + '" data-original-name="' + typeData.name + '" data-code="' + typeData.code + '">';
+        const designRefSquare = '<div class="ms-design-reference-square" data-marker-type="' + markerTypeCode + '">' +
+            '<div class="ms-design-reference-empty" style="display: ' + (typeData.designReference ? 'none' : 'flex') + ';"><span class="ms-upload-plus-icon">+</span></div>' +
+            '<div class="ms-design-reference-filled" style="display: ' + (typeData.designReference ? 'flex' : 'none') + ';"><img class="ms-design-reference-thumbnail" src="' + (typeData.designReference || '') + '" alt="Design Reference"><button class="ms-design-reference-delete" type="button">&times;</button></div>' +
             '</div>';
-        const fileInput = '<input type="file" class="design-reference-input" accept="image/jpeg,image/jpg,image/png" style="display: none;" data-marker-type="' + markerTypeCode + '">';
-        const colorPickers = '<div class="color-picker-wrapper" data-marker-type-code="' + markerTypeCode + '" data-color-type="dot"></div>' +
-            '<div class="color-picker-wrapper" data-marker-type-code="' + markerTypeCode + '" data-color-type="text"></div>';
-        const deleteBtn = '<button class="delete-marker-type-btn" data-marker-type-code="' + markerTypeCode + '">×</button>';
+        const fileInput = '<input type="file" class="ms-design-reference-input" accept="image/jpeg,image/jpg,image/png" style="display: none;" data-marker-type="' + markerTypeCode + '">';
+        const colorPickers = '<div class="ms-color-picker-wrapper" data-marker-type-code="' + markerTypeCode + '" data-color-type="dot"></div>' +
+            '<div class="ms-color-picker-wrapper" data-marker-type-code="' + markerTypeCode + '" data-color-type="text"></div>';
+        const deleteBtn = '<button class="ms-delete-marker-type-btn" data-marker-type-code="' + markerTypeCode + '">×</button>';
         
         item.innerHTML = checkboxInput + countLabel +
-            '<div class="marker-type-inputs">' + codeInput + nameInput + '</div>' +
-            '<div class="design-reference-container">' + designRefSquare + fileInput + '</div>' +
-            '<div class="marker-type-controls">' + colorPickers + deleteBtn + '</div>';
+            '<div class="ms-marker-type-inputs">' + codeInput + nameInput + '</div>' +
+            '<div class="ms-design-reference-container">' + designRefSquare + fileInput + '</div>' +
+            '<div class="ms-marker-type-controls">' + colorPickers + deleteBtn + '</div>';
         
         container.appendChild(item);
         
         setupDesignReferenceHandlers(item, markerTypeCode);
         
-        const codeInputEl = item.querySelector('.marker-type-code-input');
-        const nameInputEl = item.querySelector('.marker-type-name-input');
+        const codeInputEl = item.querySelector('.ms-marker-type-code-input');
+        const nameInputEl = item.querySelector('.ms-marker-type-name-input');
         
         resizeInput(codeInputEl);
         codeInputEl.addEventListener('input', () => resizeInput(codeInputEl));
@@ -107,21 +109,47 @@ function updateFilterCheckboxes() {
         codeInputEl.addEventListener('blur', () => resizeInput(codeInputEl));
         
         item.addEventListener('click', (e) => {
-            if (e.target.closest('input, .pcr-app, .color-picker-wrapper, .delete-marker-type-btn, .design-reference-square')) return;
+            if (e.target.closest('input, .pcr-app, .ms-color-picker-wrapper, .ms-delete-marker-type-btn, .ms-design-reference-square')) return;
             e.preventDefault();
             appState.activeMarkerType = markerTypeCode;
             updateFilterCheckboxes();
         });
 
+        // Double-click to select all dots of this marker type on current page
+        item.addEventListener('dblclick', (e) => {
+            if (e.target.closest('input, .pcr-app, .ms-color-picker-wrapper, .ms-delete-marker-type-btn, .ms-design-reference-square')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            selectAllDotsOfMarkerType(markerTypeCode);
+        });
+
         item.querySelector('input[type="checkbox"]').addEventListener('change', applyFilters);
         codeInputEl.addEventListener('change', (e) => handleMarkerTypeCodeChange(e.target));
         nameInputEl.addEventListener('change', (e) => handleMarkerTypeNameChange(e.target));
-        item.querySelector('.delete-marker-type-btn').addEventListener('click', () => deleteMarkerType(markerTypeCode));
+        item.querySelector('.ms-delete-marker-type-btn').addEventListener('click', () => deleteMarkerType(markerTypeCode));
         
         initializeColorPickers(item, markerTypeCode, typeData);
     });
 
     container.scrollTop = scrollPosition;
+}
+
+function updateMarkerTypeSelect() {
+    const select = document.getElementById('automap-marker-type-select');
+    if (!select) return;
+    
+    const markerTypes = Object.keys(appState.markerTypes);
+    select.innerHTML = markerTypes.map(code => {
+        const typeData = appState.markerTypes[code];
+        return '<option value="' + code + '">' + typeData.code + ' - ' + typeData.name + '</option>';
+    }).join('');
+    
+    select.disabled = markerTypes.length === 0 || !appState.pdfDoc;
+    
+    const textInput = document.getElementById('automap-text-input');
+    if (textInput) {
+        textInput.disabled = markerTypes.length === 0 || !appState.pdfDoc;
+    }
 }
 
 function resizeInput(input) {
@@ -134,7 +162,7 @@ function resizeInput(input) {
     document.body.appendChild(temp);
     
     // Add 5px extra for padding to prevent text cutoff
-    const width = Math.max(42, temp.offsetWidth + 5);
+    const width = Math.max(30, temp.offsetWidth + 2);
     input.style.width = width + 'px';
     
     document.body.removeChild(temp);
@@ -146,7 +174,7 @@ function initializeColorPickers(item, markerTypeCode, typeData) {
         return;
     }
     
-    item.querySelectorAll('.color-picker-wrapper').forEach(wrapper => {
+    item.querySelectorAll('.ms-color-picker-wrapper').forEach(wrapper => {
         const colorType = wrapper.dataset.colorType;
         const initialColor = (colorType === 'dot') ? typeData.color : typeData.textColor;
         wrapper.style.backgroundColor = initialColor;
@@ -196,14 +224,14 @@ function updateMapLegend() {
     
     const usedMarkerTypeCodes = new Set(Array.from(getCurrentPageDots().values()).map(d => d.markerType));
     
-    legend.classList.toggle('collapsed', appState.pageLegendCollapsed);
+    legend.classList.toggle('ms-collapsed', appState.pageLegendCollapsed);
 
     if (usedMarkerTypeCodes.size === 0) {
-        legend.classList.remove('visible');
+        legend.classList.remove('ms-visible');
         return;
     }
     
-    legend.classList.add('visible');
+    legend.classList.add('ms-visible');
     content.innerHTML = '';
     
     const sortedMarkerTypeCodes = Array.from(usedMarkerTypeCodes).sort((a, b) => 
@@ -216,10 +244,10 @@ function updateMapLegend() {
         
         const count = Array.from(getCurrentPageDots().values()).filter(d => d.markerType === code).length;
         const item = document.createElement('div');
-        item.className = 'map-legend-item';
-        item.innerHTML = '<div class="map-legend-dot" style="background-color: ' + typeData.color + ';"></div>' +
-            '<span class="map-legend-text">' + typeData.code + ' - ' + typeData.name + '</span>' +
-            '<span class="map-legend-count">' + count + '</span>';
+        item.className = 'ms-map-legend-item';
+        item.innerHTML = '<div class="ms-map-legend-dot" style="background-color: ' + typeData.color + ';"></div>' +
+            '<span class="ms-map-legend-text">' + typeData.code + ' - ' + typeData.name + '</span>' +
+            '<span class="ms-map-legend-count">' + count + '</span>';
         content.appendChild(item);
     });
 }
@@ -236,14 +264,14 @@ function updateProjectLegend() {
         }
     }
 
-    legend.classList.toggle('collapsed', appState.projectLegendCollapsed);
+    legend.classList.toggle('ms-collapsed', appState.projectLegendCollapsed);
 
     if (projectCounts.size === 0) {
-        legend.classList.remove('visible');
+        legend.classList.remove('ms-visible');
         return;
     }
 
-    legend.classList.add('visible');
+    legend.classList.add('ms-visible');
     content.innerHTML = '';
 
     const sortedMarkerTypeCodes = Array.from(projectCounts.keys()).sort((a,b) => 
@@ -256,10 +284,10 @@ function updateProjectLegend() {
         
         const count = projectCounts.get(code);
         const item = document.createElement('div');
-        item.className = 'map-legend-item';
-        item.innerHTML = '<div class="map-legend-dot" style="background-color: ' + typeData.color + ';"></div>' +
-            '<span class="map-legend-text">' + typeData.code + ' - ' + typeData.name + '</span>' +
-            '<span class="map-legend-count">' + count + '</span>';
+        item.className = 'ms-map-legend-item';
+        item.innerHTML = '<div class="ms-map-legend-dot" style="background-color: ' + typeData.color + ';"></div>' +
+            '<span class="ms-map-legend-text">' + typeData.code + ' - ' + typeData.name + '</span>' +
+            '<span class="ms-map-legend-count">' + count + '</span>';
         content.appendChild(item);
     });
 }
@@ -272,7 +300,7 @@ function getActiveFilters() {
 
 function applyFilters() {
     const activeFilters = getActiveFilters();
-    document.querySelectorAll('.map-dot').forEach(dotElement => {
+    document.querySelectorAll('.ms-map-dot').forEach(dotElement => {
         const dot = getCurrentPageDots().get(dotElement.dataset.dotId);
         dotElement.style.display = dot && activeFilters.includes(dot.markerType) ? 'flex' : 'none';
     });
@@ -280,11 +308,124 @@ function applyFilters() {
     updateMapLegend();
 }
 
-function updateLocationList() {
+// Add a single dot to the location list without rebuilding everything
+function addSingleDotToLocationList(dot) {
     const container = document.getElementById('location-list');
     if (!container) return;
     
+    // Check if this dot's marker type is filtered out
+    const activeFilters = getActiveFilters();
+    if (!activeFilters.includes(dot.markerType)) return;
+    
+    // Create the list item for just this dot
+    const typeData = appState.markerTypes[dot.markerType];
+    const item = document.createElement('div');
+    item.className = 'ms-location-item';
+    item.dataset.dotId = dot.internalId;
+    
+    if (appState.selectedDots.has(dot.internalId)) {
+        item.classList.add('ms-selected');
+    }
+
+    const badgeClass = dot.isCodeRequired ? 'ms-marker-type-badge ms-code-required-badge' : 'ms-marker-type-badge';
+    const badgeText = typeData.code + ' - ' + typeData.name;
+
+    item.innerHTML = '<div class="ms-location-header">' +
+        '<span class="ms-location-number">' + dot.locationNumber + '</span>' +
+        '<input type="text" class="ms-location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
+        '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + typeData.textColor + ';" title="' + badgeText + '">' + badgeText + '</span>' +
+        '</div>';
+    
+    item.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('ms-location-message-input')) return;
+        
+        const dotPage = appState.currentPdfPage;
+        centerOnDot(dot.internalId);
+        
+        setTimeout(() => {
+            if (e.shiftKey) {
+                toggleDotSelection(dot.internalId);
+            } else {
+                if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
+                    clearSelection();
+                } else {
+                    clearSelection();
+                    selectDot(dot.internalId);
+                }
+            }
+            updateSelectionUI();
+        }, 100);
+    });
+    
+    // Insert in the right position based on location number
+    const items = container.querySelectorAll('.ms-location-item');
+    let inserted = false;
+    for (const existingItem of items) {
+        const itemNum = parseInt(existingItem.querySelector('.ms-location-number').textContent);
+        if (itemNum > parseInt(dot.locationNumber)) {
+            container.insertBefore(item, existingItem);
+            inserted = true;
+            break;
+        }
+    }
+    if (!inserted) {
+        container.appendChild(item);
+    }
+    
+    // Add message input event listeners
+    const messageInput = item.querySelector('.ms-location-message-input');
+    let originalMessage = dot.message;
+    
+    messageInput.addEventListener('focus', (e) => {
+        originalMessage = e.target.value;
+    });
+    
+    messageInput.addEventListener('blur', async (e) => {
+        if (e.target.value !== originalMessage) {
+            const oldValues = { message: originalMessage };
+            const newValues = { message: e.target.value };
+            const command = new EditDotCommand(appState.currentPdfPage, dot.internalId, oldValues, newValues);
+            await CommandUndoManager.execute(command);
+            setDirtyState();
+        }
+    });
+    
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            e.target.blur();
+        }
+    });
+    
+    messageInput.addEventListener('input', (e) => {
+        const dotToUpdate = getCurrentPageDots().get(dot.internalId);
+        if (dotToUpdate) {
+            dotToUpdate.message = e.target.value;
+            setDirtyState();
+            renderDotsForCurrentPage();
+        }
+    });
+
+    messageInput.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    // Update visibility
+    const listWrapper = document.getElementById('list-with-renumber');
+    const emptyState = document.getElementById('empty-state');
+    if (listWrapper) listWrapper.style.display = 'block';
+    if (emptyState) emptyState.style.display = 'none';
+}
+
+function updateLocationList() {
+    
+    const container = document.getElementById('location-list');
+    if (!container) {
+        return;
+    }
+    
     container.innerHTML = '';
+    
     const listWrapper = document.getElementById('list-with-renumber');
     const emptyState = document.getElementById('empty-state');
     const activeFilters = getActiveFilters();
@@ -299,7 +440,12 @@ function updateLocationList() {
             allDots.push(...visibleDots);
         }
     } else {
-        allDots = Array.from(getCurrentPageDots().values()).filter(dot => activeFilters.includes(dot.markerType));
+        const currentPageDotsMap = getCurrentPageDots();
+        allDots = Array.from(currentPageDotsMap.values()).filter(dot => activeFilters.includes(dot.markerType));
+        
+        // DEBUG: Log each dot that will be shown
+        allDots.forEach((dot, index) => {
+        });
     }
 
     if (allDots.length === 0) {
@@ -328,10 +474,32 @@ function updateLocationList() {
     } else {
         renderFlatLocationList(allDots, container);
     }
+    
 }
 
 function renderFlatLocationList(allDots, container) {
-    allDots.sort((a, b) => {
+    // Apply filters before sorting
+    const filteredDots = allDots.filter(dot => {
+        // Apply code filter
+        if (appState.codeFilterMode === 'codeOnly' && !dot.isCodeRequired) return false;
+        if (appState.codeFilterMode === 'hideCode' && dot.isCodeRequired) return false;
+        
+        // Apply inst filter
+        if (appState.instFilterMode === 'instOnly' && !dot.installed) return false;
+        if (appState.instFilterMode === 'hideInst' && dot.installed) return false;
+        
+        return true;
+    });
+    
+    filteredDots.sort((a, b) => {
+        // First priority: selected items come first
+        const aSelected = appState.selectedDots.has(a.internalId);
+        const bSelected = appState.selectedDots.has(b.internalId);
+        
+        if (aSelected && !bSelected) return -1;
+        if (!aSelected && bSelected) return 1;
+        
+        // If both selected or both not selected, use regular sorting
         if (appState.isAllPagesView && a.page !== b.page) {
             return a.page - b.page;
         }
@@ -340,26 +508,28 @@ function renderFlatLocationList(allDots, container) {
         } else {
             return a.message.localeCompare(b.message);
         }
-    }).forEach(dot => {
+    });
+    
+    filteredDots.forEach(dot => {
         const typeData = appState.markerTypes[dot.markerType];
         const item = document.createElement('div');
-        item.className = 'location-item';
+        item.className = 'ms-location-item';
         item.dataset.dotId = dot.internalId;
         
         if (dot.page) {
             item.dataset.dotPage = dot.page;
         }
         if (appState.selectedDots.has(dot.internalId)) {
-            item.classList.add('selected');
+            item.classList.add('ms-selected');
         }
 
-        const badgeClass = dot.isCodeRequired ? 'marker-type-badge code-required-badge' : 'marker-type-badge';
+        const badgeClass = dot.isCodeRequired ? 'ms-marker-type-badge ms-code-required-badge' : 'ms-marker-type-badge';
         const badgeText = typeData.code + ' - ' + typeData.name;
         const pagePrefix = appState.isAllPagesView ? '(P' + dot.page + ') ' : '';
 
-        item.innerHTML = '<div class="location-header">' +
-            '<span class="location-number">' + pagePrefix + dot.locationNumber + '</span>' +
-            '<input type="text" class="location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
+        item.innerHTML = '<div class="ms-location-header">' +
+            '<span class="ms-location-number">' + pagePrefix + dot.locationNumber + '</span>' +
+            '<input type="text" class="ms-location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
             '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + typeData.textColor + ';" title="' + badgeText + '">' + badgeText + '</span>' +
             '</div>';
         
@@ -387,16 +557,45 @@ function renderFlatLocationList(allDots, container) {
             }, 100);
         });
 
-        const messageInput = item.querySelector('.location-message-input');
+        // Add right-click context menu
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // If right-clicking on a selected item when multiple are selected, open group edit
+            if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size > 1) {
+                openGroupEditModal();
+            } else {
+                // Otherwise, select only this item and open single edit
+                clearSelection();
+                selectDot(dot.internalId);
+                updateSelectionUI();
+                openEditModal(dot.internalId);
+            }
+        });
+
+        const messageInput = item.querySelector('.ms-location-message-input');
         let originalMessage = dot.message;
         
         messageInput.addEventListener('focus', (e) => {
             originalMessage = e.target.value;
         });
         
-        messageInput.addEventListener('blur', (e) => {
+        messageInput.addEventListener('blur', async (e) => {
             if (e.target.value !== originalMessage) {
-                UndoManager.capture('Edit message');
+                // Find the dot being edited
+                const dotElement = e.target.closest('.dot');
+                if (dotElement) {
+                    const dotId = dotElement.dataset.id;
+                    const dot = getCurrentPageDots().get(dotId);
+                    if (dot) {
+                        const oldValues = { message: originalMessage };
+                        const newValues = { message: e.target.value };
+                        const command = new EditDotCommand(appState.currentPdfPage, dotId, oldValues, newValues);
+                        await CommandUndoManager.execute(command);
+                        setDirtyState();
+                    }
+                }
             }
         });
         
@@ -424,8 +623,21 @@ function renderFlatLocationList(allDots, container) {
 }
 
 function renderGroupedLocationList(allDots, container) {
+    // Apply filters first
+    const filteredDots = allDots.filter(dot => {
+        // Apply code filter
+        if (appState.codeFilterMode === 'codeOnly' && !dot.isCodeRequired) return false;
+        if (appState.codeFilterMode === 'hideCode' && dot.isCodeRequired) return false;
+        
+        // Apply inst filter
+        if (appState.instFilterMode === 'instOnly' && !dot.installed) return false;
+        if (appState.instFilterMode === 'hideInst' && dot.installed) return false;
+        
+        return true;
+    });
+    
     const groupedDots = {};
-    allDots.forEach(dot => {
+    filteredDots.forEach(dot => {
         if (!groupedDots[dot.markerType]) groupedDots[dot.markerType] = [];
         groupedDots[dot.markerType].push(dot);
     });
@@ -439,6 +651,14 @@ function renderGroupedLocationList(allDots, container) {
         
         // Sort dots within each group
         dots.sort((a, b) => {
+            // First priority: selected items come first
+            const aSelected = appState.selectedDots.has(a.internalId);
+            const bSelected = appState.selectedDots.has(b.internalId);
+            
+            if (aSelected && !bSelected) return -1;
+            if (!aSelected && bSelected) return 1;
+            
+            // If both selected or both not selected, use regular sorting
             if (appState.isAllPagesView && a.page !== b.page) {
                 return a.page - b.page;
             }
@@ -452,41 +672,51 @@ function renderGroupedLocationList(allDots, container) {
         const typeData = appState.markerTypes[markerTypeCode];
         const isExpanded = appState.expandedMarkerTypes.has(markerTypeCode);
         const category = document.createElement('div');
-        category.className = 'marker-type-category';
+        category.className = 'ms-marker-type-category';
         category.style.borderLeftColor = typeData.color;
         const displayName = typeData.code + ' - ' + typeData.name;
         
-        category.innerHTML = '<div class="marker-type-category-header">' +
-            '<div class="marker-type-category-title">' +
-            '<span class="expand-icon ' + (isExpanded ? 'expanded' : '') + '">▶</span>' + displayName +
+        category.innerHTML = '<div class="ms-marker-type-category-header">' +
+            '<div class="ms-marker-type-category-title">' +
+            '<span class="ms-expand-icon ' + (isExpanded ? 'ms-expanded' : '') + '">▶</span>' + displayName +
             '</div>' +
-            '<span class="marker-type-category-count">' + dots.length + '</span>' +
+            '<span class="ms-marker-type-category-count">' + dots.length + '</span>' +
             '</div>' +
-            '<div class="marker-type-items ' + (isExpanded ? 'expanded' : '') + '" id="items-' + markerTypeCode.replace(/[^a-zA-Z0-9]/g, '-') + '"></div>';
+            '<div class="ms-marker-type-items ' + (isExpanded ? 'ms-expanded' : '') + '" id="items-' + markerTypeCode.replace(/[^a-zA-Z0-9]/g, '-') + '"></div>';
         
         container.appendChild(category);
-        category.querySelector('.marker-type-category-header').addEventListener('click', () => toggleMarkerTypeExpansion(markerTypeCode));
+        category.querySelector('.ms-marker-type-category-header').addEventListener('click', () => toggleMarkerTypeExpansion(markerTypeCode));
+        
+        // Double-click to select all dots of this marker type
+        category.querySelector('.ms-marker-type-category-header').addEventListener('dblclick', (e) => {
+            e.stopPropagation(); // Prevent the single click from also firing
+            selectAllDotsOfMarkerType(markerTypeCode);
+        });
 
-        const itemsContainer = category.querySelector('.marker-type-items');
+        const itemsContainer = category.querySelector('.ms-marker-type-items');
         dots.forEach(dot => {
             const item = document.createElement('div');
-            item.className = 'grouped-location-item';
+            item.className = 'ms-grouped-location-item';
             item.dataset.dotId = dot.internalId;
             if (dot.page) {
                 item.dataset.dotPage = dot.page;
             }
             if (appState.selectedDots.has(dot.internalId)) {
-                item.classList.add('selected');
+                item.classList.add('ms-selected');
             }
 
             const pagePrefix = appState.isAllPagesView ? '(P' + dot.page + ') ' : '';
-            item.innerHTML = '<div class="grouped-location-header">' +
-                '<span class="location-number">' + pagePrefix + dot.locationNumber + '</span>' +
-                '<span class="location-message">' + dot.message + '</span>' +
+            
+            item.innerHTML = '<div class="ms-grouped-location-header">' +
+                '<span class="ms-location-number">' + pagePrefix + dot.locationNumber + '</span>' +
+                '<input type="text" class="ms-location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
                 '</div>';
             itemsContainer.appendChild(item);
 
             item.addEventListener('click', async (e) => {
+                // Skip if clicking on the input field
+                if (e.target.classList.contains('ms-location-message-input')) return;
+                
                 const dotPage = e.currentTarget.dataset.dotPage ? parseInt(e.currentTarget.dataset.dotPage, 10) : appState.currentPdfPage;
                 if (dotPage !== appState.currentPdfPage) {
                     await changePage(dotPage);
@@ -508,17 +738,90 @@ function renderGroupedLocationList(allDots, container) {
                 }, 100);
             });
 
+            // Add right-click context menu
+            item.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // If right-clicking on a selected item when multiple are selected, open group edit
+                if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size > 1) {
+                    openGroupEditModal();
+                } else {
+                    // Otherwise, select only this item and open single edit
+                    clearSelection();
+                    selectDot(dot.internalId);
+                    updateSelectionUI();
+                    openEditModal(dot.internalId);
+                }
+            });
+
+            // Add message editing functionality
+            const messageInput = item.querySelector('.ms-location-message-input');
+            let originalMessage = dot.message;
+            
+            messageInput.addEventListener('focus', (e) => {
+                originalMessage = e.target.value;
+                e.stopPropagation();
+            });
+            
+            messageInput.addEventListener('blur', async (e) => {
+                const newMessage = e.target.value.trim();
+                if (newMessage !== originalMessage) {
+                    const pageData = getCurrentPageData();
+                    const dot = pageData.dots.get(e.target.dataset.dotId);
+                    if (dot) {
+                        // Execute command for undo/redo support
+                        const command = new EditDotCommand(
+                            appState.currentPdfPage,
+                            dot.internalId,
+                            { message: newMessage }
+                        );
+                        await CommandUndoManager.execute(command);
+                        
+                        // Update any open modals
+                        if (document.getElementById('edit-modal').style.display === 'block') {
+                            const editDotId = document.getElementById('edit-dot-id').value;
+                            if (editDotId === dot.internalId) {
+                                document.getElementById('edit-message').value = newMessage;
+                            }
+                        }
+                        
+                        // Sync with other apps
+                        if (window.mappingSync) {
+                            window.mappingSync.syncMessageChange(dot.internalId, newMessage);
+                        }
+                    }
+                }
+            });
+            
+            messageInput.addEventListener('keydown', (e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.target.blur();
+                }
+            });
+            
+            messageInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
         });
     });
 }
 
+// Global variables to track current design reference preview
+let currentDesignPreview = null;
+let currentPreviewOwner = null;
+
 function setupDesignReferenceHandlers(item, markerTypeCode) {
-    const square = item.querySelector('.design-reference-square');
-    const fileInput = item.querySelector('.design-reference-input');
-    const deleteBtn = item.querySelector('.design-reference-delete');
+    const square = item.querySelector('.ms-design-reference-square');
+    const fileInput = item.querySelector('.ms-design-reference-input');
+    const deleteBtn = item.querySelector('.ms-design-reference-delete');
+    const thumbnail = item.querySelector('.ms-design-reference-thumbnail');
 
     square.addEventListener('click', (e) => {
-        if (e.target.classList.contains('design-reference-delete')) return;
+        if (e.target.classList.contains('ms-design-reference-delete')) return;
         e.stopPropagation();
         fileInput.click();
     });
@@ -536,6 +839,51 @@ function setupDesignReferenceHandlers(item, markerTypeCode) {
             e.stopPropagation();
             if (confirm('Are you sure you want to delete the design reference for ' + markerTypeCode + '?')) {
                 handleDesignReferenceDelete(markerTypeCode);
+            }
+        });
+    }
+    
+    // Add hover preview for thumbnail
+    if (thumbnail) {
+        thumbnail.addEventListener('mouseenter', (e) => {
+            if (!appState.markerTypes[markerTypeCode]?.designReference) return;
+            
+            // Remove any existing preview first
+            if (currentDesignPreview) {
+                currentDesignPreview.remove();
+                currentDesignPreview = null;
+            }
+            
+            // Create new preview and mark this thumbnail as owner
+            currentPreviewOwner = markerTypeCode;
+            currentDesignPreview = document.createElement('div');
+            currentDesignPreview.className = 'ms-design-reference-preview';
+            currentDesignPreview.innerHTML = `
+                <img src="${appState.markerTypes[markerTypeCode].designReference}" alt="Design Reference">
+            `;
+            document.body.appendChild(currentDesignPreview);
+            
+            // Position near cursor
+            const rect = thumbnail.getBoundingClientRect();
+            currentDesignPreview.style.left = (rect.right + 10) + 'px';
+            currentDesignPreview.style.top = rect.top + 'px';
+            
+            // Trigger animation
+            setTimeout(() => currentDesignPreview?.classList.add('ms-visible'), 10);
+        });
+        
+        thumbnail.addEventListener('mouseleave', () => {
+            // Only remove if this thumbnail owns the current preview
+            if (currentDesignPreview && currentPreviewOwner === markerTypeCode) {
+                currentDesignPreview.classList.remove('ms-visible');
+                setTimeout(() => {
+                    // Double check ownership hasn't changed
+                    if (currentDesignPreview && currentPreviewOwner === markerTypeCode) {
+                        currentDesignPreview.remove();
+                        currentDesignPreview = null;
+                        currentPreviewOwner = null;
+                    }
+                }, 200);
             }
         });
     }
@@ -576,13 +924,13 @@ function setupCanvasEventListeners() {
     mapContainer.addEventListener('contextmenu', handleContextMenu);
     
     // Set initial cursor state
-    mapContainer.style.cursor = 'grab';
+    mapContainer.style.cursor = 'default';
     
     // Handle mouse leave to cancel panning
     mapContainer.addEventListener('mouseleave', () => { 
         if (appState.isPanning) {
             appState.isPanning = false; 
-            mapContainer.style.cursor = 'grab';
+            mapContainer.style.cursor = 'default';
         }
     });
     
@@ -594,7 +942,7 @@ function handleMapClick(e) {
     if (appState.justFinishedSelecting) { appState.justFinishedSelecting = false; return; }
     
     // Check if click is on a dot element
-    const dotElement = e.target.closest('.map-dot');
+    const dotElement = e.target.closest('.ms-map-dot');
     if (dotElement) {
         const internalId = dotElement.dataset.dotId;
         if (e.shiftKey) { 
@@ -611,28 +959,46 @@ function handleMapClick(e) {
         return;
     }
     
-    if (e.target.closest('.tolerance-controls')) {
+    if (e.target.closest('.ms-tolerance-controls')) {
         return;
     }
     
     if (!e.shiftKey) {
         clearSearchHighlights();
+        
+        // Always clear selection when clicking empty area (not holding Shift)
         if (appState.selectedDots.size > 0) { 
             clearSelection(); 
             updateSelectionUI(); 
-        } else {
-            // Get the map container rect for coordinate calculation
-            const mapContainer = document.getElementById('map-container');
-            const rect = mapContainer.getBoundingClientRect();
-            const mapTransform = appState.mapTransform;
+            return; // Don't create new dot, just deselect
+        }
+        
+        // Only create new dot if no dots were selected
+        // Get the map container rect for coordinate calculation
+        const mapContainer = document.getElementById('map-container');
+        const rect = mapContainer.getBoundingClientRect();
+        const mapTransform = appState.mapTransform;
+        
+        // Calculate coordinates relative to the map content
+        const x = (e.clientX - rect.left - mapTransform.x) / mapTransform.scale;
+        const y = (e.clientY - rect.top - mapTransform.y) / mapTransform.scale;
+        
+        if (!isCollision(x, y)) {
+            // Create the dot object
+            const dot = createDotObject(x, y);
             
-            // Calculate coordinates relative to the map content
-            const x = (e.clientX - rect.left - mapTransform.x) / mapTransform.scale;
-            const y = (e.clientY - rect.top - mapTransform.y) / mapTransform.scale;
-            
-            if (!isCollision(x, y)) {
-                addDot(x, y);
-                UndoManager.capture('Add dot');
+            // Only proceed if dot was created (marker types exist)
+            if (dot) {
+                // Execute the add command
+                const command = new AddDotCommand(appState.currentPdfPage, dot);
+                CommandUndoManager.execute(command).then(() => {
+                    // Update the UI after command executes
+                    updateSingleDot(dot.internalId);
+                    updateLocationList(); // Use full list update for consistency
+                    updateMapLegend(); // Update the page legend
+                    updateProjectLegend(); // Update the project legend
+                    setDirtyState();
+                });
             }
         }
     }
@@ -643,7 +1009,7 @@ function handleZoom(e) {
     const oldScale = appState.mapTransform.scale;
     const direction = e.deltaY < 0 ? 1 : -1;
     let newScale = oldScale * (1 + 0.1 * direction);
-    newScale = Math.max(0.1, Math.min(newScale, 10));
+    newScale = Math.max(0.01, Math.min(newScale, 10));
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left; 
     const mouseY = e.clientY - rect.top;
@@ -662,6 +1028,12 @@ function handleMouseDown(e) {
         appState.isPanning = true;
         e.currentTarget.style.cursor = 'grabbing';
         
+        // Disable transitions during panning for better performance
+        const mapContent = document.getElementById('map-content');
+        if (mapContent) {
+            mapContent.style.transition = 'none';
+        }
+        
         // Set up document-wide listeners for drag
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
@@ -679,7 +1051,7 @@ function handleMouseDown(e) {
         
         // Create scrape box
         appState.scrapeBox = document.createElement('div');
-        appState.scrapeBox.className = appState.isOCRScraping ? 'scrape-box ocr-scrape' : 'scrape-box';
+        appState.scrapeBox.className = appState.isOCRScraping ? 'ms-scrape-box ms-ocr-scrape' : 'ms-scrape-box';
         appState.scrapeBox.style.position = 'absolute';
         appState.scrapeBox.style.left = (e.clientX - rect.left) + 'px';
         appState.scrapeBox.style.top = (e.clientY - rect.top) + 'px';
@@ -698,11 +1070,42 @@ function handleMouseDown(e) {
         // Scraping movement handled in handleMouseMove
         document.addEventListener('contextmenu', preventContextMenu, { capture: true });
     } else if (e.button === 0) { // Left mouse button
-        const dotElement = e.target.closest('.map-dot');
+        const dotElement = e.target.closest('.ms-map-dot');
         
         if (dotElement) {
-            // Set as drag target - drag will start if mouse moves
-            appState.dragTarget = dotElement;
+            if (e.ctrlKey) {
+                // Ctrl+click on dot - start drawing annotation line
+                e.preventDefault();
+                const internalId = dotElement.dataset.dotId;
+                const dot = getCurrentPageDots().get(internalId);
+                if (dot) {
+                    appState.isDrawingAnnotation = true;
+                    appState.annotationStartDot = dot;
+                    
+                    // Create temporary line element
+                    const mapContent = document.getElementById('map-content');
+                    
+                    appState.annotationTempLine = document.createElement('div');
+                    appState.annotationTempLine.className = 'ms-annotation-line-temp';
+                    appState.annotationTempLine.style.position = 'absolute';
+                    appState.annotationTempLine.style.left = dot.x + 'px';
+                    appState.annotationTempLine.style.top = dot.y + 'px';
+                    appState.annotationTempLine.style.width = '0px';
+                    appState.annotationTempLine.style.height = '2px';
+                    // Use the dot's marker type color
+                    const markerType = appState.markerTypes[dot.markerType];
+                    const lineColor = markerType ? markerType.color : '#FF6B6B';
+                    appState.annotationTempLine.style.backgroundColor = lineColor;
+                    appState.annotationTempLine.style.transformOrigin = '0 50%';
+                    appState.annotationTempLine.style.pointerEvents = 'none';
+                    appState.annotationTempLine.style.zIndex = '500'; // Below dots
+                    
+                    mapContent.appendChild(appState.annotationTempLine);
+                }
+            } else {
+                // Set as drag target - drag will start if mouse moves
+                appState.dragTarget = dotElement;
+            }
         } else if (e.shiftKey) {
             // Shift+drag for selection box
             e.preventDefault();
@@ -719,7 +1122,7 @@ function handleMouseDown(e) {
             
             // Create selection box
             appState.selectionBox = document.createElement('div');
-            appState.selectionBox.className = 'selection-box';
+            appState.selectionBox.className = 'ms-selection-box';
             appState.selectionBox.style.position = 'absolute';
             appState.selectionBox.style.left = appState.selectionStart.x + 'px';
             appState.selectionBox.style.top = appState.selectionStart.y + 'px';
@@ -741,6 +1144,22 @@ function handleMouseMove(e) {
     // Check if we've moved enough to consider it movement
     if (!appState.hasMoved && (Math.abs(e.clientX - appState.dragStart.x) > 3 || Math.abs(e.clientY - appState.dragStart.y) > 3)) {
         appState.hasMoved = true;
+        
+        // Capture original positions when drag actually starts
+        if (appState.dragTarget) {
+            appState.dragOriginalPositions.clear();
+            const draggedInternalId = appState.dragTarget.dataset.dotId;
+            const dotsToMove = appState.selectedDots.has(draggedInternalId) && appState.selectedDots.size > 1 
+                ? appState.selectedDots 
+                : [draggedInternalId];
+                
+            dotsToMove.forEach(internalId => {
+                const dot = getCurrentPageDots().get(internalId);
+                if (dot) {
+                    appState.dragOriginalPositions.set(internalId, { x: dot.x, y: dot.y });
+                }
+            });
+        }
     }
 
     // Track mouse position for paste
@@ -755,7 +1174,15 @@ function handleMouseMove(e) {
     if (appState.isPanning) {
         appState.mapTransform.x += e.clientX - appState.dragStart.x;
         appState.mapTransform.y += e.clientY - appState.dragStart.y;
-        applyMapTransform();
+        
+        // Apply transform immediately for smooth visual feedback
+        const mapContent = document.getElementById('map-content');
+        const { x, y, scale } = appState.mapTransform;
+        mapContent.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+        
+        // Use throttled viewport updates for better performance
+        updateViewportDotsThrottled();
+        
         appState.dragStart = { x: e.clientX, y: e.clientY };
         return;
     }
@@ -774,7 +1201,7 @@ function handleMouseMove(e) {
 
         dotsToMove.forEach(internalId => {
             const dot = getCurrentPageDots().get(internalId);
-            const dotElement = document.querySelector(`.map-dot[data-dot-id="${internalId}"]`);
+            const dotElement = document.querySelector(`.ms-map-dot[data-dot-id="${internalId}"]`);
             if (dot && dotElement) {
                 dot.x += moveDeltaX;
                 dot.y += moveDeltaY;
@@ -790,9 +1217,22 @@ function handleMouseMove(e) {
                     top: `${dot.y - halfSize}px`,
                     transform: 'none' // Override CSS transform
                 });
-                dotElement.classList.add('dragging');
+                dotElement.classList.add('ms-dragging');
+                
+                // Update any annotation lines that start from this dot
+                const pageLines = getCurrentPageAnnotationLines();
+                pageLines.forEach(line => {
+                    if (line.startDotId === internalId) {
+                        line.startX = dot.x;
+                        line.startY = dot.y;
+                    }
+                });
             }
         });
+        
+        // Re-render annotation lines if any dots were moved
+        renderAnnotationLines();
+        
         appState.dragStart = { x: e.clientX, y: e.clientY };
     } else if (appState.isSelecting) {
         // Handle selection box update
@@ -830,27 +1270,93 @@ function handleMouseMove(e) {
             appState.scrapeBox.style.width = width + 'px';
             appState.scrapeBox.style.height = height + 'px';
         }
+    } else if (appState.isDrawingAnnotation && appState.annotationTempLine) {
+        // Handle annotation line drawing
+        const mapContainer = document.getElementById('map-container');
+        const rect = mapContainer.getBoundingClientRect();
+        const { x: mapX, y: mapY, scale } = appState.mapTransform;
+        
+        // Convert mouse position to canvas coordinates
+        const endX = (e.clientX - rect.left - mapX) / scale;
+        const endY = (e.clientY - rect.top - mapY) / scale;
+        
+        // Calculate angle and length in canvas coordinates
+        const deltaX = endX - appState.annotationStartDot.x;
+        const deltaY = endY - appState.annotationStartDot.y;
+        const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+        
+        // Update temporary line
+        appState.annotationTempLine.style.width = length + 'px';
+        appState.annotationTempLine.style.transform = `rotate(${angle}deg)`;
+    } else if (appState.draggingAnnotationEndpoint) {
+        // Handle dragging annotation line endpoint
+        const mapContainer = document.getElementById('map-container');
+        const rect = mapContainer.getBoundingClientRect();
+        const { x: mapX, y: mapY, scale } = appState.mapTransform;
+        
+        // Calculate new endpoint position in canvas coordinates
+        const newEndX = (e.clientX - rect.left - mapX) / scale;
+        const newEndY = (e.clientY - rect.top - mapY) / scale;
+        
+        // Update the line in state
+        const pageLines = getCurrentPageAnnotationLines();
+        const line = pageLines.get(appState.draggingAnnotationEndpoint);
+        if (line) {
+            line.endX = newEndX;
+            line.endY = newEndY;
+            
+            // Re-render lines to show update
+            renderAnnotationLines();
+        }
     }
 }
 
-function handleMouseUp(e) {
+async function handleMouseUp(e) {
     const justFinishedScraping = appState.isScraping;
     
     if (appState.isPanning) {
         appState.isPanning = false;
         const mapContainer = document.getElementById('map-container');
+        const mapContent = document.getElementById('map-content');
+        
         if (mapContainer) {
-            mapContainer.style.cursor = 'grab';
+            mapContainer.style.cursor = 'default';
+        }
+        
+        // Re-enable transitions after panning
+        if (mapContent) {
+            mapContent.style.transition = 'transform 0.3s ease-out';
         }
     }
     
     if (appState.dragTarget) {
         // Clean up dragging state
-        document.querySelectorAll('.map-dot.dragging').forEach(dot => dot.classList.remove('dragging'));
+        document.querySelectorAll('.ms-map-dot.ms-dragging').forEach(dot => dot.classList.remove('ms-dragging'));
         
-        // Capture undo state if dot was actually moved
-        if (appState.hasMoved) {
-            UndoManager.capture('Move dot');
+        // Create move command if dot was actually moved
+        if (appState.hasMoved && appState.dragOriginalPositions.size > 0) {
+            if (appState.dragOriginalPositions.size === 1) {
+                // Single dot move
+                const [[dotId, originalPos]] = appState.dragOriginalPositions.entries();
+                const dot = getCurrentPageDots().get(dotId);
+                if (dot) {
+                    const command = new MoveDotCommand(appState.currentPdfPage, dotId, originalPos, { x: dot.x, y: dot.y });
+                    await CommandUndoManager.execute(command);
+                }
+            } else {
+                // Multiple dot move - use composite command
+                const compositeCommand = new CompositeCommand('Move dots');
+                for (const [dotId, originalPos] of appState.dragOriginalPositions.entries()) {
+                    const dot = getCurrentPageDots().get(dotId);
+                    if (dot) {
+                        const moveCommand = new MoveDotCommand(appState.currentPdfPage, dotId, originalPos, { x: dot.x, y: dot.y });
+                        compositeCommand.add(moveCommand);
+                    }
+                }
+                await CommandUndoManager.execute(compositeCommand);
+            }
+            appState.dragOriginalPositions.clear();
         }
         
         appState.dragTarget = null;
@@ -879,6 +1385,78 @@ function handleMouseUp(e) {
         setTimeout(() => {
             appState.justFinishedScraping = false;
         }, 100);
+    }
+    
+    if (appState.isDrawingAnnotation && appState.annotationTempLine) {
+        // Finish drawing annotation line
+        const mapContainer = document.getElementById('map-container');
+        const rect = mapContainer.getBoundingClientRect();
+        const { x: mapX, y: mapY, scale } = appState.mapTransform;
+        
+        // Calculate end position in canvas coordinates
+        const endX = (e.clientX - rect.left - mapX) / scale;
+        const endY = (e.clientY - rect.top - mapY) / scale;
+        
+        // Get the color from the dot's marker type
+        const markerType = appState.markerTypes[appState.annotationStartDot.markerType];
+        const lineColor = markerType ? markerType.color : '#FF6B6B';
+        
+        // Create annotation line object
+        const annotationLine = {
+            id: `annotation_${appState.nextAnnotationId++}`,
+            startDotId: appState.annotationStartDot.internalId,
+            startX: appState.annotationStartDot.x,
+            startY: appState.annotationStartDot.y,
+            endX: endX,
+            endY: endY,
+            color: lineColor,
+            width: 2
+        };
+        
+        // Create and execute the command
+        const command = new AddAnnotationLineCommand(appState.currentPdfPage, annotationLine);
+        await CommandUndoManager.execute(command);
+        
+        // Remove temporary line
+        if (appState.annotationTempLine) {
+            appState.annotationTempLine.remove();
+            appState.annotationTempLine = null;
+        }
+        
+        // Reset drawing state
+        appState.isDrawingAnnotation = false;
+        appState.annotationStartDot = null;
+        
+        // Render the new line
+        renderAnnotationLines();
+        setDirtyState();
+    }
+    
+    if (appState.draggingAnnotationEndpoint) {
+        // Finished dragging annotation endpoint
+        const lineId = appState.draggingAnnotationEndpoint;
+        const pageLines = getCurrentPageAnnotationLines();
+        const line = pageLines.get(lineId);
+        
+        if (line && appState.draggingAnnotationOriginalPos) {
+            const oldPos = appState.draggingAnnotationOriginalPos;
+            const newPos = { x: line.endX, y: line.endY };
+            
+            // Only create command if position actually changed
+            if (oldPos.x !== newPos.x || oldPos.y !== newPos.y) {
+                const command = new MoveAnnotationLineEndpointCommand(
+                    appState.currentPdfPage, 
+                    lineId, 
+                    oldPos, 
+                    newPos
+                );
+                await CommandUndoManager.execute(command);
+            }
+        }
+        
+        appState.draggingAnnotationEndpoint = null;
+        appState.draggingAnnotationOriginalPos = null;
+        setDirtyState();
     }
 }
 
@@ -949,7 +1527,7 @@ function handleContextMenu(e) {
         return;
     }
     
-    const dotElement = e.target.closest('.map-dot');
+    const dotElement = e.target.closest('.ms-map-dot');
     if (dotElement) {
         const internalId = dotElement.dataset.dotId;
         if (appState.selectedDots.has(internalId) && appState.selectedDots.size > 1) {
@@ -965,38 +1543,53 @@ function handleContextMenu(e) {
 
 
 function clearSearchHighlights() {
-    document.querySelectorAll('.search-highlight').forEach(el => el.classList.remove('search-highlight'));
+    document.querySelectorAll('.ms-search-highlight').forEach(el => el.classList.remove('ms-search-highlight'));
 }
 
 function clearSelection() {
-    appState.selectedDots.forEach(internalId => { deselectDot(internalId); });
+    const hadSelection = appState.selectedDots.size > 0;
+    appState.selectedDots.forEach(internalId => {
+        const dotElement = document.querySelector('.ms-map-dot[data-dot-id="' + internalId + '"]');
+        if (dotElement) {
+            dotElement.classList.remove('ms-selected');
+            Object.assign(dotElement.style, { boxShadow: '', border: '', zIndex: '' });
+        }
+    });
     appState.selectedDots.clear();
-    document.querySelectorAll('.location-item.selected, .grouped-location-item.selected').forEach(item => {
-        item.classList.remove('selected');
+    document.querySelectorAll('.ms-location-item.ms-selected, .ms-grouped-location-item.ms-selected').forEach(item => {
+        item.classList.remove('ms-selected');
     });
     updateSelectionUI();
+    // Update location list if we had selections
+    if (hadSelection) {
+        updateLocationList();
+    }
 }
 
 function selectDot(internalId) {
     appState.selectedDots.add(internalId);
-    const dotElement = document.querySelector('.map-dot[data-dot-id="' + internalId + '"]');
+    const dotElement = document.querySelector('.ms-map-dot[data-dot-id="' + internalId + '"]');
     if (dotElement) {
-        dotElement.classList.add('selected');
+        dotElement.classList.add('ms-selected');
         Object.assign(dotElement.style, {
             boxShadow: '0 0 15px #00ff88, 0 0 30px #00ff88',
             border: '2px solid #00ff88',
             zIndex: '200'
         });
     }
+    // Update location list to bring selected item to top
+    updateLocationList();
 }
 
 function deselectDot(internalId) {
     appState.selectedDots.delete(internalId);
-    const dotElement = document.querySelector('.map-dot[data-dot-id="' + internalId + '"]');
+    const dotElement = document.querySelector('.ms-map-dot[data-dot-id="' + internalId + '"]');
     if (dotElement) {
-        dotElement.classList.remove('selected');
+        dotElement.classList.remove('ms-selected');
         Object.assign(dotElement.style, { boxShadow: '', border: '', zIndex: '' });
     }
+    // Update location list to restore original order
+    updateLocationList();
 }
 
 function toggleDotSelection(internalId) {
@@ -1012,22 +1605,33 @@ function updateSelectionUI() {
 }
 
 function updateListHighlighting() {
-    document.querySelectorAll('.location-item, .grouped-location-item').forEach(item => {
+    document.querySelectorAll('.ms-location-item, .ms-grouped-location-item').forEach(item => {
         const internalId = item.dataset.dotId;
-        item.classList.toggle('selected', appState.selectedDots.has(internalId));
+        item.classList.toggle('ms-selected', appState.selectedDots.has(internalId));
     });
 }
 
-function addDot(x, y, markerTypeCode, message, isCodeRequired = false) {
+// Create a dot object without modifying state
+function createDotObject(x, y, markerTypeCode, message, isCodeRequired = false) {
     const pageData = getCurrentPageData();
     const effectiveMarkerTypeCode = markerTypeCode || appState.activeMarkerType || Object.keys(appState.markerTypes)[0];
     
     if (!effectiveMarkerTypeCode) { 
-        console.log("Cannot add dot: No sign types exist");
-        return; 
+        console.log("Cannot create dot: No marker types exist");
+        
+        // Flash the add marker type button to guide the user
+        const addMarkerTypeBtn = document.getElementById('add-marker-type-btn');
+        if (addMarkerTypeBtn) {
+            addMarkerTypeBtn.classList.add('ms-flash-green');
+            setTimeout(() => {
+                addMarkerTypeBtn.classList.remove('ms-flash-green');
+            }, 1800); // 3 flashes × 0.6s = 1.8s
+        }
+        
+        return null; 
     }
     
-    // Get the sign type to inherit properties
+    // Get the marker type to inherit properties
     const markerTypeData = appState.markerTypes[effectiveMarkerTypeCode];
     
     const internalId = String(appState.nextInternalId).padStart(7, '0');
@@ -1054,16 +1658,31 @@ function addDot(x, y, markerTypeCode, message, isCodeRequired = false) {
         installed: false,
         vinylBacker: markerTypeData?.defaultVinylBacker || false
     };
-
-    pageData.dots.set(internalId, dot);
-    pageData.nextLocationNumber = highestLocationNum + 2;
-    appState.nextInternalId++;
-
-    console.log('✅ Dot created:', dot);
     
-    renderDotsForCurrentPage();
-    updateAllSectionsForCurrentPage();
-    setDirtyState();
+    // Increment for next time (but don't save to state yet)
+    appState.nextInternalId++;
+    
+    return dot;
+}
+
+// Legacy function - now just creates and adds a dot using the command system
+// Legacy function - now uses the command system
+function addDot(x, y, markerTypeCode, message, isCodeRequired = false) {
+    const dot = createDotObject(x, y, markerTypeCode, message, isCodeRequired);
+    if (!dot) return;
+    
+    // Execute the add command
+    const command = new AddDotCommand(appState.currentPdfPage, dot);
+    CommandUndoManager.execute(command).then(() => {
+        // Update the UI after command executes
+        updateSingleDot(dot.internalId);
+        updateLocationList(); // Use full list update for consistency
+        updateMapLegend(); // Update the page legend
+        updateProjectLegend(); // Update the project legend
+        setDirtyState();
+    });
+    
+    return dot;
 }
 
 function addDotToData(x, y, markerTypeCode, message, message2, isCodeRequired) {
@@ -1136,7 +1755,28 @@ function handleMarkerTypeNameChange(input) {
     updateAllSectionsForCurrentPage();
 }
 
-function deleteMarkerType(markerTypeCode) {
+async function deleteMarkerType(markerTypeCode) {
+    // Use sync adapter if available
+    if (window.mappingApp && window.mappingApp.syncAdapter) {
+        try {
+            const result = await window.mappingApp.syncAdapter.deleteMarkerType(
+                markerTypeCode,
+                (message) => confirm(message)
+            );
+            
+            if (!result) return; // User cancelled
+        } catch (error) {
+            console.error('Failed to delete marker type via sync:', error);
+            // Fallback to direct deletion
+            deleteMarkerTypeDirectly(markerTypeCode);
+        }
+    } else {
+        // Direct deletion when sync not available
+        deleteMarkerTypeDirectly(markerTypeCode);
+    }
+}
+
+function deleteMarkerTypeDirectly(markerTypeCode) {
     let dotsCount = 0;
     for (const pageData of appState.dotsByPage.values()) {
         for (const dot of pageData.dots.values()) {
@@ -1224,16 +1864,17 @@ async function changePage(pageNum) {
     updatePageInfo();
     updatePageLabelInput();
     
-    // Capture undo state for page navigation
-    if (pageNum < previousPage) {
-        UndoManager.capture('Previous page');
-    } else {
-        UndoManager.capture('Next page');
-    }
+    // Dispatch page changed event
+    document.dispatchEvent(new CustomEvent('pageChanged'));
+    
+    // Apply any saved crops for this page
+    cropTool.applySavedCrop();
+    
+    // Don't capture undo state for page navigation - only for dot changes
 }
 
 function isDotVisible(internalId) {
-    const dotElement = document.querySelector('.map-dot[data-dot-id="' + internalId + '"]');
+    const dotElement = document.querySelector('.ms-map-dot[data-dot-id="' + internalId + '"]');
     if (!dotElement) return false;
     
     const mapRect = document.getElementById('map-container').getBoundingClientRect();
@@ -1248,33 +1889,39 @@ function isDotVisible(internalId) {
 function addMarkerTypeEventListener() {
     const addBtn = document.querySelector('#add-marker-type-btn');
     if (addBtn) {
-        addBtn.addEventListener('click', () => {
+        addBtn.addEventListener('click', async () => {
             // Find next available code number
             let codeNum = 1;
-            let newCode = `I.${codeNum}`;
+            let newCode = `ID.${codeNum}`;
             
             // Keep incrementing until we find an unused code
             while (appState.markerTypes[newCode]) {
                 codeNum++;
-                newCode = `I.${codeNum}`;
+                newCode = `ID.${codeNum}`;
             }
             
-            // Create new marker type with default values
-            appState.markerTypes[newCode] = {
-                code: newCode,
-                name: 'Sign Type Name',
-                color: '#F72020',
-                textColor: '#FFFFFF',
-                designReference: null
-            };
-            
-            // Set as active if no active type
-            if (!appState.activeMarkerType) {
-                appState.activeMarkerType = newCode;
+            // Use sync adapter if available, otherwise fallback to direct creation
+            if (window.mappingApp && window.mappingApp.syncAdapter) {
+                try {
+                    await window.mappingApp.syncAdapter.createMarkerType(
+                        newCode, 
+                        'Marker Type Name', 
+                        '#F72020', 
+                        '#FFFFFF'
+                    );
+                } catch (error) {
+                    console.error('Failed to create marker type via sync:', error);
+                    // Fallback to direct creation
+                    createMarkerTypeDirectly(newCode);
+                }
+            } else {
+                // Direct creation when sync not available
+                createMarkerTypeDirectly(newCode);
             }
             
-            setDirtyState();
-            updateFilterCheckboxes();
+            // Set the new marker type as active
+            appState.activeMarkerType = newCode;
+            
             updateEditModalOptions();
             
             // Focus the code input of the newly created marker type
@@ -1320,6 +1967,14 @@ function addPageNavigationEventListeners() {
             }
             setDirtyState();
             updateAllSectionsForCurrentPage();
+        });
+        
+        // Add Enter key support
+        pageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.target.blur(); // This will trigger the change event
+            }
         });
     }
     
@@ -1370,6 +2025,7 @@ function setupModalEventListeners() {
     const updateDotBtn = document.getElementById('update-dot-btn');
     const cancelModalBtn = document.getElementById('cancel-modal-btn');
     const deleteDotBtn = document.getElementById('delete-dot-btn');
+    const editMarkerTypeSelect = document.getElementById('edit-marker-type');
     
     if (updateDotBtn) {
         updateDotBtn.addEventListener('click', updateDot);
@@ -1381,6 +2037,31 @@ function setupModalEventListeners() {
     
     if (deleteDotBtn) {
         deleteDotBtn.addEventListener('click', deleteDot);
+    }
+    
+    // Update fields when marker type changes
+    if (editMarkerTypeSelect) {
+        editMarkerTypeSelect.addEventListener('change', () => {
+            const dot = appState.editingDot ? getCurrentPageDots().get(appState.editingDot) : null;
+            
+            // Preserve current field values before regenerating
+            const currentValues = {};
+            const dynamicFields = document.querySelectorAll('#edit-dynamic-fields input, #edit-dynamic-fields textarea');
+            dynamicFields.forEach(field => {
+                const fieldName = field.id.replace('edit-field-', '');
+                currentValues[fieldName] = field.value;
+            });
+            
+            generateDynamicTextFields('edit', dot);
+            
+            // Restore field values after regenerating
+            Object.keys(currentValues).forEach(fieldName => {
+                const field = document.getElementById(`edit-field-${fieldName}`);
+                if (field) {
+                    field.value = currentValues[fieldName];
+                }
+            });
+        });
     }
     
     // Group Edit Modal Event Listeners
@@ -1428,7 +2109,7 @@ function setupModalEventListeners() {
     // Renumber Modal Event Listeners
     const renumberModal = document.getElementById('mapping-slayer-renumber-modal');
     const cancelRenumberBtn = document.getElementById('cancel-renumber-btn');
-    const renumberModalClose = renumberModal?.querySelector('.close');
+    const renumberModalClose = renumberModal?.querySelector('.ms-close');
     
     if (cancelRenumberBtn) {
         cancelRenumberBtn.addEventListener('click', closeRenumberModal);
@@ -1448,7 +2129,7 @@ function setupModalEventListeners() {
     }
     
     // Automap Modal Event Listeners
-    const automapModal = document.getElementById('automap-progress-modal');
+    const automapModal = document.getElementById('mapping-slayer-automap-progress-modal');
     const cancelAutomapBtn = document.getElementById('cancel-automap-btn');
     const closeAutomapBtn = document.getElementById('close-automap-btn');
     
@@ -1472,7 +2153,7 @@ function setupModalEventListeners() {
     // PDF Export Modal Event Listeners
     const pdfExportModal = document.getElementById('mapping-slayer-pdf-export-modal');
     const cancelPdfExportBtn = document.getElementById('cancel-pdf-export-btn');
-    const pdfExportModalClose = pdfExportModal?.querySelector('.close');
+    const pdfExportModalClose = pdfExportModal?.querySelector('.ms-close');
     
     if (cancelPdfExportBtn) {
         cancelPdfExportBtn.addEventListener('click', () => {
@@ -1545,11 +2226,11 @@ function addButtonEventListeners() {
     }
     
     if (pasteBtn) {
-        pasteBtn.addEventListener('click', pasteDots);
+        pasteBtn.addEventListener('click', async () => await pasteDots());
     }
     
     if (deleteBtn) {
-        deleteBtn.addEventListener('click', deleteSelectedDots);
+        deleteBtn.addEventListener('click', async () => await deleteSelectedDots());
     }
     
     if (editSelectedBtn) {
@@ -1570,12 +2251,6 @@ function addButtonEventListeners() {
     
     if (replaceInput) {
         replaceInput.addEventListener('input', updateReplaceStatus);
-        replaceInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && replaceBtn && !replaceBtn.disabled) {
-                e.preventDefault();
-                performReplace();
-            }
-        });
     }
     
     if (findAllBtn) {
@@ -1589,10 +2264,10 @@ function addButtonEventListeners() {
     if (toggleMessagesBtn) {
         toggleMessagesBtn.addEventListener('click', () => {
             appState.messagesVisible = !appState.messagesVisible;
-            toggleMessagesBtn.textContent = appState.messagesVisible ? 'HIDE MSG' : 'SHOW MSG';
+            toggleMessagesBtn.textContent = appState.messagesVisible ? 'HIDE MSG1' : 'SHOW MSG1';
             
-            document.querySelectorAll('.map-dot-message').forEach(msg => {
-                msg.classList.toggle('visible', appState.messagesVisible);
+            document.querySelectorAll('.ms-map-dot-message').forEach(msg => {
+                msg.classList.toggle('ms-visible', appState.messagesVisible);
             });
         });
     }
@@ -1602,9 +2277,51 @@ function addButtonEventListeners() {
             appState.messages2Visible = !appState.messages2Visible;
             toggleMessages2Btn.textContent = appState.messages2Visible ? 'HIDE MSG2' : 'SHOW MSG2';
             
-            document.querySelectorAll('.map-dot-message2').forEach(msg => {
-                msg.classList.toggle('visible', appState.messages2Visible);
+            document.querySelectorAll('.ms-map-dot-message2').forEach(msg => {
+                msg.classList.toggle('ms-visible', appState.messages2Visible);
             });
+        });
+    }
+    
+    const toggleCodeDisplayBtn = document.getElementById('toggle-code-display-btn');
+    if (toggleCodeDisplayBtn) {
+        toggleCodeDisplayBtn.addEventListener('click', () => {
+            // Cycle through: showCode -> codeOnly -> hideCode -> showCode
+            if (appState.codeFilterMode === 'showCode') {
+                appState.codeFilterMode = 'codeOnly';
+                toggleCodeDisplayBtn.textContent = 'HIDE CODE';  // Next action will hide code
+            } else if (appState.codeFilterMode === 'codeOnly') {
+                appState.codeFilterMode = 'hideCode';
+                toggleCodeDisplayBtn.textContent = 'SHOW CODE';  // Next action will show code
+            } else {
+                appState.codeFilterMode = 'showCode';
+                toggleCodeDisplayBtn.textContent = 'CODE ONLY';  // Next action will show code only
+            }
+            
+            // Update dots and location list
+            renderDotsForCurrentPage();
+            updateLocationList();
+        });
+    }
+    
+    const toggleInstDisplayBtn = document.getElementById('toggle-inst-display-btn');
+    if (toggleInstDisplayBtn) {
+        toggleInstDisplayBtn.addEventListener('click', () => {
+            // Cycle through: showInst -> instOnly -> hideInst -> showInst
+            if (appState.instFilterMode === 'showInst') {
+                appState.instFilterMode = 'instOnly';
+                toggleInstDisplayBtn.textContent = 'HIDE INST';  // Next action will hide inst
+            } else if (appState.instFilterMode === 'instOnly') {
+                appState.instFilterMode = 'hideInst';
+                toggleInstDisplayBtn.textContent = 'SHOW INST';  // Next action will show inst
+            } else {
+                appState.instFilterMode = 'showInst';
+                toggleInstDisplayBtn.textContent = 'INST ONLY';  // Next action will show inst only
+            }
+            
+            // Update dots and location list
+            renderDotsForCurrentPage();
+            updateLocationList();
         });
     }
     
@@ -1613,7 +2330,7 @@ function addButtonEventListeners() {
             appState.locationsVisible = !appState.locationsVisible;
             toggleLocationsBtn.textContent = appState.locationsVisible ? 'HIDE LOC' : 'SHOW LOC';
             
-            document.querySelectorAll('.dot-number').forEach(num => {
+            document.querySelectorAll('.ms-dot-number').forEach(num => {
                 num.style.display = appState.locationsVisible ? '' : 'none';
             });
         });
@@ -1680,10 +2397,13 @@ function openEditModal(internalId) {
     if (!dot) return;
     appState.editingDot = internalId;
     updateEditModalOptions(); 
+    // Set marker type AFTER updateEditModalOptions to ensure it's not overwritten
     document.getElementById('edit-marker-type').value = dot.markerType;
     document.getElementById('edit-location-number').value = dot.locationNumber;
-    document.getElementById('edit-message').value = dot.message;
-    document.getElementById('edit-message2').value = dot.message2 || '';
+    
+    // Generate dynamic text fields based on marker type
+    generateDynamicTextFields('edit', dot);
+    
     document.getElementById('edit-code-required').checked = dot.isCodeRequired || false;
     document.getElementById('edit-installed').checked = dot.installed || false;
     document.getElementById('edit-vinyl-backer').checked = dot.vinylBacker || false;
@@ -1711,7 +2431,7 @@ function openEditModal(internalId) {
     // Check if modal is inside app-container
     let parent = modal.parentElement;
     while (parent) {
-        if (parent.id === 'app-container' || parent.className.includes('app-container')) {
+        if (parent.id === 'app-container' || parent.className.includes('ms-app-container')) {
             console.log('WARNING: Modal is inside app-container!', parent);
             break;
         }
@@ -1745,8 +2465,9 @@ function openGroupEditModal() {
 
     document.getElementById('mapping-slayer-group-edit-count').textContent = selectedCount;
     updateEditModalOptions('group-edit-marker-type', true);
-    document.getElementById('group-edit-message').value = '';
-    document.getElementById('group-edit-message2').value = '';
+    
+    // Generate dynamic fields for group edit
+    generateDynamicTextFields('group-edit');
     
     const selectedDots = Array.from(appState.selectedDots).map(id => getCurrentPageDots().get(id));
 
@@ -1821,73 +2542,186 @@ function isModalOpen() {
     });
 }
 
-function updateDot() {
+async function updateDot() {
     if (!appState.editingDot) return;
     
     const dot = getCurrentPageDots().get(appState.editingDot);
     if (!dot) return;
     
-    dot.locationNumber = document.getElementById('edit-location-number').value;
-    dot.message = document.getElementById('edit-message').value;
-    dot.message2 = document.getElementById('edit-message2').value || '';
-    dot.markerType = document.getElementById('edit-marker-type').value;
-    dot.isCodeRequired = document.getElementById('edit-code-required').checked;
-    dot.installed = document.getElementById('edit-installed').checked;
-    dot.vinylBacker = document.getElementById('edit-vinyl-backer').checked;
-    dot.notes = document.getElementById('edit-notes').value || '';
+    // Collect old values
+    const oldValues = {
+        locationNumber: dot.locationNumber,
+        markerType: dot.markerType,
+        message: dot.message,
+        message2: dot.message2,
+        isCodeRequired: dot.isCodeRequired,
+        installed: dot.installed,
+        vinylBacker: dot.vinylBacker,
+        notes: dot.notes
+    };
+    
+    // Collect new values from form
+    const newValues = {
+        locationNumber: document.getElementById('edit-location-number').value,
+        markerType: document.getElementById('edit-marker-type').value,
+        isCodeRequired: document.getElementById('edit-code-required').checked,
+        installed: document.getElementById('edit-installed').checked,
+        vinylBacker: document.getElementById('edit-vinyl-backer').checked,
+        notes: document.getElementById('edit-notes').value || ''
+    };
+    
+    // Get dynamic text fields
+    const markerType = appState.markerTypes[newValues.markerType];
+    const textFields = markerType?.textFields || [
+        { fieldName: 'message' },
+        { fieldName: 'message2' }
+    ];
+    
+    textFields.forEach(field => {
+        const input = document.getElementById(`edit-field-${field.fieldName}`);
+        if (input) {
+            newValues[field.fieldName] = input.value || '';
+        }
+    });
+    
+    // Create and execute edit command
+    const command = new EditDotCommand(appState.currentPdfPage, appState.editingDot, oldValues, newValues);
+    await CommandUndoManager.execute(command);
     
     setDirtyState();
+    
+    // Sync changes if available
+    if (window.mappingApp && window.mappingApp.syncAdapter) {
+        try {
+            // Sync text field changes
+            textFields.forEach(field => {
+                if (oldValues[field.fieldName] !== newValues[field.fieldName]) {
+                    window.mappingApp.syncAdapter.syncDotChange(dot, field.fieldName, newValues[field.fieldName]);
+                }
+            });
+            
+            // Sync notes changes
+            if (oldValues.notes !== newValues.notes) {
+                await window.mappingApp.syncAdapter.syncDotChange(dot, 'notes', newValues.notes);
+            }
+        } catch (error) {
+            console.error('Failed to sync dot changes:', error);
+        }
+    }
+    
     // Use single dot update for better performance
     const updated = updateSingleDot(appState.editingDot);
     if (!updated) {
         // Fallback to full re-render if single update fails
         renderDotsForCurrentPage();
     }
-    updateAllSectionsForCurrentPage();
+    // Only update what changed, not everything
+    updateLocationList();
+    updateMapLegend();
     closeEditModal();
-    UndoManager.capture('Edit dot');
 }
 
-function deleteDot() {
+async function deleteDot() {
     if (!appState.editingDot || !confirm('Delete this location?')) return;
     
-    getCurrentPageData().dots.delete(appState.editingDot);
+    const dot = getCurrentPageDots().get(appState.editingDot);
+    if (!dot) return;
+    
+    // Create and execute delete command
+    const command = new DeleteDotCommand(appState.currentPdfPage, dot);
+    await CommandUndoManager.execute(command);
+    
     setDirtyState();
     renderDotsForCurrentPage();
     updateAllSectionsForCurrentPage();
     closeEditModal();
-    UndoManager.capture('Delete dot');
 }
 
-function groupUpdateDots() {
+async function groupUpdateDots() {
     const selectedDots = Array.from(appState.selectedDots);
-    const message = document.getElementById('group-edit-message').value;
-    const message2 = document.getElementById('group-edit-message2').value;
     const markerType = document.getElementById('group-edit-marker-type').value;
     const notes = document.getElementById('group-edit-notes').value;
     const codeRequiredCheckbox = document.getElementById('group-edit-code-required');
     const installedCheckbox = document.getElementById('group-edit-installed');
     const vinylBackerCheckbox = document.getElementById('group-edit-vinyl-backer');
     
-    selectedDots.forEach(internalId => {
+    // Get dynamic field values
+    const dynamicFieldValues = {};
+    const container = document.getElementById('group-edit-dynamic-fields');
+    if (container) {
+        const inputs = container.querySelectorAll('input[type="text"]');
+        inputs.forEach(input => {
+            if (input.value) {
+                const fieldName = input.id.replace('group-edit-field-', '');
+                dynamicFieldValues[fieldName] = input.value;
+            }
+        });
+    }
+    
+    const compositeCommand = new CompositeCommand('Edit multiple dots');
+    
+    for (const internalId of selectedDots) {
         const dot = getCurrentPageDots().get(internalId);
-        if (!dot) return;
+        if (!dot) continue;
         
-        if (message) dot.message = message;
-        if (message2) dot.message2 = message2;
-        if (markerType) dot.markerType = markerType;
-        if (notes) dot.notes = notes;
+        // Collect old values
+        const oldValues = {
+            markerType: dot.markerType,
+            notes: dot.notes,
+            isCodeRequired: dot.isCodeRequired,
+            installed: dot.installed,
+            vinylBacker: dot.vinylBacker
+        };
+        
+        // Add dynamic text fields to old values
+        const dotMarkerType = appState.markerTypes[dot.markerType];
+        const textFields = dotMarkerType?.textFields || [
+            { fieldName: 'message' },
+            { fieldName: 'message2' }
+        ];
+        
+        textFields.forEach(field => {
+            oldValues[field.fieldName] = dot[field.fieldName] || '';
+        });
+        Object.entries(dynamicFieldValues).forEach(([fieldName, value]) => {
+            if (!oldValues.hasOwnProperty(fieldName)) {
+                oldValues[fieldName] = dot[fieldName] || '';
+            }
+        });
+        
+        // Collect new values
+        const newValues = { ...oldValues };
+        
+        // Apply changes to new values
+        Object.entries(dynamicFieldValues).forEach(([fieldName, value]) => {
+            newValues[fieldName] = value;
+        });
+        
+        if (markerType) newValues.markerType = markerType;
+        if (notes) newValues.notes = notes;
         
         if (!codeRequiredCheckbox.indeterminate) {
-            dot.isCodeRequired = codeRequiredCheckbox.checked;
+            newValues.isCodeRequired = codeRequiredCheckbox.checked;
         }
         if (!installedCheckbox.indeterminate) {
-            dot.installed = installedCheckbox.checked;
+            newValues.installed = installedCheckbox.checked;
         }
         if (!vinylBackerCheckbox.indeterminate) {
-            dot.vinylBacker = vinylBackerCheckbox.checked;
+            newValues.vinylBacker = vinylBackerCheckbox.checked;
         }
-    });
+        
+        // Only create command if there are actual changes
+        const hasChanges = Object.keys(newValues).some(key => oldValues[key] !== newValues[key]);
+        if (hasChanges) {
+            const editCommand = new EditDotCommand(appState.currentPdfPage, internalId, oldValues, newValues);
+            compositeCommand.add(editCommand);
+        }
+    }
+    
+    // Execute the composite command if there are any changes
+    if (compositeCommand.commands.length > 0) {
+        await CommandUndoManager.execute(compositeCommand);
+    }
     
     setDirtyState();
     renderDotsForCurrentPage();
@@ -1895,16 +2729,25 @@ function groupUpdateDots() {
     clearSelection();
     updateSelectionUI();
     closeGroupEditModal();
-    UndoManager.capture('Edit multiple dots');
 }
 
-function groupDeleteDots() {
+async function groupDeleteDots() {
     const count = appState.selectedDots.size;
     if (!confirm('Delete ' + count + ' selected locations?')) return;
     
+    const compositeCommand = new CompositeCommand(`Delete ${count} dots`);
+    
     appState.selectedDots.forEach(internalId => {
-        getCurrentPageData().dots.delete(internalId);
+        const dot = getCurrentPageDots().get(internalId);
+        if (dot) {
+            const deleteCommand = new DeleteDotCommand(appState.currentPdfPage, dot);
+            compositeCommand.add(deleteCommand);
+        }
     });
+    
+    if (compositeCommand.commands.length > 0) {
+        await CommandUndoManager.execute(compositeCommand);
+    }
     
     setDirtyState();
     renderDotsForCurrentPage();
@@ -1912,7 +2755,6 @@ function groupDeleteDots() {
     clearSelection();
     updateSelectionUI();
     closeGroupEditModal();
-    UndoManager.capture(`Delete ${count} dots`);
 }
 
 function openRenumberModal() {
@@ -1960,7 +2802,8 @@ function performRenumber(type) {
     
     // Capture undo state if any dots were renumbered
     if (count > 0) {
-        UndoManager.capture(description);
+        // TODO: Convert to Command Pattern
+        // UndoManager.capture(description);
     }
     
     showCSVStatus('Successfully renumbered ' + count + ' locations', true);
@@ -2096,7 +2939,7 @@ function handleFind(e) {
     if (!query) { 
         findCountEl.textContent = ''; 
         findCountEl.style.display = 'none';
-        findInput.classList.remove('has-results', 'no-results');
+        findInput.classList.remove('ms-has-results', 'ms-no-results');
         appState.searchResults = []; 
         appState.currentSearchIndex = -1; 
         updateReplaceStatus(); 
@@ -2111,15 +2954,15 @@ function handleFind(e) {
     
     if (appState.searchResults.length > 0) { 
         appState.currentSearchIndex = 0; 
-        findInput.classList.add('has-results');
-        findInput.classList.remove('no-results');
+        findInput.classList.add('ms-has-results');
+        findInput.classList.remove('ms-no-results');
         updateFindUI(); 
     } else { 
         appState.currentSearchIndex = -1; 
         findCountEl.textContent = '0 found';
         findCountEl.style.display = 'inline';
-        findInput.classList.add('no-results');
-        findInput.classList.remove('has-results');
+        findInput.classList.add('ms-no-results');
+        findInput.classList.remove('ms-has-results');
     }
     updateReplaceStatus();
 }
@@ -2144,15 +2987,15 @@ function updateFindUI() {
         
         // Give viewport update time to render the dot, then highlight it
         setTimeout(() => {
-            const dotElement = document.querySelector(`.map-dot[data-dot-id="${dot.internalId}"]`);
+            const dotElement = document.querySelector(`.ms-map-dot[data-dot-id="${dot.internalId}"]`);
             if (dotElement) { 
-                dotElement.classList.add('search-highlight'); 
+                dotElement.classList.add('ms-search-highlight'); 
             }
             
             // Also highlight in the list
             const listItem = document.querySelector(`.location-item[data-dot-id="${dot.internalId}"], .grouped-location-item[data-dot-id="${dot.internalId}"]`);
             if (listItem) {
-                listItem.classList.add('search-highlight');
+                listItem.classList.add('ms-search-highlight');
                 listItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }, 100);
@@ -2163,6 +3006,50 @@ function updateFindUI() {
         findCountEl.textContent = '0 found';
         findCountEl.style.display = 'inline';
     }
+}
+
+function zoomToFitSelectedDots() {
+    if (appState.selectedDots.size === 0) return;
+    
+    const dots = getCurrentPageDots();
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+    
+    // Find bounds of selected dots
+    appState.selectedDots.forEach(id => {
+        const dot = dots.get(id);
+        if (dot) {
+            minX = Math.min(minX, dot.x);
+            minY = Math.min(minY, dot.y);
+            maxX = Math.max(maxX, dot.x);
+            maxY = Math.max(maxY, dot.y);
+        }
+    });
+    
+    // Add padding
+    const padding = 50;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+    
+    // Calculate required scale and position
+    const mapContainer = document.getElementById('map-container');
+    const containerRect = mapContainer.getBoundingClientRect();
+    const width = maxX - minX;
+    const height = maxY - minY;
+    
+    // Calculate scale to fit both dimensions
+    const scaleX = containerRect.width / width;
+    const scaleY = containerRect.height / height;
+    const scale = Math.min(scaleX, scaleY, 3); // Cap at 3x zoom
+    
+    // Center the selection
+    appState.mapTransform.scale = scale;
+    appState.mapTransform.x = (containerRect.width - width * scale) / 2 - minX * scale;
+    appState.mapTransform.y = (containerRect.height - height * scale) / 2 - minY * scale;
+    
+    applyMapTransform();
 }
 
 function performFindAll() {
@@ -2187,7 +3074,7 @@ function performFindAll() {
     
     if (matches.length > 0) {
         showCSVStatus('Selected ' + matches.length + ' locations with matching text', true);
-        // TODO: Implement zoomToFitSelectedDots when zoom functionality is complete
+        zoomToFitSelectedDots();
     } else {
         showCSVStatus('No locations found with matching text', false);
     }
@@ -2228,7 +3115,8 @@ function performReplace() {
         updateAllSectionsForCurrentPage();
         document.getElementById('replace-input').value = '';
         showCSVStatus('Replaced text in ' + replacedCount + ' locations', true);
-        UndoManager.capture(`Replace "${findText}" with "${replaceText}"`);
+        // TODO: Convert to Command Pattern
+        // UndoManager.capture(`Replace "${findText}" with "${replaceText}"`);
     }
     
     updateReplaceStatus();
@@ -2358,14 +3246,15 @@ function copySelectedDots() {
             message2: dot.message2 || '',
             markerType: dot.markerType,
             notes: dot.notes || '',
-            installedVinylBacker: dot.installedVinylBacker || false,
-            codeRequired: dot.codeRequired || false
+            isCodeRequired: dot.isCodeRequired || false,
+            installed: dot.installed || false,
+            vinylBacker: dot.vinylBacker || false
         }];
         showCSVStatus('Copied 1 dot');
     }
 }
 
-function pasteDots() {
+async function pasteDots() {
     if (clipboard.length === 0) {
         showCSVStatus('Nothing to paste', false);
         return;
@@ -2380,33 +3269,38 @@ function pasteDots() {
     if (!isCollision(pasteX, pasteY)) {
         clearSelection();
         
-        // Create new dot with copied properties (but not location number)
-        const newDot = addDotToData(pasteX, pasteY, clipDot.markerType, clipDot.message);
+        // Create new dot object using createDotObject to get proper ID and location number
+        const newDot = createDotObject(pasteX, pasteY, clipDot.markerType, clipDot.message, clipDot.isCodeRequired);
         
-        // Update additional properties
-        const dots = getCurrentPageDots();
-        const createdDot = dots.get(newDot.internalId);
-        if (createdDot) {
-            createdDot.message2 = clipDot.message2;
-            createdDot.notes = clipDot.notes;
-            createdDot.installedVinylBacker = clipDot.installedVinylBacker;
-            createdDot.codeRequired = clipDot.codeRequired;
+        if (newDot) {
+            // Copy over additional properties from the clipboard
+            newDot.message2 = clipDot.message2 || '';
+            newDot.notes = clipDot.notes || '';
+            newDot.installed = clipDot.installed || false;
+            newDot.vinylBacker = clipDot.vinylBacker || false;
+            
+            // Use AddDotCommand to add the dot
+            const command = new AddDotCommand(appState.currentPdfPage, newDot);
+            await CommandUndoManager.execute(command);
+            
+            // Select the newly created dot
+            selectDot(newDot.internalId);
+            
+            renderDotsForCurrentPage();
+            updateAllSectionsForCurrentPage();
+            updateSelectionUI();
+            setDirtyState();
+            
+            showCSVStatus('Pasted 1 dot');
+        } else {
+            showCSVStatus('Failed to create dot', false);
         }
-        
-        selectDot(newDot.internalId);
-        renderDotsForCurrentPage();
-        updateAllSectionsForCurrentPage();
-        updateSelectionUI();
-        setDirtyState();
-        
-        showCSVStatus('Pasted 1 dot');
-        UndoManager.capture('Paste dot');
     } else {
         showCSVStatus('Cannot paste - collision at cursor location', false);
     }
 }
 
-function pasteDotAtPosition(x, y) {
+async function pasteDotAtPosition(x, y) {
     if (clipboard.length === 0) {
         showCSVStatus('Nothing to paste', false);
         return;
@@ -2417,27 +3311,41 @@ function pasteDotAtPosition(x, y) {
     if (!isCollision(x, y)) {
         clearSelection();
         
-        // Create new dot with copied properties (but not location number)
-        const newDot = addDotToData(x, y, clipDot.markerType, clipDot.message);
+        // Create new dot object with all copied properties
+        const newDot = {
+            x: x,
+            y: y,
+            markerType: clipDot.markerType,
+            message: clipDot.message || '',
+            message2: clipDot.message2 || '',
+            notes: clipDot.notes || '',
+            isCodeRequired: clipDot.isCodeRequired || false,
+            installed: clipDot.installed || false,
+            vinylBacker: clipDot.vinylBacker || false,
+            installedVinylBacker: clipDot.installedVinylBacker || false,
+            codeRequired: clipDot.codeRequired || false
+        };
         
-        // Update additional properties
+        // Use AddDotCommand to add the dot
+        const command = new AddDotCommand(appState.currentPdfPage, newDot);
+        await CommandUndoManager.execute(command);
+        
+        // Get the created dot's internal ID for selection
         const dots = getCurrentPageDots();
-        const createdDot = dots.get(newDot.internalId);
-        if (createdDot) {
-            createdDot.message2 = clipDot.message2;
-            createdDot.notes = clipDot.notes;
-            createdDot.installedVinylBacker = clipDot.installedVinylBacker;
-            createdDot.codeRequired = clipDot.codeRequired;
+        const createdDotEntry = Array.from(dots.entries()).find(([id, dot]) => 
+            dot.x === x && dot.y === y && dot.markerType === clipDot.markerType
+        );
+        
+        if (createdDotEntry) {
+            selectDot(createdDotEntry[0]);
         }
         
-        selectDot(newDot.internalId);
         renderDotsForCurrentPage();
         updateAllSectionsForCurrentPage();
         updateSelectionUI();
         setDirtyState();
         
         showCSVStatus('Pasted 1 dot');
-        UndoManager.capture('Paste dot at position');
     } else {
         showCSVStatus('Cannot paste - collision at location', false);
     }
@@ -2456,26 +3364,65 @@ function selectAllDotsOnPage() {
     }
 }
 
-function deleteSelectedDots() {
+function selectAllDotsOfMarkerType(markerTypeCode) {
+    clearSelection();
+    
+    let selectedCount = 0;
+    
+    if (appState.isAllPagesView) {
+        // Select from all pages
+        for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+            const dotsOnPage = getDotsForPage(pageNum);
+            dotsOnPage.forEach((dot, internalId) => {
+                if (dot.markerType === markerTypeCode) {
+                    selectDot(internalId);
+                    selectedCount++;
+                }
+            });
+        }
+    } else {
+        // Select from current page only
+        const dots = getCurrentPageDots();
+        dots.forEach((dot, internalId) => {
+            if (dot.markerType === markerTypeCode) {
+                selectDot(internalId);
+                selectedCount++;
+            }
+        });
+    }
+    
+    if (selectedCount > 0) {
+        const markerTypeName = appState.markerTypes[markerTypeCode]?.name || markerTypeCode;
+        showCSVStatus(`Selected ${selectedCount} dots of type "${markerTypeName}"`);
+    }
+    
+    updateSelectionUI();
+}
+
+async function deleteSelectedDots() {
     if (appState.selectedDots.size === 0) return;
     
     const count = appState.selectedDots.size;
-    const dotsMap = getCurrentPageDots();
+    const compositeCommand = new CompositeCommand(`Delete ${count} dot(s)`);
     
     appState.selectedDots.forEach(internalId => {
-        dotsMap.delete(internalId);
-        const dotElement = document.querySelector(`.map-dot[data-dot-id="${internalId}"]`);
-        if (dotElement) {
-            dotElement.remove();
+        const dot = getCurrentPageDots().get(internalId);
+        if (dot) {
+            const deleteCommand = new DeleteDotCommand(appState.currentPdfPage, dot);
+            compositeCommand.add(deleteCommand);
         }
     });
     
+    if (compositeCommand.commands.length > 0) {
+        await CommandUndoManager.execute(compositeCommand);
+    }
+    
     clearSelection();
+    renderDotsForCurrentPage();
     updateAllSectionsForCurrentPage();
     setDirtyState();
     
     showCSVStatus(`Deleted ${count} dot(s)`);
-    UndoManager.capture(`Delete ${count} dot(s)`);
 }
 
 function moveSelectedDots(deltaX, deltaY) {
@@ -2518,7 +3465,7 @@ function moveSelectedDots(deltaX, deltaY) {
             dot.y += deltaY;
             
             // Update visual position
-            const dotElement = document.querySelector(`.map-dot[data-dot-id="${internalId}"]`);
+            const dotElement = document.querySelector(`.ms-map-dot[data-dot-id="${internalId}"]`);
             if (dotElement) {
                 const size = appState.dotSize * 12;
                 const halfSize = size / 2;
@@ -2531,15 +3478,20 @@ function moveSelectedDots(deltaX, deltaY) {
     setDirtyState();
 }
 
+let keyboardShortcutsSetup = false;
+
 function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
+    if (keyboardShortcutsSetup) return; // Prevent duplicate listeners
+    keyboardShortcutsSetup = true;
+    
+    document.addEventListener('keydown', async (e) => {
         // Ignore if typing in input
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         
         // Undo (Ctrl+Z or Cmd+Z)
         if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
             e.preventDefault();
-            const action = UndoManager.undo();
+            const action = await CommandUndoManager.undo();
             if (action) {
                 showCSVStatus(`Undo: ${action}`, true, 2000);
             }
@@ -2548,7 +3500,7 @@ function setupKeyboardShortcuts() {
         else if (((e.ctrlKey || e.metaKey) && e.key === 'y') || 
                  ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z')) {
             e.preventDefault();
-            const action = UndoManager.redo();
+            const action = await CommandUndoManager.redo();
             if (action) {
                 showCSVStatus(`Redo: ${action}`, true, 2000);
             }
@@ -2561,18 +3513,44 @@ function setupKeyboardShortcuts() {
         // Paste (Ctrl+V)
         else if (e.ctrlKey && e.key === 'v') {
             e.preventDefault();
-            pasteDots();
+            await pasteDots();
         }
         // Cut (Ctrl+X)
         else if (e.ctrlKey && e.key === 'x') {
             e.preventDefault();
             copySelectedDots();
-            deleteSelectedDots();
+            await deleteSelectedDots();
         }
         // Delete
         else if (e.key === 'Delete') {
             e.preventDefault();
-            deleteSelectedDots();
+            
+            // Check if any annotation lines are selected
+            if (appState.selectedAnnotationLines.size > 0) {
+                const pageLines = getCurrentPageAnnotationLines();
+                const compositeCommand = new CompositeCommand(`Delete ${appState.selectedAnnotationLines.size} annotation line(s)`);
+                
+                appState.selectedAnnotationLines.forEach(lineId => {
+                    const line = pageLines.get(lineId);
+                    if (line) {
+                        const deleteCommand = new DeleteAnnotationLineCommand(appState.currentPdfPage, line);
+                        compositeCommand.add(deleteCommand);
+                    }
+                });
+                
+                if (compositeCommand.commands.length > 0) {
+                    await CommandUndoManager.execute(compositeCommand);
+                }
+                
+                appState.selectedAnnotationLines.clear();
+                renderAnnotationLines();
+                setDirtyState();
+            }
+            
+            // Also delete selected dots
+            if (appState.selectedDots.size > 0) {
+                await deleteSelectedDots();
+            }
         }
         // Select All (Ctrl+A)
         else if (e.ctrlKey && e.key === 'a') {
@@ -2641,6 +3619,33 @@ function generateErrorLog(skippedRows) {
     URL.revokeObjectURL(url);
 }
 
+function generateDeletionLog(deletedDots) {
+    const timestamp = new Date().toLocaleString();
+    let logContent = `MAPPING SLAYER - DELETION LOG\n`;
+    logContent += `Generated on: ${timestamp}\n\n`;
+    logContent += `Total Locations Deleted: ${deletedDots.length}\n\n`;
+    logContent += `The following locations were not found in the imported CSV and have been deleted from the map:\n\n`;
+    
+    deletedDots.forEach((dot, index) => {
+        logContent += `${index + 1}. Location #${dot.locationNumber} on Page ${dot.page}\n`;
+        logContent += `   Marker Type: ${dot.markerTypeCode} - ${dot.markerTypeName}\n`;
+        logContent += `   Message 1: ${dot.message}\n`;
+        if (dot.message2) logContent += `   Message 2: ${dot.message2}\n`;
+        logContent += `\n`;
+    });
+    
+    const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Deletion_Log_${new Date().toISOString().slice(0,19).replace(/:/g, '')}.txt`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 async function handleScheduleUpdate(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -2659,20 +3664,25 @@ async function handleScheduleUpdate(e) {
         const headerLine = lines[0];
         const headers = parseCSVLine(headerLine).map(h => h.toUpperCase());
         
-        // Check for required columns
-        const requiredColumns = ['MARKER TYPE CODE', 'MARKER TYPE NAME', 'MESSAGE', 'LOCATION NUMBER', 'MAP PAGE'];
+        // Check for required columns (accept either MESSAGE or MESSAGE 1)
+        const requiredColumns = ['MARKER TYPE CODE', 'MARKER TYPE NAME', 'LOCATION NUMBER', 'MAP PAGE'];
         const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+        
+        // Check for MESSAGE or MESSAGE 1
+        if (!headers.includes('MESSAGE') && !headers.includes('MESSAGE 1')) {
+            missingColumns.push('MESSAGE');
+        }
         
         if (missingColumns.length > 0) {
             showCSVStatus(`❌ Missing required columns: ${missingColumns.join(', ')}`, false, 8000);
             return;
         }
         
-        // Get column indices
+        // Get column indices - support both old and new column names
         const columnIndices = {
             markerTypeCode: headers.indexOf('MARKER TYPE CODE'),
             markerTypeName: headers.indexOf('MARKER TYPE NAME'),
-            message: headers.indexOf('MESSAGE'),
+            message: headers.indexOf('MESSAGE 1') !== -1 ? headers.indexOf('MESSAGE 1') : headers.indexOf('MESSAGE'),
             message2: headers.indexOf('MESSAGE 2'),
             locationNumber: headers.indexOf('LOCATION NUMBER'),
             mapPage: headers.indexOf('MAP PAGE'),
@@ -2683,9 +3693,73 @@ async function handleScheduleUpdate(e) {
         };
         
         let updatedCount = 0;
+        let deletedCount = 0;
         const skippedRows = [];
+        const dotsInCSV = new Set(); // Track all dots mentioned in CSV
         
-        // Process each data row
+        // First pass: collect all valid dot identifiers from CSV
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            const values = parseCSVLine(line);
+            const pageNum = parseInt(values[columnIndices.mapPage]);
+            let locationNumber = values[columnIndices.locationNumber];
+            
+            if (locationNumber) {
+                locationNumber = locationNumber.replace(/^["']|["']$/g, '').replace(/'/g, '');
+            }
+            
+            if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= appState.totalPages && locationNumber) {
+                dotsInCSV.add(`${pageNum}-${locationNumber}`);
+            }
+        }
+        
+        // Check for dots to delete
+        const dotsToDelete = [];
+        for (let pageNum = 1; pageNum <= appState.totalPages; pageNum++) {
+            const dotsOnPage = getDotsForPage(pageNum);
+            
+            for (const [internalId, dot] of dotsOnPage) {
+                const dotKey = `${pageNum}-${dot.locationNumber}`;
+                if (!dotsInCSV.has(dotKey)) {
+                    const markerType = appState.markerTypes[dot.markerType] || {};
+                    dotsToDelete.push({
+                        internalId,
+                        pageNum,
+                        locationNumber: dot.locationNumber,
+                        markerTypeCode: markerType.code || 'UNKNOWN',
+                        markerTypeName: markerType.name || 'Unknown',
+                        message: dot.message,
+                        message2: dot.message2,
+                        page: pageNum
+                    });
+                }
+            }
+        }
+        
+        // Show warning if dots will be deleted
+        if (dotsToDelete.length > 0) {
+            const confirmDelete = confirm(
+                `WARNING: ${dotsToDelete.length} locations in the current map are not in the message schedule.\n\n` +
+                `These missing locations will be deleted from the map.\n\n` +
+                `Do you want to continue?`
+            );
+            
+            if (!confirmDelete) {
+                showCSVStatus('❌ Import cancelled', false, 3000);
+                return;
+            }
+            
+            // Delete the dots
+            dotsToDelete.forEach(dot => {
+                const dotsOnPage = getDotsForPage(dot.pageNum);
+                dotsOnPage.delete(dot.internalId);
+                deletedCount++;
+            });
+        }
+        
+        // Process each data row for updates
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
@@ -2773,20 +3847,25 @@ async function handleScheduleUpdate(e) {
         }
         
         // Show results
-        if (updatedCount > 0) {
+        if (updatedCount > 0 || deletedCount > 0) {
             setDirtyState();
             renderDotsForCurrentPage();
             updateAllSectionsForCurrentPage();
-            UndoManager.capture('Import CSV update');
+            // TODO: Convert to Command Pattern
+            // UndoManager.capture('Import CSV update');
+            
+            let statusMessage = '';
+            if (updatedCount > 0) statusMessage += `Updated ${updatedCount} locations. `;
+            if (deletedCount > 0) statusMessage += `Deleted ${deletedCount} locations. `;
+            if (skippedRows.length > 0) statusMessage += `${skippedRows.length} rows skipped (see error log)`;
+            
+            showCSVStatus(`✅ ${statusMessage.trim()}`, true, 8000);
             
             if (skippedRows.length > 0) {
-                showCSVStatus(`✅ Updated ${updatedCount} locations. ${skippedRows.length} rows skipped (see error log)`, true, 8000);
                 generateErrorLog(skippedRows);
-            } else {
-                showCSVStatus(`✅ Successfully updated ${updatedCount} locations`, true, 5000);
             }
         } else {
-            showCSVStatus('❌ No locations were updated', false, 5000);
+            showCSVStatus('❌ No changes were made', false, 5000);
             if (skippedRows.length > 0) {
                 generateErrorLog(skippedRows);
             }
@@ -2804,14 +3883,592 @@ window.performPDFExport = async (exportType) => {
     performPDFExport(exportType);
 };
 
+// Helper function for direct marker type creation
+function createMarkerTypeDirectly(newCode) {
+    // Create new marker type with default values
+    appState.markerTypes[newCode] = {
+        code: newCode,
+        name: 'Marker Type Name',
+        color: '#F72020',
+        textColor: '#FFFFFF',
+        designReference: null
+    };
+    
+    // Set the new marker type as active
+    appState.activeMarkerType = newCode;
+    
+    setDirtyState();
+    updateFilterCheckboxes();
+    updateMarkerTypeSelect();
+}
+
+// Generate dynamic text fields based on marker type
+function generateDynamicTextFields(prefix, dot = null) {
+    const container = document.getElementById(`${prefix}-dynamic-fields`);
+    if (!container) return;
+    
+    // Clear existing fields
+    container.innerHTML = '';
+    
+    // Get the marker type
+    const markerTypeCode = prefix === 'edit' ? 
+        (dot?.markerType || document.getElementById('edit-marker-type').value) :
+        document.getElementById('group-edit-marker-type').value;
+    
+    const markerType = appState.markerTypes[markerTypeCode];
+    
+    // Get text fields from marker type or use defaults
+    const textFields = markerType?.textFields || [
+        { fieldName: 'message', maxLength: null },
+        { fieldName: 'message2', maxLength: null }
+    ];
+    
+    
+    // Create scrollable fields container if needed
+    const fieldsWrapper = document.createElement('div');
+    fieldsWrapper.className = textFields.length > 2 ? 'ms-fields-wrapper ms-scrollable' : 'ms-fields-wrapper';
+    
+    // Generate form groups for each text field
+    textFields.forEach((field, index) => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'ms-form-group ms-dynamic-text-field';
+        formGroup.dataset.fieldName = field.fieldName;
+        
+        // Create field header with controls
+        const fieldHeader = document.createElement('div');
+        fieldHeader.className = 'ms-field-header';
+        
+        // Create label
+        const label = document.createElement('label');
+        label.className = 'ms-form-label';
+        label.textContent = formatFieldName(field.fieldName);
+        
+        // Create field controls
+        const fieldControls = document.createElement('div');
+        fieldControls.className = 'ms-field-controls';
+        
+        // Edit field name button (only for custom fields)
+        if (field.fieldName !== 'message' && field.fieldName !== 'message2') {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'ms-field-edit-btn';
+            editBtn.innerHTML = '✏️';
+            editBtn.title = 'Edit field name';
+            editBtn.onclick = () => editFieldName(markerTypeCode, field.fieldName, formGroup);
+            fieldControls.appendChild(editBtn);
+            
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'ms-field-delete-btn';
+            deleteBtn.innerHTML = '×';
+            deleteBtn.title = 'Delete field';
+            deleteBtn.onclick = () => deleteField(markerTypeCode, field.fieldName, formGroup);
+            fieldControls.appendChild(deleteBtn);
+        }
+        
+        fieldHeader.appendChild(label);
+        fieldHeader.appendChild(fieldControls);
+        
+        // Create input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'ms-form-input';
+        input.id = `${prefix}-field-${field.fieldName}`;
+        input.placeholder = 'Enter text...';
+        
+        // Set value for edit mode
+        if (prefix === 'edit' && dot) {
+            input.value = dot[field.fieldName] || '';
+        } else if (prefix === 'group-edit') {
+            input.placeholder = `Leave blank to keep existing ${formatFieldName(field.fieldName).toLowerCase()}`;
+        }
+        
+        formGroup.appendChild(fieldHeader);
+        formGroup.appendChild(input);
+        fieldsWrapper.appendChild(formGroup);
+    });
+    
+    container.appendChild(fieldsWrapper);
+}
+
+// Format field name for display
+function formatFieldName(fieldName) {
+    // Special case for message fields
+    if (fieldName === 'message') {
+        return 'Message 1';
+    }
+    if (fieldName === 'message2') {
+        return 'Message 2';
+    }
+    
+    // Convert camelCase to Title Case
+    return fieldName
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .trim();
+}
+
+
+// Edit field name
+function editFieldName(markerTypeCode, oldFieldName, formGroup) {
+    const markerType = appState.markerTypes[markerTypeCode];
+    if (!markerType || !markerType.textFields) return;
+    
+    const field = markerType.textFields.find(f => f.fieldName === oldFieldName);
+    if (!field) return;
+    
+    const label = formGroup.querySelector('.ms-form-label');
+    const currentName = field.fieldName;
+    
+    // Create inline edit input
+    const editInput = document.createElement('input');
+    editInput.type = 'text';
+    editInput.className = 'ms-field-name-edit-input';
+    editInput.value = currentName;
+    
+    // Replace label with input
+    label.style.display = 'none';
+    label.parentElement.insertBefore(editInput, label.nextSibling);
+    editInput.focus();
+    editInput.select();
+    
+    // Handle save
+    const saveEdit = () => {
+        const newName = editInput.value.trim();
+        if (newName && newName !== currentName) {
+            // Update field name
+            field.fieldName = newName;
+            
+            // Update all dots with this field
+            updateFieldNameInDots(markerTypeCode, currentName, newName);
+            
+            // Update the form group's dataset
+            formGroup.dataset.fieldName = newName;
+            
+            // Update the input ID
+            const input = formGroup.querySelector('.ms-form-input');
+            const prefix = input.id.split('-field-')[0];
+            input.id = `${prefix}-field-${newName}`;
+            
+            // Sync if available
+            if (window.mappingApp && window.mappingApp.syncAdapter) {
+                window.mappingApp.syncAdapter.syncTextFieldUpdated(markerTypeCode, currentName, field);
+            }
+            
+            setDirtyState();
+        }
+        
+        // Restore label
+        label.textContent = formatFieldName(field.fieldName);
+        label.style.display = '';
+        editInput.remove();
+    };
+    
+    // Handle cancel
+    const cancelEdit = () => {
+        label.style.display = '';
+        editInput.remove();
+    };
+    
+    editInput.addEventListener('blur', saveEdit);
+    editInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveEdit();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelEdit();
+        }
+    });
+}
+
+// Delete field
+function deleteField(markerTypeCode, fieldName, formGroup) {
+    const markerType = appState.markerTypes[markerTypeCode];
+    if (!markerType || !markerType.textFields) return;
+    
+    const fieldIndex = markerType.textFields.findIndex(f => f.fieldName === fieldName);
+    if (fieldIndex === -1) return;
+    
+    // Confirm deletion
+    if (!confirm(`Are you sure you want to delete the field "${formatFieldName(fieldName)}"? This will remove this field from all locations.`)) {
+        return;
+    }
+    
+    // Remove field
+    markerType.textFields.splice(fieldIndex, 1);
+    
+    // Remove the form group with animation
+    formGroup.style.transition = 'opacity 0.2s, max-height 0.2s';
+    formGroup.style.opacity = '0';
+    formGroup.style.maxHeight = '0';
+    formGroup.style.overflow = 'hidden';
+    
+    setTimeout(() => {
+        formGroup.remove();
+        
+        // Check if we need to update the scrollable class
+        const container = document.getElementById(`edit-dynamic-fields`) || document.getElementById(`group-edit-dynamic-fields`);
+        if (container) {
+            const fieldsWrapper = container.querySelector('.ms-fields-wrapper');
+            const remainingFields = fieldsWrapper.querySelectorAll('.ms-dynamic-text-field').length;
+            if (remainingFields <= 2 && fieldsWrapper.classList.contains('ms-scrollable')) {
+                fieldsWrapper.classList.remove('ms-scrollable');
+            }
+        }
+    }, 200);
+    
+    // Sync if available
+    if (window.mappingApp && window.mappingApp.syncAdapter) {
+        window.mappingApp.syncAdapter.syncTextFieldRemoved(markerTypeCode, fieldName);
+    }
+    
+    setDirtyState();
+}
+
+// Toggle text fields manager for a marker type
+function toggleTextFieldsManager(markerTypeCode, itemElement) {
+    const existingManager = itemElement.querySelector('.ms-text-fields-manager');
+    
+    if (existingManager) {
+        existingManager.remove();
+    } else {
+        const manager = createTextFieldsManager(markerTypeCode);
+        itemElement.appendChild(manager);
+    }
+}
+
+// Create text fields manager UI
+function createTextFieldsManager(markerTypeCode) {
+    const markerType = appState.markerTypes[markerTypeCode];
+    const container = document.createElement('div');
+    container.className = 'ms-text-fields-manager';
+    
+    // Header
+    const header = document.createElement('div');
+    header.className = 'ms-text-fields-header';
+    header.innerHTML = `
+        <span class="ms-text-fields-title">Manage Text Fields</span>
+    `;
+    container.appendChild(header);
+    
+    // Fields list
+    const fieldsList = document.createElement('div');
+    fieldsList.className = 'ms-text-fields-list';
+    container.appendChild(fieldsList);
+    
+    // Get current text fields or use defaults
+    const textFields = markerType.textFields || [
+        { fieldName: 'message', maxLength: null },
+        { fieldName: 'message2', maxLength: null }
+    ];
+    
+    // Render existing fields
+    textFields.forEach((field, index) => {
+        const fieldItem = createTextFieldItem(field, index, markerTypeCode);
+        fieldsList.appendChild(fieldItem);
+    });
+    
+    
+    return container;
+}
+
+// Create individual text field item
+function createTextFieldItem(field, index, markerTypeCode) {
+    const item = document.createElement('div');
+    item.className = 'ms-text-field-item';
+    item.dataset.fieldName = field.fieldName;
+    
+    // Drag handle
+    const dragHandle = document.createElement('span');
+    dragHandle.className = 'ms-field-drag-handle';
+    dragHandle.innerHTML = '≡';
+    dragHandle.draggable = true;
+    
+    // Field name input
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'ms-field-name-input';
+    nameInput.value = field.fieldName;
+    nameInput.placeholder = 'Field name';
+    
+    // Don't allow editing of standard fields
+    if (field.fieldName === 'message' || field.fieldName === 'message2') {
+        nameInput.disabled = true;
+    }
+    
+    // Required checkbox - Removed since fields are now auto-required based on usage
+    // const requiredLabel = document.createElement('label');
+    // requiredLabel.style.display = 'flex';
+    // requiredLabel.style.alignItems = 'center';
+    // requiredLabel.style.gap = '4px';
+    // requiredLabel.innerHTML = `
+    //     <input type="checkbox" class="ms-field-required-checkbox" ${field.required ? 'checked' : ''}>
+    //     <span style="font-size: 12px; color: #ccc;">Required</span>
+    // `;
+    
+    // Max length input
+    const maxLengthInput = document.createElement('input');
+    maxLengthInput.type = 'number';
+    maxLengthInput.className = 'ms-field-max-length-input';
+    maxLengthInput.value = field.maxLength || '';
+    maxLengthInput.placeholder = 'Max';
+    maxLengthInput.min = '1';
+    
+    // Remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'ms-remove-field-btn';
+    removeBtn.textContent = 'Remove';
+    
+    // Don't allow removing standard fields
+    if (field.fieldName === 'message' || field.fieldName === 'message2') {
+        removeBtn.disabled = true;
+        removeBtn.style.opacity = '0.5';
+    }
+    
+    // Add all elements to item
+    item.appendChild(dragHandle);
+    item.appendChild(nameInput);
+    // item.appendChild(requiredLabel); // Removed - fields are now auto-required based on usage
+    item.appendChild(maxLengthInput);
+    item.appendChild(removeBtn);
+    
+    // Event handlers
+    nameInput.addEventListener('change', () => {
+        const oldName = field.fieldName;
+        field.fieldName = nameInput.value;
+        
+        // Update all dots with this field
+        updateFieldNameInDots(markerTypeCode, oldName, field.fieldName);
+        
+        // Sync if available
+        if (window.mappingApp && window.mappingApp.syncAdapter) {
+            window.mappingApp.syncAdapter.syncTextFieldUpdated(markerTypeCode, oldName, field);
+        }
+        
+        setDirtyState();
+    });
+    
+    // Required checkbox event listener - Removed since fields are now auto-required based on usage
+    // requiredLabel.querySelector('input').addEventListener('change', (e) => {
+    //     field.required = e.target.checked;
+    //     
+    //     // Sync if available
+    //     if (window.mappingApp && window.mappingApp.syncAdapter) {
+    //         window.mappingApp.syncAdapter.syncTextFieldUpdated(markerTypeCode, field.fieldName, field);
+    //     }
+    //     
+    //     setDirtyState();
+    // });
+    
+    maxLengthInput.addEventListener('change', () => {
+        field.maxLength = maxLengthInput.value ? parseInt(maxLengthInput.value) : null;
+        
+        // Sync if available
+        if (window.mappingApp && window.mappingApp.syncAdapter) {
+            window.mappingApp.syncAdapter.syncTextFieldUpdated(markerTypeCode, field.fieldName, field);
+        }
+        
+        setDirtyState();
+    });
+    
+    removeBtn.addEventListener('click', () => {
+        const markerType = appState.markerTypes[markerTypeCode];
+        const textFields = markerType.textFields || [];
+        const fieldIndex = textFields.findIndex(f => f.fieldName === field.fieldName);
+        
+        if (fieldIndex !== -1) {
+            textFields.splice(fieldIndex, 1);
+            item.remove();
+            
+            // Sync if available
+            if (window.mappingApp && window.mappingApp.syncAdapter) {
+                window.mappingApp.syncAdapter.syncTextFieldRemoved(markerTypeCode, field.fieldName);
+            }
+            
+            setDirtyState();
+        }
+    });
+    
+    // Drag and drop handlers
+    dragHandle.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index);
+        item.classList.add('ms-dragging');
+    });
+    
+    dragHandle.addEventListener('dragend', () => {
+        item.classList.remove('ms-dragging');
+    });
+    
+    item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        item.classList.add('ms-drag-over');
+    });
+    
+    item.addEventListener('dragleave', () => {
+        item.classList.remove('ms-drag-over');
+    });
+    
+    item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        item.classList.remove('ms-drag-over');
+        
+        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+        const toIndex = index;
+        
+        if (fromIndex !== toIndex) {
+            reorderTextFields(markerTypeCode, fromIndex, toIndex);
+        }
+    });
+    
+    return item;
+}
+
+// Update field name in all dots of this marker type
+function updateFieldNameInDots(markerTypeCode, oldFieldName, newFieldName) {
+    appState.allDots.forEach(dot => {
+        if (dot.markerType === markerTypeCode && dot.hasOwnProperty(oldFieldName)) {
+            dot[newFieldName] = dot[oldFieldName];
+            delete dot[oldFieldName];
+        }
+    });
+}
+
+// Reorder text fields
+function reorderTextFields(markerTypeCode, fromIndex, toIndex) {
+    const markerType = appState.markerTypes[markerTypeCode];
+    const textFields = markerType.textFields || [];
+    
+    const [movedField] = textFields.splice(fromIndex, 1);
+    textFields.splice(toIndex, 0, movedField);
+    
+    // Re-render the fields list
+    const manager = document.querySelector('.ms-text-fields-manager');
+    if (manager) {
+        const fieldsList = manager.querySelector('.ms-text-fields-list');
+        fieldsList.innerHTML = '';
+        
+        textFields.forEach((field, index) => {
+            const fieldItem = createTextFieldItem(field, index, markerTypeCode);
+            fieldsList.appendChild(fieldItem);
+        });
+    }
+    
+    setDirtyState();
+}
+
+function renderAnnotationLines() {
+    const mapContent = document.getElementById('map-content');
+    if (!mapContent) return;
+    
+    // Remove existing annotation lines
+    document.querySelectorAll('.ms-annotation-line').forEach(line => line.remove());
+    
+    // Get lines for current page
+    const pageLines = getCurrentPageAnnotationLines();
+    const { scale } = appState.mapTransform;
+    
+    // Create line elements
+    pageLines.forEach(line => {
+        // Get the current color from the source dot's marker type
+        const sourceDot = getCurrentPageDots().get(line.startDotId);
+        let lineColor = line.color; // Default to stored color
+        if (sourceDot && sourceDot.markerType && appState.markerTypes[sourceDot.markerType]) {
+            lineColor = appState.markerTypes[sourceDot.markerType].color;
+        }
+        
+        const lineElement = document.createElement('div');
+        lineElement.className = 'ms-annotation-line';
+        lineElement.dataset.lineId = line.id;
+        lineElement.style.position = 'absolute';
+        lineElement.style.backgroundColor = lineColor;
+        lineElement.style.height = line.width + 'px';
+        lineElement.style.transformOrigin = '0 50%';
+        lineElement.style.cursor = 'pointer';
+        lineElement.style.zIndex = '50'; // Behind dots
+        
+        // Calculate line position and angle
+        const deltaX = line.endX - line.startX;
+        const deltaY = line.endY - line.startY;
+        const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+        
+        // Position line at start point (no scaling needed - parent container handles it)
+        lineElement.style.left = line.startX + 'px';
+        lineElement.style.top = line.startY + 'px';
+        lineElement.style.width = length + 'px';
+        lineElement.style.transform = `rotate(${angle}deg)`;
+        
+        // Add draggable endpoint if enabled
+        if (appState.showAnnotationEndpoints) {
+            const endpoint = document.createElement('div');
+            endpoint.className = 'ms-annotation-endpoint';
+            endpoint.style.position = 'absolute';
+            endpoint.style.width = '10px';
+            endpoint.style.height = '10px';
+            endpoint.style.backgroundColor = lineColor;
+            endpoint.style.borderRadius = '50%';
+            endpoint.style.cursor = 'move';
+            endpoint.style.right = '-5px';
+            endpoint.style.top = '-4px';
+            endpoint.dataset.lineId = line.id;
+            
+            lineElement.appendChild(endpoint);
+            
+            // Add endpoint drag functionality
+            endpoint.addEventListener('mousedown', (e) => {
+                if (e.button === 0) { // Left click
+                    e.preventDefault();
+                    e.stopPropagation();
+                    appState.draggingAnnotationEndpoint = line.id;
+                    appState.draggingAnnotationOriginalPos = { x: line.endX, y: line.endY };
+                }
+            });
+        }
+        
+        mapContent.appendChild(lineElement);
+        
+        // Add left-click selection
+        lineElement.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Toggle selection
+            if (appState.selectedAnnotationLines.has(line.id)) {
+                appState.selectedAnnotationLines.delete(line.id);
+                lineElement.classList.remove('ms-selected');
+            } else {
+                appState.selectedAnnotationLines.add(line.id);
+                lineElement.classList.add('ms-selected');
+            }
+        });
+        
+        // Add right-click to toggle endpoints globally
+        lineElement.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Toggle endpoint visibility for all lines
+            appState.showAnnotationEndpoints = !appState.showAnnotationEndpoints;
+            renderAnnotationLines(); // Re-render all lines
+            setDirtyState();
+        });
+    });
+}
+
 export {
     showCSVStatus,
     updatePageLabelInput,
     updatePageInfo,
     updateAllSectionsForCurrentPage,
     updateFilterCheckboxes,
+    updateMarkerTypeSelect,
     updateMapLegend,
     updateProjectLegend,
+    generateDynamicTextFields,
+    editFieldName,
+    deleteField,
     getActiveFilters,
     applyFilters,
     updateLocationList,
@@ -2822,8 +4479,10 @@ export {
     clearSearchHighlights,
     clearSelection,
     selectDot,
+    selectAllDotsOfMarkerType,
     addDot,
     addDotToData,
+    createDotObject,
     isCollision,
     handleMarkerTypeCodeChange,
     handleMarkerTypeNameChange,
@@ -2842,5 +4501,12 @@ export {
     openGroupEditModal,
     openRenumberModal,
     performRenumber,
-    updateRecentSearches
+    updateRecentSearches,
+    resetKeyboardShortcutsFlag,
+    renderAnnotationLines
 };
+
+// Function to reset keyboard shortcuts flag during app deactivation
+function resetKeyboardShortcutsFlag() {
+    keyboardShortcutsSetup = false;
+}

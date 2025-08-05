@@ -396,18 +396,18 @@ function createDetailPage(pdf, dot, sourcePageNum, originalToNewPageMap) {
     pdf.text(`LOC# ${dot.locationNumber}`, margin + contentInnerMargin, contentY);
     contentY += 20;
 
-    // Sign Type
+    // Marker Type - Draw as circle to match dots
     pdf.setFillColor(markerTypeInfo.color);
-    pdf.rect(margin + contentInnerMargin, contentY, 20, 20, 'F');
+    pdf.circle(margin + contentInnerMargin + 10, contentY + 10, 10, 'F');
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text(`Sign Type: ${markerTypeInfo.code} - ${markerTypeInfo.name}`, margin + contentInnerMargin + 30, contentY + 14);
+    pdf.text(`Marker Type: ${markerTypeInfo.code} - ${markerTypeInfo.name}`, margin + contentInnerMargin + 30, contentY + 14);
     contentY += 40;
 
-    // Message
+    // Message 1
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text('Message:', margin + contentInnerMargin, contentY);
+    pdf.text('Message 1:', margin + contentInnerMargin, contentY);
     contentY += 20;
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(12);
@@ -430,39 +430,33 @@ function createDetailPage(pdf, dot, sourcePageNum, originalToNewPageMap) {
     }
     contentY += 140;
     
-    // Status Checkboxes
+    // Status Section
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
     pdf.text('Status:', margin + contentInnerMargin, contentY);
-    contentY += 10;
+    contentY += 20;
 
-    const checkboxSize = 12;
-    const checkboxLabelOffset = 20;
-
-    // Installed Checkbox (always show)
-    pdf.setDrawColor(0);
-    pdf.rect(margin + contentInnerMargin, contentY, checkboxSize, checkboxSize, 'S');
-    if (dot.installed) {
-        pdf.setFont('zapfdingbats');
-        pdf.text('✓', margin + contentInnerMargin + 2, contentY + 10);
-    }
+    // Installed Status
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(12);
-    pdf.text('Installed', margin + contentInnerMargin + checkboxLabelOffset, contentY + 10);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('Installed?', margin + contentInnerMargin, contentY);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(dot.installed ? 'YES' : 'NO', margin + contentInnerMargin + 60, contentY);
     
-    // Code Required Checkbox (always show)
-    let codeRequiredX = margin + contentInnerMargin + 150;
-    pdf.setDrawColor(0);
-    pdf.rect(codeRequiredX, contentY, checkboxSize, checkboxSize, 'S');
-    if (dot.isCodeRequired) {
-        pdf.setFont('zapfdingbats');
-        pdf.text('✓', codeRequiredX + 2, contentY + 10);
-    }
+    // Code Required Status
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(12);
-    pdf.text('Code Required', codeRequiredX + checkboxLabelOffset, contentY + 10);
+    pdf.text('Code Required?', margin + contentInnerMargin + 150, contentY);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(dot.isCodeRequired ? 'YES' : 'NO', margin + contentInnerMargin + 240, contentY);
     
-    contentY += 60;
+    // Vinyl Backer Status
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Vinyl Backer?', margin + contentInnerMargin + 330, contentY);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(dot.vinylBacker ? 'YES' : 'NO', margin + contentInnerMargin + 410, contentY);
+    
+    contentY += 40;
 
     // Reference Image Section
     pdf.setFont('helvetica', 'bold');
@@ -728,11 +722,11 @@ function showCharacterWarningModal(characterAnalysis) {
         const countSpan = document.getElementById('mapping-slayer-affected-locations-count');
         
         // Populate the changes preview
-        let previewHtml = '<div class="character-changes-list">';
+        let previewHtml = '<div class="ms-character-changes-list">';
         for (const [char, replacement] of characterAnalysis.allChanges.entries()) {
-            previewHtml += `<div class="character-change-item">`;
-            previewHtml += `<span class="original-char">'${char}'</span> → `;
-            previewHtml += `<span class="replacement-text">'${replacement}'</span>`;
+            previewHtml += `<div class="ms-character-change-item">`;
+            previewHtml += `<span class="ms-original-char">'${char}'</span> → `;
+            previewHtml += `<span class="ms-replacement-text">'${replacement}'</span>`;
             previewHtml += `</div>`;
         }
         previewHtml += '</div>';
@@ -767,7 +761,7 @@ function createMessageSchedule() {
         if (markerTypeComparison !== 0) return markerTypeComparison;
         return a.locationNumber.localeCompare(b.locationNumber);
     });
-    let csvContent = "SIGN TYPE CODE,SIGN TYPE NAME,MESSAGE,MESSAGE 2,LOCATION NUMBER,MAP PAGE,PAGE LABEL,CODE REQUIRED,VINYL BACKER,INSTALLED,NOTES\n";
+    let csvContent = "MARKER TYPE CODE,MARKER TYPE NAME,MESSAGE 1,MESSAGE 2,LOCATION NUMBER,MAP PAGE,PAGE LABEL,CODE REQUIRED,VINYL BACKER,INSTALLED,NOTES\n";
     allVisibleDots.forEach(dot => {
         const typeData = appState.markerTypes[dot.markerType];
         const pageLabel = appState.pageLabels.get(dot.page) || '';
@@ -809,7 +803,7 @@ async function performPDFExport(exportType) {
     const originalBtnText = createPdfBtn.textContent;
     createPdfBtn.disabled = true; 
     createPdfBtn.textContent = 'Generating...';
-    createPdfBtn.classList.add('btn-processing');
+    createPdfBtn.classList.add('ms-btn-processing');
     
     const activeFilters = getActiveFilters(); 
     const messagesVisible = appState.messagesVisible;
@@ -886,6 +880,7 @@ async function performPDFExport(exportType) {
 
                 chunkPdf.addImage(imgData, 'JPEG', 0, 0, viewport.width, viewport.height);
                 drawLegendWithJsPDF(chunkPdf, dotsToDraw);
+                drawAnnotationLinesWithJsPDF(chunkPdf, pageNum);
                 drawDotsWithJsPDF(chunkPdf, dotsToDraw, messagesVisible);
             }
             
@@ -978,9 +973,39 @@ async function performPDFExport(exportType) {
     } finally {
         createPdfBtn.disabled = false; 
         createPdfBtn.textContent = originalBtnText;
-        createPdfBtn.classList.remove('btn-processing');
+        createPdfBtn.classList.remove('ms-btn-processing');
         tempCanvas.remove();
     }
+}
+
+function drawAnnotationLinesWithJsPDF(pdf, pageNum) {
+    const linesMap = appState.annotationLines.get(pageNum);
+    if (!linesMap || linesMap.size === 0) return;
+    
+    const effectiveMultiplier = appState.dotSize * 2;
+    const endpointRadius = 3 * effectiveMultiplier;
+    
+    linesMap.forEach(line => {
+        // Get the line color (default to red if not set)
+        const lineColor = line.color || '#FF0000';
+        
+        // Convert hex color to RGB values for jsPDF
+        const r = parseInt(lineColor.substr(1, 2), 16);
+        const g = parseInt(lineColor.substr(3, 2), 16);
+        const b = parseInt(lineColor.substr(5, 2), 16);
+        
+        // Draw the line
+        pdf.setDrawColor(r, g, b);
+        pdf.setLineWidth(2 * effectiveMultiplier);
+        pdf.line(line.startX, line.startY, line.endX, line.endY);
+        
+        // Draw endpoints if enabled
+        if (appState.showAnnotationEndpoints) {
+            pdf.setFillColor(r, g, b);
+            pdf.circle(line.startX, line.startY, endpointRadius, 'F');
+            pdf.circle(line.endX, line.endY, endpointRadius, 'F');
+        }
+    });
 }
 
 export { 

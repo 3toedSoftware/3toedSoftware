@@ -6,6 +6,8 @@
 
 import { state, updateState } from './state.js';
 import { LAYER_DEFINITIONS, SNAP_PRESETS, SCALE_FACTOR } from './config.js';
+import { measureCapitalXHeight, getTextBaseline, measureText, SCALE_FACTOR as TEXT_SCALE_FACTOR } from './text-renderer.js';
+import { fontManager } from './font-manager.js';
 
 // --- DOM Element Selectors ---
 const getElement = (id) => document.getElementById(id);
@@ -20,6 +22,24 @@ const querySelectorAll = (selector) => document.querySelectorAll(selector);
  * @returns {string} HTML string of option elements
  */
 function generateFontOptions(selectedFont = 'Arial') {
+    let html = '';
+    
+    // Add Upload Font option first
+    html += '<option value="__upload__">📁 Upload Font...</option>';
+    
+    // Get uploaded fonts
+    const uploadedFonts = fontManager.getUploadedFonts();
+    
+    // Add uploaded fonts section if any exist
+    if (uploadedFonts.length > 0) {
+        html += '<optgroup label="── Uploaded Fonts ──">';
+        uploadedFonts.forEach(font => {
+            html += `<option value="${font}" ${font === selectedFont ? 'selected' : ''}>${font}</option>`;
+        });
+        html += '</optgroup>';
+    }
+    
+    // System fonts
     const commonFonts = [
         'Arial',
         'Arial Black',
@@ -55,14 +75,19 @@ function generateFontOptions(selectedFont = 'Arial') {
         'Futura',
         'Univers',
         // Braille fonts
+        'Braille.ttf',
         'SimBraille',
         'Braille29',
         'Braille3D'
     ];
     
-    return commonFonts.map(font => 
-        `<option value="${font}" ${font === selectedFont ? 'selected' : ''}>${font}</option>`
-    ).join('');
+    html += '<optgroup label="── System Fonts ──">';
+    commonFonts.forEach(font => {
+        html += `<option value="${font}" ${font === selectedFont ? 'selected' : ''}>${font}</option>`;
+    });
+    html += '</optgroup>';
+    
+    return html;
 }
 
 // Create a lazy-loaded DOM object that queries elements only when accessed
@@ -313,9 +338,6 @@ export function toggleLayerProperties(layerId, onUpdate) {
                         <input type="number" class="property-input prop-xHeight" step="0.001" min="0.1" placeholder="e.g. 0.625">
                         <button class="btn btn-compact btn-secondary apply-xheight" style="white-space: nowrap;">Apply</button>
                     </div>
-                    <div style="margin-top: 5px; font-size: 11px; color: #888;">
-                        Current X-Height: <span class="current-xheight" style="color: #f07727;">calculating...</span>
-                    </div>
                 </div>
                 <div class="property-group">
                     <label class="property-label">Horizontal Align</label>
@@ -362,11 +384,46 @@ export function toggleLayerProperties(layerId, onUpdate) {
             `;
         }
         
+        // Generate material options based on layer type
+        let materialOptionsHTML = '';
+        if (definition.isBraille) {
+            // Special Braille material options
+            materialOptionsHTML = `
+                <option value="raised" ${layer.material === 'raised' ? 'selected' : ''}>Raised</option>
+                <option value="raster plastic" ${layer.material === 'raster plastic' ? 'selected' : ''}>Raster Plastic</option>
+                <option value="raster stainless steel" ${layer.material === 'raster stainless steel' ? 'selected' : ''}>Raster Stainless Steel</option>
+                <option value="other" ${layer.material === 'other' ? 'selected' : ''}>Other</option>
+            `;
+        } else {
+            // Standard material options
+            materialOptionsHTML = `
+                <option value="acrylic" ${layer.material === 'acrylic' ? 'selected' : ''}>Acrylic</option>
+                <option value="aluminum" ${layer.material === 'aluminum' ? 'selected' : ''}>Aluminum</option>
+                <option value="vinyl" ${layer.material === 'vinyl' ? 'selected' : ''}>Vinyl</option>
+                <option value="wood" ${layer.material === 'wood' ? 'selected' : ''}>Wood</option>
+                <option value="steel" ${layer.material === 'steel' ? 'selected' : ''}>Steel</option>
+            `;
+        }
+        
+        // Add Braille source text input for Braille layers
+        let brailleTextHTML = '';
+        if (definition.isBraille) {
+            brailleTextHTML = `
+                <div class="property-group">
+                    <label class="property-label">Braille Text</label>
+                    <input type="text" class="property-input prop-brailleSourceText" 
+                           value="${layer.brailleSourceText || definition.defaultBrailleSourceText || ''}" 
+                           placeholder="Enter text to translate to Braille">
+                </div>
+            `;
+        }
+        
         propertiesDiv.innerHTML = `
             <div class="property-group">
                 <label class="property-label">Layer Name</label>
                 <input type="text" class="property-input prop-name" value="${layer.name}">
             </div>
+            ${brailleTextHTML}
             ${textPropertiesHTML}
             ${dimensionsHTML}
             <div class="property-group">
@@ -376,11 +433,7 @@ export function toggleLayerProperties(layerId, onUpdate) {
             <div class="property-group">
                 <label class="property-label">Material</label>
                 <select class="property-input prop-material">
-                    <option value="acrylic" ${layer.material === 'acrylic' ? 'selected' : ''}>Acrylic</option>
-                    <option value="aluminum" ${layer.material === 'aluminum' ? 'selected' : ''}>Aluminum</option>
-                    <option value="vinyl" ${layer.material === 'vinyl' ? 'selected' : ''}>Vinyl</option>
-                    <option value="wood" ${layer.material === 'wood' ? 'selected' : ''}>Wood</option>
-                    <option value="steel" ${layer.material === 'steel' ? 'selected' : ''}>Steel</option>
+                    ${materialOptionsHTML}
                 </select>
             </div>
         `;
@@ -388,7 +441,56 @@ export function toggleLayerProperties(layerId, onUpdate) {
         // Add event listeners for standard inputs
         propertiesDiv.querySelectorAll('.property-input').forEach(input => {
             if (!input.classList.contains('prop-textAlign') && !input.classList.contains('prop-verticalAlign')) {
-                input.addEventListener('input', () => {
+                input.addEventListener('input', async (e) => {
+                    // Handle font upload selection
+                    if (input.classList.contains('prop-font') && input.value === '__upload__') {
+                        const fileInput = document.createElement('input');
+                        fileInput.type = 'file';
+                        fileInput.accept = '.ttf,.otf,.woff,.woff2';
+                        fileInput.multiple = true;
+                        
+                        fileInput.addEventListener('change', async (fileEvent) => {
+                            if (fileEvent.target.files.length > 0) {
+                                const results = await fontManager.uploadFonts(fileEvent.target.files);
+                                
+                                // Handle upload results
+                                let successCount = 0;
+                                let firstSuccessFont = null;
+                                
+                                results.forEach(result => {
+                                    if (result.success) {
+                                        successCount++;
+                                        if (!firstSuccessFont) {
+                                            firstSuccessFont = result.font.name;
+                                        }
+                                        console.log(`Font "${result.font.name}" uploaded successfully`);
+                                    } else {
+                                        console.error(`Failed to upload ${result.file}: ${result.error}`);
+                                    }
+                                });
+                                
+                                if (successCount > 0) {
+                                    // Refresh the font dropdown
+                                    const newOptions = generateFontOptions(firstSuccessFont);
+                                    input.innerHTML = newOptions;
+                                    input.value = firstSuccessFont;
+                                    
+                                    // Update the layer
+                                    onUpdate(layerId);
+                                } else {
+                                    // Revert to previous selection if no fonts uploaded
+                                    input.value = layer.font || definition.defaultFont || 'Arial';
+                                }
+                            } else {
+                                // User cancelled, revert selection
+                                input.value = layer.font || definition.defaultFont || 'Arial';
+                            }
+                        });
+                        
+                        fileInput.click();
+                        return;
+                    }
+                    
                     onUpdate(layerId);
                     
                     // Update layer name in the layer list when changed
@@ -402,20 +504,23 @@ export function toggleLayerProperties(layerId, onUpdate) {
                         }
                     }
                     
-                    // Update X-height display when font size or font changes
-                    if ((input.classList.contains('prop-fontSize') || input.classList.contains('prop-font')) && currentXHeightSpan) {
-                        // Get updated values
-                        const fontSizeInput = propertiesDiv.querySelector('.prop-fontSize');
-                        const fontSelect = propertiesDiv.querySelector('.prop-font');
-                        const fontSize = parseFloat(fontSizeInput?.value) || layer.fontSize || definition.defaultFontSize;
-                        const fontFamily = fontSelect?.value || layer.font || definition.defaultFont;
-                        
-                        // Recalculate X-height
-                        import('./text-renderer.js').then(({ measureCapitalXHeight, SCALE_FACTOR }) => {
-                            const xHeightPixels = measureCapitalXHeight(fontSize, fontFamily);
-                            const xHeightInches = xHeightPixels / SCALE_FACTOR;
-                            currentXHeightSpan.textContent = `${xHeightInches.toFixed(3)}"`;
-                        });
+                    // Update X-height input when font size or font changes
+                    if ((input.classList.contains('prop-fontSize') || input.classList.contains('prop-font'))) {
+                        const xHeightInput = propertiesDiv.querySelector('.prop-xHeight');
+                        if (xHeightInput) {
+                            // Get updated values
+                            const fontSizeInput = propertiesDiv.querySelector('.prop-fontSize');
+                            const fontSelect = propertiesDiv.querySelector('.prop-font');
+                            const fontSize = parseFloat(fontSizeInput?.value) || layer.fontSize || definition.defaultFontSize;
+                            const fontFamily = fontSelect?.value || layer.font || definition.defaultFont;
+                            
+                            // Recalculate X-height and update input
+                            import('./text-renderer.js').then(({ measureCapitalXHeight, SCALE_FACTOR }) => {
+                                const xHeightPixels = measureCapitalXHeight(fontSize, fontFamily);
+                                const xHeightInches = xHeightPixels / SCALE_FACTOR;
+                                xHeightInput.value = xHeightInches.toFixed(3);
+                            });
+                        }
                     }
                     
                     // Update calculated dimensions for text layers
@@ -459,16 +564,15 @@ export function toggleLayerProperties(layerId, onUpdate) {
         // Add event listeners for X-height control
         const xHeightInput = propertiesDiv.querySelector('.prop-xHeight');
         const applyXHeightBtn = propertiesDiv.querySelector('.apply-xheight');
-        const currentXHeightSpan = propertiesDiv.querySelector('.current-xheight');
         
-        // Calculate and display current X-height
-        if (currentXHeightSpan) {
+        // Calculate and set initial X-height value
+        if (xHeightInput) {
             import('./text-renderer.js').then(({ measureCapitalXHeight, SCALE_FACTOR }) => {
                 const fontSize = layer.fontSize || definition.defaultFontSize;
                 const fontFamily = layer.font || definition.defaultFont;
                 const xHeightPixels = measureCapitalXHeight(fontSize, fontFamily);
                 const xHeightInches = xHeightPixels / SCALE_FACTOR;
-                currentXHeightSpan.textContent = `${xHeightInches.toFixed(3)}"`;
+                xHeightInput.value = xHeightInches.toFixed(3);
             });
         }
         
@@ -486,14 +590,6 @@ export function toggleLayerProperties(layerId, onUpdate) {
                 if (fontSizeInput) {
                     fontSizeInput.value = newFontSize;
                     onUpdate(layerId);
-                    
-                    // Update current X-height display
-                    setTimeout(async () => {
-                        const { measureCapitalXHeight, SCALE_FACTOR } = await import('./text-renderer.js');
-                        const xHeightPixels = measureCapitalXHeight(newFontSize, layer.font || definition.defaultFont);
-                        const xHeightInches = xHeightPixels / SCALE_FACTOR;
-                        currentXHeightSpan.textContent = `${xHeightInches.toFixed(3)}"`;
-                    }, 100);
                 }
             });
             
@@ -574,6 +670,14 @@ export function readLayerPropertiesFromUI(layerId) {
         props.lineSpacing = lineSpacingInput ? parseFloat(lineSpacingInput.value) : layer.lineSpacing;
         props.kerning = kerningInput ? parseFloat(kerningInput.value) : layer.kerning;
         // Note: textColor is handled by the color picker separately
+        
+        // Add Braille source text for Braille layers
+        if (definition.isBraille) {
+            const brailleInput = propsEl.querySelector('.prop-brailleSourceText');
+            if (brailleInput) {
+                props.brailleSourceText = brailleInput.value;
+            }
+        }
     }
     
     return props;
@@ -804,8 +908,25 @@ export function setup3DModal(handlers) {
     }
     
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && state.isModalOpen) {
-            handlers.onClose3D();
+        // Prevent Page Up/Page Down when editing text
+        if ((e.key === 'PageUp' || e.key === 'PageDown') && state.editingLayerId) {
+            e.preventDefault();
+            return;
+        }
+        
+        if (e.key === 'Escape') {
+            // Close 3D modal if open
+            if (state.isModalOpen) {
+                handlers.onClose3D();
+            }
+            // Exit text editing if active
+            else if (state.editingLayerId) {
+                // Find the active contentEditable element and blur it
+                const activeTextArea = document.querySelector('.paragraph-text-editor[contenteditable="true"]');
+                if (activeTextArea) {
+                    activeTextArea.blur();
+                }
+            }
         }
     });
 }
@@ -947,9 +1068,13 @@ function initializeLayerColorPicker(element, layer, eventHandlers) {
 export function updateStackVisualization() {
     if (!dom.sideViewport) return;
     
+    console.log('[Side View Debug] Starting updateStackVisualization');
+    
     dom.sideViewport.querySelector('.stack-visualization')?.remove();
     
     const canvasLayers = state.layersList.filter(layer => layer.onCanvas);
+    console.log('[Side View Debug] Canvas layers:', canvasLayers.length);
+    
     const sideDropZone = dom.sideViewport.querySelector('.drop-zone');
     sideDropZone.style.display = canvasLayers.length > 0 ? 'none' : 'flex';
     if (canvasLayers.length === 0) return;
@@ -972,76 +1097,176 @@ export function updateStackVisualization() {
         
         if (definition.isText) {
             // For text layers, render X-height bars for each line
-            import('./text-renderer.js').then(({ measureCapitalXHeight, getTextBaseline, SCALE_FACTOR: TEXT_SCALE_FACTOR }) => {
-                const fontSize = layer.fontSize || definition.defaultFontSize || 24;
-                const fontFamily = layer.font || definition.defaultFont || 'Arial';
-                const lineSpacing = layer.lineSpacing || definition.defaultLineSpacing || 1.2;
-                const text = layer.text || definition.defaultText || '';
-                const font = `${fontSize}px "${fontFamily}"`;
+            console.log(`[Side View Debug] Processing text layer: "${layer.text}"`);
+            
+            const fontSize = layer.fontSize || definition.defaultFontSize || 24;
+            const fontFamily = layer.font || definition.defaultFont || 'Arial';
+            const lineSpacing = layer.lineSpacing || definition.defaultLineSpacing || 1.2;
+            const text = layer.text || definition.defaultText || '';
+            const font = `${fontSize}px "${fontFamily}"`;
+            
+            console.log(`[Side View Debug] Font: ${font}, Line spacing: ${lineSpacing}`);
+            
+            // Calculate X-height
+            const xHeightPixels = measureCapitalXHeight(fontSize, fontFamily);
+            const visualXHeight = xHeightPixels * state.faceViewState.zoom;
+            
+            console.log(`[Side View Debug] X-height: ${xHeightPixels}px, Visual X-height: ${visualXHeight}px`);
+            
+            // Get baseline metrics
+            const baselineMetrics = getTextBaseline(text, font);
+            const baselineFromTop = baselineMetrics.ascent; // Distance from top of text to baseline
+            
+            console.log(`[Side View Debug] Baseline from top: ${baselineFromTop}px`);
+            
+            // Use DOM-based measurement for consistent line wrapping
+            // Create a hidden div with identical styles to the paragraph text editor
+            const measureDiv = document.createElement('div');
+            const containerHeight = layer.height * TEXT_SCALE_FACTOR;
+            measureDiv.style.cssText = `
+                position: absolute;
+                visibility: hidden;
+                width: ${layer.width * TEXT_SCALE_FACTOR}px;
+                height: ${containerHeight}px;
+                padding: 4px;
+                box-sizing: border-box;
+                font: ${font};
+                line-height: ${lineSpacing};
+                letter-spacing: ${(layer.kerning || 0) / 10}px;
+                text-align: ${layer.textAlign || 'left'};
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                overflow: hidden;
+            `;
+            document.body.appendChild(measureDiv);
+            
+            // Set the text and let the browser calculate line breaks
+            measureDiv.innerText = text;
+            
+            // Get line boxes using getClientRects()
+            const textNode = measureDiv.firstChild;
+            const lines = [];
+            
+            if (textNode && text.length > 0) {
+                const range = document.createRange();
+                range.selectNodeContents(textNode);
                 
-                // Calculate X-height
-                const xHeightPixels = measureCapitalXHeight(fontSize, fontFamily);
-                const visualXHeight = xHeightPixels * state.faceViewState.zoom;
+                // Get all client rects (line boxes)
+                const rects = range.getClientRects();
+                const measureDivRect = measureDiv.getBoundingClientRect();
                 
-                // Get baseline metrics
-                const baselineMetrics = getTextBaseline(text, font);
-                const baselineFromTop = baselineMetrics.ascent; // Distance from top of text to baseline
+                console.log(`[Side View Debug] Found ${rects.length} line boxes`);
                 
-                // Split text into lines
-                const lines = text.split('\n').filter(line => line.trim().length > 0);
+                // Convert DOMRectList to array and process each line box
+                const lineBoxes = Array.from(rects);
                 
-                // Calculate line height (spacing between baselines)
-                const lineHeight = fontSize * lineSpacing;
-                const visualLineHeight = lineHeight * state.faceViewState.zoom;
-                
-                // Calculate where the text actually starts in the container
-                let textStartY = 0;
-                const containerHeight = layer.height * TEXT_SCALE_FACTOR;
-                const totalTextHeight = lines.length * lineHeight;
-                
-                if (definition.isParagraphText) {
-                    // Paragraph text has padding
-                    const padding = 5;
-                    
-                    if (layer.verticalAlign === 'top' || !layer.verticalAlign) {
-                        textStartY = padding;
-                    } else if (layer.verticalAlign === 'middle') {
-                        textStartY = (containerHeight - totalTextHeight) / 2;
-                    } else { // bottom
-                        textStartY = containerHeight - totalTextHeight - padding;
+                // Group rects by Y position (handle cases where a line might have multiple rects)
+                const lineMap = new Map();
+                lineBoxes.forEach(rect => {
+                    const lineY = Math.round(rect.top);
+                    if (!lineMap.has(lineY)) {
+                        lineMap.set(lineY, []);
                     }
-                } else {
-                    // Regular text layers
-                    if (layer.verticalAlign === 'top') {
-                        textStartY = 0;
-                    } else if (layer.verticalAlign === 'middle' || !layer.verticalAlign) {
-                        textStartY = (containerHeight - totalTextHeight) / 2;
-                    } else { // bottom
-                        textStartY = containerHeight - totalTextHeight;
-                    }
-                }
-                
-                // Render each line as a bar aligned with its baseline
-                lines.forEach((line, index) => {
-                    // Calculate baseline position for this line
-                    const lineTextTop = visualY + (textStartY * state.faceViewState.zoom) + (index * visualLineHeight);
-                    const baselineY = lineTextTop + (baselineFromTop * state.faceViewState.zoom);
-                    // Position bar so its bottom edge aligns with baseline
-                    const barTopY = baselineY - visualXHeight;
-                    
-                    const lineElement = document.createElement('div');
-                    lineElement.className = 'stack-layer text-line';
-                    Object.assign(lineElement.style, {
-                        position: 'absolute',
-                        left: leftOffset + 'px',
-                        top: barTopY + 'px',
-                        width: visualThickness + 'px',
-                        height: visualXHeight + 'px',
-                        background: (layer.textColor || definition.defaultTextColor || '#000000') + (state.xrayMode ? '80' : 'FF'),
-                        border: 'none'
-                    });
-                    stackContainer.appendChild(lineElement);
+                    lineMap.get(lineY).push(rect);
                 });
+                
+                // Calculate which lines are visible within the container
+                const containerTop = measureDivRect.top;
+                const containerBottom = containerTop + containerHeight;
+                const visibleLines = [];
+                
+                // Sort by Y position and check visibility
+                const sortedLines = Array.from(lineMap.entries()).sort((a, b) => a[0] - b[0]);
+                
+                sortedLines.forEach(([lineY, lineRects]) => {
+                    // Get the bottom of the line (approximate based on line height)
+                    const lineBottom = lineY + (fontSize * lineSpacing);
+                    
+                    // Check if this line is at least partially visible
+                    if (lineY < containerBottom && lineBottom > containerTop) {
+                        visibleLines.push({ y: lineY, rects: lineRects });
+                    }
+                });
+                
+                console.log(`[Side View Debug] ${visibleLines.length} lines are visible within container`);
+                
+                // For each visible line, create a placeholder entry
+                // We don't need the actual text content, just the count of visible lines
+                visibleLines.forEach((line, index) => {
+                    lines.push(`Line ${index + 1}`);
+                });
+            }
+            
+            // Clean up
+            document.body.removeChild(measureDiv);
+            
+            console.log(`[Side View Debug] Max width for wrapping: ${layer.width * TEXT_SCALE_FACTOR}px (with padding)`);
+            console.log(`[Side View Debug] Container height: ${containerHeight}px`);
+            console.log(`[Side View Debug] Using DOM measurement with getClientRects()`);
+            
+            console.log(`[Side View Debug] Number of lines (with wrapping): ${lines.length}`);
+            lines.forEach((line, i) => console.log(`[Side View Debug]   Line ${i+1}: "${line}"`));
+            
+            // Calculate line height (spacing between baselines)
+            const lineHeight = fontSize * lineSpacing;
+            const visualLineHeight = lineHeight * state.faceViewState.zoom;
+                
+            // Calculate where the text actually starts in the container
+            let textStartY = 0;
+            const totalTextHeight = lines.length * lineHeight;
+            
+            console.log(`[Side View Debug] Container height: ${containerHeight}px, Total text height: ${totalTextHeight}px`);
+            
+            if (definition.isParagraphText) {
+                // Paragraph text has padding
+                const padding = 10;
+                
+                if (layer.verticalAlign === 'top' || !layer.verticalAlign) {
+                    textStartY = padding;
+                } else if (layer.verticalAlign === 'middle') {
+                    textStartY = (containerHeight - totalTextHeight) / 2;
+                } else { // bottom
+                    textStartY = containerHeight - totalTextHeight - padding;
+                }
+            } else {
+                // Regular text layers
+                if (layer.verticalAlign === 'top') {
+                    textStartY = 0;
+                } else if (layer.verticalAlign === 'middle' || !layer.verticalAlign) {
+                    textStartY = (containerHeight - totalTextHeight) / 2;
+                } else { // bottom
+                    textStartY = containerHeight - totalTextHeight;
+                }
+            }
+            
+            console.log(`[Side View Debug] Text start Y: ${textStartY}px, Vertical align: ${layer.verticalAlign || 'default'}`);
+            
+            // Render each line as a bar aligned with its baseline
+            lines.forEach((line, index) => {
+                // Calculate baseline position for this line
+                const lineTextTop = visualY + (textStartY * state.faceViewState.zoom) + (index * visualLineHeight);
+                const baselineY = lineTextTop + (baselineFromTop * state.faceViewState.zoom);
+                // Position bar so its bottom edge aligns with baseline
+                const barTopY = baselineY - visualXHeight;
+                
+                console.log(`[Side View Debug] Line ${index + 1}:`);
+                console.log(`  - Line text top: ${lineTextTop}px`);
+                console.log(`  - Baseline Y: ${baselineY}px`);
+                console.log(`  - Bar top Y: ${barTopY}px`);
+                
+                const lineElement = document.createElement('div');
+                lineElement.className = 'stack-layer text-line';
+                Object.assign(lineElement.style, {
+                    position: 'absolute',
+                    left: leftOffset + 'px',
+                    top: barTopY + 'px',
+                    width: visualThickness + 'px',
+                    height: visualXHeight + 'px',
+                    background: (layer.textColor || definition.defaultTextColor || '#000000') + (state.xrayMode ? '80' : 'FF'),
+                    border: 'none'
+                });
+                stackContainer.appendChild(lineElement);
+                console.log(`[Side View Debug] Created bar for line ${index + 1}`);
             });
         } else {
             // Non-text layers render as before
@@ -1063,4 +1288,5 @@ export function updateStackVisualization() {
         leftOffset += visualThickness;
     });
     dom.sideViewport.appendChild(stackContainer);
+    console.log('[Side View Debug] Stack visualization complete');
 }

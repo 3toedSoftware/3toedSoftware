@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viewport Optimization Test - Thumbnail Slayer</title>
+    <link rel="stylesheet" href="thumbnail-slayer.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .stats {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .stats h3 {
+            margin: 0 0 10px 0;
+            color: #f07727;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .controls {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .test-grid-container {
+            height: 600px;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        button {
+            background: #f07727;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #e55a00;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Viewport Optimization Test</h1>
+        
+        <div class="stats">
+            <h3>Performance Metrics</h3>
+            <div class="stat-row">
+                <span>Total Items:</span>
+                <span id="total-items">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Visible Items:</span>
+                <span id="visible-items">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Total Renders:</span>
+                <span id="total-renders">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Recycled Elements:</span>
+                <span id="recycled-elements">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Created Elements:</span>
+                <span id="created-elements">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Pool Size:</span>
+                <span id="pool-size">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Queue Length:</span>
+                <span id="queue-length">0</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="load-100">Load 100 Items</button>
+            <button id="load-1000">Load 1000 Items</button>
+            <button id="load-5000">Load 5000 Items</button>
+            <button id="clear">Clear</button>
+            <button id="refresh-stats">Refresh Stats</button>
+        </div>
+        
+        <div class="test-grid-container">
+            <div id="thumbnail-grid" class="thumbnail-grid"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { viewportManager } from './viewport-manager.js';
+        import { thumbnailState } from './thumbnail-state.js';
+        
+        // Initialize viewport manager
+        const grid = document.getElementById('thumbnail-grid');
+        const container = document.querySelector('.test-grid-container');
+        
+        // Generate test items
+        function generateTestItems(count) {
+            const items = [];
+            for (let i = 1; i <= count; i++) {
+                items.push({
+                    id: `item-${i}`,
+                    locationId: `loc-${i}`,
+                    locationNumber: i,
+                    signTypeCode: ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)],
+                    signTypeName: 'Test Sign',
+                    message1: `Message ${i}`,
+                    message2: Math.random() > 0.5 ? `Secondary ${i}` : '',
+                    notes: Math.random() > 0.7 ? 'Has notes' : '',
+                    codeRequired: Math.random() > 0.8,
+                    vinylBacker: Math.random() > 0.7,
+                    installed: Math.random() > 0.6,
+                    pageNumber: Math.ceil(i / 50),
+                    sheetName: `Sheet ${Math.ceil(i / 100)}`
+                });
+            }
+            return items;
+        }
+        
+        // Load items
+        async function loadItems(count) {
+            // Clear existing
+            viewportManager.cleanup();
+            grid.innerHTML = '';
+            thumbnailState.productionItems.clear();
+            
+            // Generate and add items
+            const items = generateTestItems(count);
+            items.forEach(item => {
+                thumbnailState.productionItems.set(item.id, item);
+            });
+            
+            // Update total count
+            document.getElementById('total-items').textContent = count;
+            
+            // Initialize viewport manager
+            viewportManager.initialize(grid, container);
+            
+            // Start rendering
+            await viewportManager.updateViewport();
+            
+            // Update stats
+            updateStats();
+        }
+        
+        // Update stats
+        function updateStats() {
+            const metrics = viewportManager.getMetrics();
+            document.getElementById('visible-items').textContent = metrics.visibleItems;
+            document.getElementById('total-renders').textContent = metrics.totalRenders;
+            document.getElementById('recycled-elements').textContent = metrics.recycledElements;
+            document.getElementById('created-elements').textContent = metrics.createdElements;
+            document.getElementById('pool-size').textContent = metrics.poolSize;
+            document.getElementById('queue-length').textContent = metrics.queueLength;
+        }
+        
+        // Setup event handlers
+        document.getElementById('load-100').addEventListener('click', () => loadItems(100));
+        document.getElementById('load-1000').addEventListener('click', () => loadItems(1000));
+        document.getElementById('load-5000').addEventListener('click', () => loadItems(5000));
+        
+        document.getElementById('clear').addEventListener('click', () => {
+            viewportManager.cleanup();
+            grid.innerHTML = '';
+            thumbnailState.productionItems.clear();
+            document.getElementById('total-items').textContent = '0';
+            updateStats();
+        });
+        
+        document.getElementById('refresh-stats').addEventListener('click', updateStats);
+        
+        // Auto-refresh stats
+        setInterval(updateStats, 1000);
+        
+        // Initial load
+        loadItems(100);
+    </script>
+</body>
+</html>
