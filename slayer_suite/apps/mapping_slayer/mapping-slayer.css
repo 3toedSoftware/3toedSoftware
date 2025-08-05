@@ -291,6 +291,11 @@ body {
     flex-shrink: 0;
 }
 
+.ms-header-buttons {
+    display: flex;
+    align-items: center;
+}
+
 .ms-panel-content {
     flex: 1;
     overflow-y: hidden;
@@ -2675,4 +2680,109 @@ body {
     top: -5px !important;
     box-shadow: 0 0 6px currentColor;
     filter: brightness(1.2);
+}
+
+/* Custom color picker inputs */
+.ms-custom-color-inputs {
+    padding: 8px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.ms-color-inputs-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.ms-hexa-input {
+    width: 70px;
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    background: #f8f8f8;
+}
+
+.ms-hexa-input:focus {
+    outline: none;
+    border-color: #4285f4;
+    background: #fff;
+}
+
+.ms-r-input,
+.ms-g-input,
+.ms-b-input {
+    width: 40px;
+    padding: 4px 4px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 11px;
+    text-align: center;
+    background: #f8f8f8;
+}
+
+.ms-r-input:focus,
+.ms-g-input:focus,
+.ms-b-input:focus {
+    outline: none;
+    border-color: #4285f4;
+    background: #fff;
+}
+
+.ms-color-buttons-container {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.ms-eyedropper-btn {
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.ms-eyedropper-btn:hover {
+    background: #e0e0e0;
+    border-color: #ccc;
+}
+
+.ms-eyedropper-btn:active {
+    background: #d0d0d0;
+}
+
+/* Style the Pickr save button */
+.pcr-save {
+    background: #4285f4 !important;
+    color: white !important;
+    border: none !important;
+    padding: 4px 12px !important;
+    border-radius: 3px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: background 0.2s !important;
+    margin: 0 !important;
+}
+
+.pcr-save:hover {
+    background: #357ae8 !important;
+}
+
+/* Hide the default input field if it exists */
+.pcr-result {
+    display: none !important;
+}
+
+/* Automap button styling */
+#single-automap-btn {
+    white-space: nowrap;
+    min-width: fit-content;
 }

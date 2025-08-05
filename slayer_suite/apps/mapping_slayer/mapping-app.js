@@ -90,7 +90,11 @@ class MappingSlayerApp extends SlayerAppBase {
                     <div class="ms-panel-section ms-filter-section">
                         <div class="ms-panel-header">
                             <span>MARKER TYPES</span>
-                            <button class="ms-btn ms-btn-small ms-btn-primary" id="add-marker-type-btn">+</button>
+                            <div class="ms-header-buttons">
+                                <button class="ms-btn ms-btn-small ms-btn-primary" id="add-marker-type-btn">+</button>
+                                <button class="ms-btn ms-btn-small ms-btn-secondary" id="import-marker-types-btn" title="Import Marker Types">IMP</button>
+                                <button class="ms-btn ms-btn-small ms-btn-secondary" id="export-marker-types-btn" title="Export Marker Types">EXP</button>
+                            </div>
                         </div>
                         <div class="ms-panel-content">
                             <div class="ms-filter-checkboxes" id="filter-checkboxes"></div>
@@ -238,7 +242,7 @@ class MappingSlayerApp extends SlayerAppBase {
                         <datalist id="recent-searches-datalist"></datalist>
                         <div class="ms-automap-checkbox-group">
                             <input type="checkbox" id="automap-exact-phrase" checked="">
-                            <label for="automap-exact-phrase">Exact Phrase</label>
+                            <label for="automap-exact-phrase">Exact</label>
                         </div>
                         <button class="ms-btn ms-btn-success" id="single-automap-btn" disabled="">AUTOMAP IT!</button>
                         <span class="ms-automap-status" id="automap-status"></span>

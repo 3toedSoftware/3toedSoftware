@@ -80,8 +80,8 @@ function updateFilterCheckboxes() {
         // Build innerHTML with proper concatenation to avoid template literal issues
         const checkboxInput = '<input type="checkbox" data-marker-type-code="' + markerTypeCode + '" checked>';
         const countLabel = '<span class="ms-checkbox-label">(' + count + ')</span>';
-        const codeInput = '<input type="text" class="ms-marker-type-code-input" placeholder="Enter code..." value="' + typeData.code + '" data-original-code="' + typeData.code + '">';
-        const nameInput = '<input type="text" class="ms-marker-type-name-input" placeholder="Enter name..." value="' + typeData.name + '" data-original-name="' + typeData.name + '" data-code="' + typeData.code + '">';
+        const codeInput = '<input type="text" class="ms-marker-type-code-input" placeholder="Enter code..." value="' + markerTypeCode + '" data-original-code="' + markerTypeCode + '">';
+        const nameInput = '<input type="text" class="ms-marker-type-name-input" placeholder="Enter name..." value="' + typeData.name + '" data-original-name="' + typeData.name + '" data-code="' + markerTypeCode + '">';
         const designRefSquare = '<div class="ms-design-reference-square" data-marker-type="' + markerTypeCode + '">' +
             '<div class="ms-design-reference-empty" style="display: ' + (typeData.designReference ? 'none' : 'flex') + ';"><span class="ms-upload-plus-icon">+</span></div>' +
             '<div class="ms-design-reference-filled" style="display: ' + (typeData.designReference ? 'flex' : 'none') + ';"><img class="ms-design-reference-thumbnail" src="' + (typeData.designReference || '') + '" alt="Design Reference"><button class="ms-design-reference-delete" type="button">&times;</button></div>' +
@@ -141,7 +141,7 @@ function updateMarkerTypeSelect() {
     const markerTypes = Object.keys(appState.markerTypes);
     select.innerHTML = markerTypes.map(code => {
         const typeData = appState.markerTypes[code];
-        return '<option value="' + code + '">' + typeData.code + ' - ' + typeData.name + '</option>';
+        return '<option value="' + code + '">' + code + ' - ' + typeData.name + '</option>';
     }).join('');
     
     select.disabled = markerTypes.length === 0 || !appState.pdfDoc;
@@ -176,7 +176,7 @@ function initializeColorPickers(item, markerTypeCode, typeData) {
     
     item.querySelectorAll('.ms-color-picker-wrapper').forEach(wrapper => {
         const colorType = wrapper.dataset.colorType;
-        const initialColor = (colorType === 'dot') ? typeData.color : typeData.textColor;
+        const initialColor = (colorType === 'dot') ? typeData.color : (typeData.textColor || '#FFFFFF');
         wrapper.style.backgroundColor = initialColor;
 
         const pickr = Pickr.create({
@@ -188,8 +188,191 @@ function initializeColorPickers(item, markerTypeCode, typeData) {
                 preview: true, 
                 opacity: false, 
                 hue: true, 
-                interaction: { hex: true, rgba: false, input: true, save: true, clear: false } 
+                interaction: { 
+                    hex: false,  // Disable the hex button
+                    rgba: false, // Disable the rgba button
+                    hsla: false, // Disable the hsla button
+                    hsva: false, // Disable the hsva button
+                    cmyk: false, // Disable the cmyk button
+                    input: true, 
+                    save: true, 
+                    clear: false 
+                } 
             }
+        });
+
+        // Add flag to track eyedropper usage
+        let isUsingEyedropper = false;
+        
+        // Override Pickr's hide method to check our flag
+        const originalHide = pickr.hide.bind(pickr);
+        pickr.hide = () => {
+            if (!isUsingEyedropper) {
+                originalHide();
+            }
+        };
+        
+        // Add custom inputs after picker is created
+        pickr.on('init', () => {
+            const app = pickr.getRoot().app;
+            const customInputsContainer = document.createElement('div');
+            customInputsContainer.className = 'ms-custom-color-inputs';
+            customInputsContainer.innerHTML = `
+                <div class="ms-color-inputs-row">
+                    <input type="text" class="ms-hexa-input" placeholder="HEXA" maxlength="7">
+                    <input type="text" class="ms-r-input" placeholder="R" maxlength="3">
+                    <input type="text" class="ms-g-input" placeholder="G" maxlength="3">
+                    <input type="text" class="ms-b-input" placeholder="B" maxlength="3">
+                </div>
+            `;
+            
+            // Find the save button and move it
+            const saveButton = app.querySelector('.pcr-save');
+            const interaction = app.querySelector('.pcr-interaction');
+            
+            // Hide the original interaction section
+            if (interaction) {
+                interaction.style.display = 'none';
+            }
+            
+            // Create eyedropper button
+            const eyedropperButton = document.createElement('button');
+            eyedropperButton.className = 'ms-eyedropper-btn';
+            eyedropperButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l1.65-1.65M16.71 4.88l2.12-2.12a2 2 0 112.83 2.83l-2.12 2.12m-2.83-2.83L7.5 14.1 4 21l7-3.5 9.21-9.21m-2.83-2.83l2.83 2.83"/></svg>';
+            eyedropperButton.title = 'Pick color from screen';
+            
+            // Create container for buttons
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.className = 'ms-color-buttons-container';
+            buttonsContainer.appendChild(eyedropperButton);
+            
+            // Move save button to our custom container
+            if (saveButton) {
+                buttonsContainer.appendChild(saveButton);
+            }
+            
+            customInputsContainer.querySelector('.ms-color-inputs-row').appendChild(buttonsContainer);
+            
+            // Insert our custom inputs after the color selection area
+            const selection = app.querySelector('.pcr-selection');
+            if (selection) {
+                selection.parentNode.insertBefore(customInputsContainer, selection.nextSibling);
+            }
+            
+            const hexaInput = customInputsContainer.querySelector('.ms-hexa-input');
+            const rInput = customInputsContainer.querySelector('.ms-r-input');
+            const gInput = customInputsContainer.querySelector('.ms-g-input');
+            const bInput = customInputsContainer.querySelector('.ms-b-input');
+            
+            // Update inputs when color changes
+            const updateInputs = (color) => {
+                const hexa = color.toHEXA().toString();
+                const rgba = color.toRGBA();
+                
+                hexaInput.value = hexa;
+                rInput.value = Math.round(rgba[0]);
+                gInput.value = Math.round(rgba[1]);
+                bInput.value = Math.round(rgba[2]);
+            };
+            
+            // Initial update
+            updateInputs(pickr.getColor());
+            
+            // Update on color change
+            pickr.on('change', updateInputs);
+            
+            // Handle HEXA input
+            hexaInput.addEventListener('input', (e) => {
+                const value = e.target.value;
+                if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                    pickr.setColor(value);
+                }
+            });
+            
+            // Handle RGB inputs - only allow numbers
+            const validateRGBInput = (input) => {
+                // Remove any non-numeric characters
+                input.value = input.value.replace(/[^0-9]/g, '');
+                
+                // Limit to 0-255
+                if (input.value !== '') {
+                    let value = parseInt(input.value);
+                    if (value > 255) {
+                        input.value = '255';
+                    }
+                }
+            };
+            
+            // Handle RGB inputs
+            const updateFromRGB = () => {
+                const r = parseInt(rInput.value) || 0;
+                const g = parseInt(gInput.value) || 0;
+                const b = parseInt(bInput.value) || 0;
+                
+                if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+                    const hex = '#' + [r, g, b].map(x => {
+                        const hex = x.toString(16);
+                        return hex.length === 1 ? '0' + hex : hex;
+                    }).join('');
+                    pickr.setColor(hex);
+                }
+            };
+            
+            // Add input validation and update handlers
+            [rInput, gInput, bInput].forEach(input => {
+                input.addEventListener('input', (e) => {
+                    validateRGBInput(e.target);
+                    updateFromRGB();
+                });
+                
+                // Prevent non-numeric input
+                input.addEventListener('keypress', (e) => {
+                    if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete') {
+                        e.preventDefault();
+                    }
+                });
+            });
+            
+            // Handle eyedropper button
+            eyedropperButton.addEventListener('click', async (e) => {
+                // Prevent event bubbling that might close the picker
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Check if the EyeDropper API is available
+                if ('EyeDropper' in window) {
+                    try {
+                        // Set flag to prevent closing
+                        isUsingEyedropper = true;
+                        
+                        const eyeDropper = new EyeDropper();
+                        const result = await eyeDropper.open();
+                        
+                        // Set the selected color
+                        pickr.setColor(result.sRGBHex);
+                        
+                        // Update inputs
+                        updateInputs(pickr.getColor());
+                        
+                        // Reset flag after a short delay
+                        setTimeout(() => {
+                            isUsingEyedropper = false;
+                        }, 100);
+                    } catch (err) {
+                        // User cancelled the eyedropper
+                        console.log('EyeDropper cancelled');
+                        isUsingEyedropper = false;
+                    }
+                } else {
+                    alert('Color picker is not supported in this browser. Try Chrome, Edge, or Opera.');
+                }
+            });
+            
+            // Prevent mousedown from closing the picker
+            eyedropperButton.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
         });
 
         pickr.on('change', (color) => { 
@@ -211,7 +394,7 @@ function initializeColorPickers(item, markerTypeCode, typeData) {
         });
         
         pickr.on('hide', () => {
-            const currentColor = (colorType === 'dot') ? appState.markerTypes[markerTypeCode].color : appState.markerTypes[markerTypeCode].textColor;
+            const currentColor = (colorType === 'dot') ? appState.markerTypes[markerTypeCode].color : (appState.markerTypes[markerTypeCode].textColor || '#FFFFFF');
             wrapper.style.backgroundColor = currentColor;
         });
     });
@@ -246,7 +429,7 @@ function updateMapLegend() {
         const item = document.createElement('div');
         item.className = 'ms-map-legend-item';
         item.innerHTML = '<div class="ms-map-legend-dot" style="background-color: ' + typeData.color + ';"></div>' +
-            '<span class="ms-map-legend-text">' + typeData.code + ' - ' + typeData.name + '</span>' +
+            '<span class="ms-map-legend-text">' + code + ' - ' + typeData.name + '</span>' +
             '<span class="ms-map-legend-count">' + count + '</span>';
         content.appendChild(item);
     });
@@ -286,7 +469,7 @@ function updateProjectLegend() {
         const item = document.createElement('div');
         item.className = 'ms-map-legend-item';
         item.innerHTML = '<div class="ms-map-legend-dot" style="background-color: ' + typeData.color + ';"></div>' +
-            '<span class="ms-map-legend-text">' + typeData.code + ' - ' + typeData.name + '</span>' +
+            '<span class="ms-map-legend-text">' + code + ' - ' + typeData.name + '</span>' +
             '<span class="ms-map-legend-count">' + count + '</span>';
         content.appendChild(item);
     });
@@ -328,12 +511,12 @@ function addSingleDotToLocationList(dot) {
     }
 
     const badgeClass = dot.isCodeRequired ? 'ms-marker-type-badge ms-code-required-badge' : 'ms-marker-type-badge';
-    const badgeText = typeData.code + ' - ' + typeData.name;
+    const badgeText = dot.markerType + ' - ' + typeData.name;
 
     item.innerHTML = '<div class="ms-location-header">' +
         '<span class="ms-location-number">' + dot.locationNumber + '</span>' +
         '<input type="text" class="ms-location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
-        '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + typeData.textColor + ';" title="' + badgeText + '">' + badgeText + '</span>' +
+        '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + (typeData.textColor || '#FFFFFF') + ';" title="' + badgeText + '">' + badgeText + '</span>' +
         '</div>';
     
     item.addEventListener('click', async (e) => {
@@ -524,13 +707,13 @@ function renderFlatLocationList(allDots, container) {
         }
 
         const badgeClass = dot.isCodeRequired ? 'ms-marker-type-badge ms-code-required-badge' : 'ms-marker-type-badge';
-        const badgeText = typeData.code + ' - ' + typeData.name;
+        const badgeText = dot.markerType + ' - ' + typeData.name;
         const pagePrefix = appState.isAllPagesView ? '(P' + dot.page + ') ' : '';
 
         item.innerHTML = '<div class="ms-location-header">' +
             '<span class="ms-location-number">' + pagePrefix + dot.locationNumber + '</span>' +
             '<input type="text" class="ms-location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
-            '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + typeData.textColor + ';" title="' + badgeText + '">' + badgeText + '</span>' +
+            '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + (typeData.textColor || '#FFFFFF') + ';" title="' + badgeText + '">' + badgeText + '</span>' +
             '</div>';
         
         container.appendChild(item);
@@ -674,7 +857,7 @@ function renderGroupedLocationList(allDots, container) {
         const category = document.createElement('div');
         category.className = 'ms-marker-type-category';
         category.style.borderLeftColor = typeData.color;
-        const displayName = typeData.code + ' - ' + typeData.name;
+        const displayName = markerTypeCode + ' - ' + typeData.name;
         
         category.innerHTML = '<div class="ms-marker-type-category-header">' +
             '<div class="ms-marker-type-category-title">' +
@@ -899,7 +1082,7 @@ function updateEditModalOptions(selectElementId = 'edit-marker-type', isGroupEdi
     let optionsHtml = isGroupEdit ? '<option value="">-- Keep Individual Types --</option>' : '';
     optionsHtml += sortedMarkerTypeCodes.map(code => {
         const typeData = appState.markerTypes[code];
-        return '<option value="' + code + '">' + typeData.code + ' - ' + typeData.name + '</option>';
+        return '<option value="' + code + '">' + code + ' - ' + typeData.name + '</option>';
     }).join('');
     select.innerHTML = optionsHtml;
 }
@@ -1091,7 +1274,7 @@ function handleMouseDown(e) {
                     appState.annotationTempLine.style.left = dot.x + 'px';
                     appState.annotationTempLine.style.top = dot.y + 'px';
                     appState.annotationTempLine.style.width = '0px';
-                    appState.annotationTempLine.style.height = '2px';
+                    appState.annotationTempLine.style.height = (2 * appState.dotSize) + 'px';
                     // Use the dot's marker type color
                     const markerType = appState.markerTypes[dot.markerType];
                     const lineColor = markerType ? markerType.color : '#FF6B6B';
@@ -1402,6 +1585,7 @@ async function handleMouseUp(e) {
         const lineColor = markerType ? markerType.color : '#FF6B6B';
         
         // Create annotation line object
+        // Line width is proportional to dot size (base 2px * dotSize multiplier)
         const annotationLine = {
             id: `annotation_${appState.nextAnnotationId++}`,
             startDotId: appState.annotationStartDot.internalId,
@@ -1410,7 +1594,7 @@ async function handleMouseUp(e) {
             endX: endX,
             endY: endY,
             color: lineColor,
-            width: 2
+            width: 2 * appState.dotSize
         };
         
         // Create and execute the command
@@ -1723,7 +1907,6 @@ function handleMarkerTypeCodeChange(input) {
     
     const typeData = appState.markerTypes[originalCode];
     delete appState.markerTypes[originalCode];
-    typeData.code = newCode;
     appState.markerTypes[newCode] = typeData;
     
     for (const pageData of appState.dotsByPage.values()) {
@@ -1793,8 +1976,8 @@ function deleteMarkerTypeDirectly(markerTypeCode) {
     
     const typeData = appState.markerTypes[markerTypeCode];
     const confirmMessage = dotsCount > 0 
-        ? 'Delete marker type "' + typeData.code + ' - ' + typeData.name + '" and ' + dotsCount + ' associated dots?'
-        : 'Delete marker type "' + typeData.code + ' - ' + typeData.name + '"?';
+        ? 'Delete marker type "' + markerTypeCode + ' - ' + typeData.name + '" and ' + dotsCount + ' associated dots?'
+        : 'Delete marker type "' + markerTypeCode + ' - ' + typeData.name + '"?';
     
     if (!confirm(confirmMessage)) return;
     
@@ -1858,6 +2041,114 @@ function toggleMarkerTypeExpansion(markerTypeCode) {
     updateLocationList();
 }
 
+function exportMarkerTypes() {
+    try {
+        // Create export data with all marker type properties including design references
+        const exportData = {
+            version: "1.0",
+            exportDate: new Date().toISOString(),
+            markerTypes: {}
+        };
+        
+        // Copy all marker type data including design references
+        for (const [code, typeData] of Object.entries(appState.markerTypes)) {
+            exportData.markerTypes[code] = {
+                name: typeData.name,
+                color: typeData.color,
+                textColor: typeData.textColor || '#FFFFFF',
+                codeRequired: typeData.codeRequired || false,
+                defaultVinylBacker: typeData.defaultVinylBacker || false,
+                designReference: typeData.designReference || null,
+                textFields: typeData.textFields || []
+            };
+        }
+        
+        // Convert to JSON
+        const jsonString = JSON.stringify(exportData, null, 2);
+        
+        // Create blob and download
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `marker-types-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showCSVStatus('Marker types exported successfully', true, 3000);
+    } catch (error) {
+        console.error('Error exporting marker types:', error);
+        showCSVStatus('Failed to export marker types', false, 4000);
+    }
+}
+
+function importMarkerTypes() {
+    // Create file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        try {
+            const text = await file.text();
+            const importData = JSON.parse(text);
+            
+            // Validate import data
+            if (!importData.markerTypes || typeof importData.markerTypes !== 'object') {
+                throw new Error('Invalid marker types file format');
+            }
+            
+            // Ask for confirmation
+            const markerCount = Object.keys(importData.markerTypes).length;
+            const existingCount = Object.keys(appState.markerTypes).length;
+            
+            let message = `Import ${markerCount} marker type(s)?`;
+            if (existingCount > 0) {
+                message += `\n\nThis will replace your existing ${existingCount} marker type(s).`;
+            }
+            
+            if (!confirm(message)) return;
+            
+            // Clear existing marker types
+            appState.markerTypes = {};
+            
+            // Import new marker types
+            for (const [code, typeData] of Object.entries(importData.markerTypes)) {
+                appState.markerTypes[code] = {
+                    name: typeData.name || code,
+                    color: typeData.color || '#FF6B6B',
+                    textColor: typeData.textColor || '#FFFFFF',
+                    codeRequired: typeData.codeRequired || false,
+                    defaultVinylBacker: typeData.defaultVinylBacker || false,
+                    designReference: typeData.designReference || null,
+                    textFields: typeData.textFields || []
+                };
+            }
+            
+            // Update UI
+            updateFilterCheckboxes();
+            updateLocationList();
+            updateMapLegend();
+            updateProjectLegend();
+            renderDotsForCurrentPage();
+            setDirtyState();
+            
+            showCSVStatus(`Imported ${markerCount} marker type(s) successfully`, true, 3000);
+        } catch (error) {
+            console.error('Error importing marker types:', error);
+            showCSVStatus('Failed to import marker types: ' + error.message, false, 4000);
+        }
+    });
+    
+    // Trigger file selection
+    input.click();
+}
+
 async function changePage(pageNum) {
     if (pageNum < 1 || pageNum > appState.totalPages || pageNum === appState.currentPdfPage) return;
     
@@ -1893,6 +2184,9 @@ function isDotVisible(internalId) {
 
 function addMarkerTypeEventListener() {
     const addBtn = document.querySelector('#add-marker-type-btn');
+    const exportBtn = document.querySelector('#export-marker-types-btn');
+    const importBtn = document.querySelector('#import-marker-types-btn');
+    
     if (addBtn) {
         addBtn.addEventListener('click', async () => {
             // Find next available code number
@@ -1937,6 +2231,18 @@ function addMarkerTypeEventListener() {
                     newCodeInput.select();
                 }
             }, 100);
+        });
+    }
+    
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            exportMarkerTypes();
+        });
+    }
+    
+    if (importBtn) {
+        importBtn.addEventListener('click', () => {
+            importMarkerTypes();
         });
     }
 }
@@ -4388,7 +4694,8 @@ function renderAnnotationLines() {
         lineElement.dataset.lineId = line.id;
         lineElement.style.position = 'absolute';
         lineElement.style.backgroundColor = lineColor;
-        lineElement.style.height = line.width + 'px';
+        // Use dynamic width based on current dot size (base 2px * dotSize multiplier)
+        lineElement.style.height = (2 * appState.dotSize) + 'px';
         lineElement.style.transformOrigin = '0 50%';
         lineElement.style.cursor = 'pointer';
         lineElement.style.zIndex = '50'; // Behind dots
@@ -4410,13 +4717,16 @@ function renderAnnotationLines() {
             const endpoint = document.createElement('div');
             endpoint.className = 'ms-annotation-endpoint';
             endpoint.style.position = 'absolute';
-            endpoint.style.width = '10px';
-            endpoint.style.height = '10px';
+            // Endpoint size proportional to dot size (base 10px * dotSize multiplier)
+            const endpointSize = 10 * appState.dotSize;
+            endpoint.style.width = endpointSize + 'px';
+            endpoint.style.height = endpointSize + 'px';
             endpoint.style.backgroundColor = lineColor;
             endpoint.style.borderRadius = '50%';
             endpoint.style.cursor = 'move';
-            endpoint.style.right = '-5px';
-            endpoint.style.top = '-4px';
+            // Position endpoint centered on line end (adjust for scaled size)
+            endpoint.style.right = -(endpointSize / 2) + 'px';
+            endpoint.style.top = -(endpointSize / 2 - 1) + 'px';
             endpoint.dataset.lineId = line.id;
             
             lineElement.appendChild(endpoint);
@@ -4495,6 +4805,8 @@ export {
     handleDesignReferenceUpload,
     handleDesignReferenceDelete,
     toggleMarkerTypeExpansion,
+    exportMarkerTypes,
+    importMarkerTypes,
     changePage,
     isDotVisible,
     addMarkerTypeEventListener,
