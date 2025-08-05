@@ -118,12 +118,8 @@ export default class SlayerAppBase {
                 <!-- App Navigation -->
                 <div class="app-navigation">
                     <button class="app-nav-btn" data-app="mapping_slayer" data-tooltip="Mapping Slayer">MS</button>
-                    <button class="app-nav-btn" data-app="survey_slayer" data-tooltip="Survey Slayer">SS</button>
                     <button class="app-nav-btn" data-app="design_slayer" data-tooltip="Design Slayer">DS</button>
                     <button class="app-nav-btn" data-app="thumbnail_slayer" data-tooltip="Thumbnail Slayer">TS</button>
-                    <button class="app-nav-btn" data-app="production_slayer" data-tooltip="Production Slayer">PS</button>
-                    <button class="app-nav-btn" data-app="install_slayer" data-tooltip="Install Slayer">IS</button>
-                    <button class="app-nav-btn" data-app="workflow_slayer" data-tooltip="Workflow Slayer">WS</button>
                 </div>
 
                 <!-- Project Info -->
@@ -137,8 +133,8 @@ export default class SlayerAppBase {
 
                 <!-- Save/Load Section -->
                 <div class="save-load-section">
-                    <button class="header-btn header-btn-secondary" id="load-btn">LOAD</button>
-                    <button class="header-btn header-btn-primary" id="save-btn">SAVE</button>
+                    <button class="btn btn-secondary btn-compact" id="load-btn">LOAD</button>
+                    <button class="btn btn-primary btn-compact" id="save-btn">SAVE</button>
                 </div>
             </div>
 
@@ -259,17 +255,7 @@ export default class SlayerAppBase {
             .status-saved { background: #00b360; }
             .status-unsaved { background: #f07727; }
 
-            .save-load-section { display: flex; gap: 12px; align-items: center; }
-            .header-btn {
-                padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;
-                font-weight: bold; font-size: 12px; transition: all 0.3s ease;
-                display: flex; align-items: center; gap: 6px;
-            }
-            .header-btn-primary { background: #f07727; color: #ffffff; }
-            .header-btn-primary:hover { background: #e55a00; transform: translateY(-1px); }
-            .header-btn-secondary { background: #6c757d; color: white; }
-            .header-btn-secondary:hover { background: #5a6268; transform: translateY(-1px); }
-            .header-btn:disabled { background: #444; color: #666; cursor: not-allowed; opacity: 0.6; }
+            .save-load-section { display: flex; gap: 3px; align-items: center; }
 
             /* Content Area */
             .app-content-area {

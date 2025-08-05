@@ -65,27 +65,24 @@
                         <!-- App Navigation -->
                         <div class="app-navigation">
                             <button class="app-nav-btn" data-app="mapping_slayer" data-tooltip="Mapping Slayer">MS</button>
-                            <button class="app-nav-btn" data-app="survey_slayer" data-tooltip="Survey Slayer">SS</button>
                             <button class="app-nav-btn" data-app="design_slayer" data-tooltip="Design Slayer">DS</button>
                             <button class="app-nav-btn" data-app="thumbnail_slayer" data-tooltip="Thumbnail Slayer">TS</button>
-                            <button class="app-nav-btn" data-app="production_slayer" data-tooltip="Production Slayer">PS</button>
-                            <button class="app-nav-btn" data-app="install_slayer" data-tooltip="Install Slayer">IS</button>
-                            <button class="app-nav-btn" data-app="workflow_slayer" data-tooltip="Workflow Slayer">WS</button>
+                        </div>
+
+                        <!-- Project Info -->
+                        <div class="project-info">
+                            <div class="project-name" id="project-name-display">No project loaded</div>
+                            <div class="autosave-container">
+                                <input type="checkbox" id="autosave-checkbox">
+                                <label for="autosave-checkbox">Autosave (5min)</label>
+                            </div>
                         </div>
 
                         <!-- Header Controls -->
                         <div class="header-controls">
-                            <div class="project-info">
-                                <span id="project-name">No Project</span>
-                                <div class="status-indicator">
-                                    <span class="status-dot status-saved" id="status-dot"></span>
-                                    <span class="status-text" id="status-text">Saved</span>
-                                </div>
-                            </div>
-                            <div class="save-load-buttons">
-                                <button class="btn btn-secondary btn-compact" id="load-project-btn">LOAD</button>
-                                <button class="btn btn-primary btn-compact" id="save-project-btn">SAVE</button>
-                            </div>
+                            <button class="btn btn-secondary" id="load-project-btn">LOAD</button>
+                            <button class="btn btn-primary" id="save-project-btn">SAVE</button>
+                            <button class="btn btn-primary" id="save-as-project-btn">SAVE AS</button>
                         </div>
                     </div>
 
@@ -95,21 +92,6 @@
             `;
         }
 
-        /**
-         * Creates welcome content for the content area
-         */
-        function createWelcomeContent() {
-            return `
-                <div class="welcome-container">
-                    <h1 class="welcome-title">SLAYER SUITE</h1>
-                    <p class="welcome-subtitle">Professional Signage Workflow Platform</p>
-                    <p class="welcome-description">
-                        A comprehensive suite of tools for managing signage projects from survey to installation.
-                        Click on any app button above to get started.
-                    </p>
-                </div>
-            `;
-        }
 
         /**
          * Main Slayer Suite initializer
@@ -121,7 +103,7 @@
                 await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
                 if (window.pdfjsLib) {
                     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-                    console.log(' PDF.js configured successfully.');
+                    console.log('PDF.js configured successfully.');
                 }
 
                 // Import core framework
@@ -130,11 +112,7 @@
                 // Import all app modules
                 const MappingSlayerApp = (await import('./apps/mapping_slayer/mapping-app.js')).default;
                 const DesignSlayerApp = (await import('./apps/design_slayer/design-app.js')).default;
-                const SurveySlayerApp = (await import('./apps/survey_slayer/survey-app.js')).default;
                 const ThumbnailSlayerApp = (await import('./apps/thumbnail_slayer/thumbnail-app.js')).default;
-                const ProductionSlayerApp = (await import('./apps/production_slayer/production-app.js')).default;
-                const InstallSlayerApp = (await import('./apps/install_slayer/install-app.js')).default;
-                const WorkflowSlayerApp = (await import('./apps/workflow_slayer/workflow-app.js')).default;
 
                 // Initialize core
                 initializeCore(true);
@@ -153,11 +131,7 @@
                 const apps = {
                     mapping_slayer: new MappingSlayerApp(),
                     design_slayer: new DesignSlayerApp(),
-                    survey_slayer: new SurveySlayerApp(),
-                    thumbnail_slayer: new ThumbnailSlayerApp(),
-                    production_slayer: new ProductionSlayerApp(),
-                    install_slayer: new InstallSlayerApp(),
-                    workflow_slayer: new WorkflowSlayerApp()
+                    thumbnail_slayer: new ThumbnailSlayerApp()
                 };
 
                 // Initialize all apps with their own containers in suite mode
@@ -179,12 +153,6 @@
                 // Create a global suite object for navigation
                 window.slayerSuite = {
                     switchToApp: async (appName) => {
-                        // Hide welcome content if it exists
-                        const welcomeContainer = contentArea.querySelector('.welcome-container');
-                        if (welcomeContainer) {
-                            welcomeContainer.style.display = 'none';
-                        }
-                        
                         // Update header to show app name
                         document.getElementById('breadcrumb-sep').style.display = 'inline';
                         document.getElementById('app-name-display').style.display = 'inline';
@@ -200,39 +168,6 @@
                         
                         // Switch to the app
                         await appBridge.switchToApp(appName);
-                    },
-                    showWelcome: () => {
-                        // Deactivate current app
-                        if (appBridge.activeApp) {
-                            appBridge.activeApp.deactivate();
-                        }
-                        
-                        // Hide app-specific header elements
-                        document.getElementById('breadcrumb-sep').style.display = 'none';
-                        document.getElementById('app-name-display').style.display = 'none';
-                        
-                        // Clear active buttons
-                        document.querySelectorAll('.app-nav-btn').forEach(btn => {
-                            btn.classList.remove('active');
-                        });
-                        
-                        // Show welcome content - but preserve app containers!
-                        // First, hide all app containers
-                        Array.from(contentArea.children).forEach(child => {
-                            if (child.id && child.id.endsWith('-container')) {
-                                child.style.display = 'none';
-                            }
-                        });
-                        
-                        // Check if welcome already exists
-                        let welcomeDiv = contentArea.querySelector('.welcome-container');
-                        if (!welcomeDiv) {
-                            welcomeDiv = document.createElement('div');
-                            welcomeDiv.innerHTML = createWelcomeContent();
-                            contentArea.appendChild(welcomeDiv.firstElementChild);
-                        } else {
-                            welcomeDiv.style.display = 'flex';
-                        }
                     }
                 };
 
@@ -246,20 +181,23 @@
                     });
                 });
                 
-                // Setup suite logo handler
+                // Setup suite logo handler to go to Mapping Slayer
                 document.getElementById('suite-home-link').addEventListener('click', (e) => {
                     e.preventDefault();
-                    window.slayerSuite.showWelcome();
+                    window.slayerSuite.switchToApp('mapping_slayer');
                 });
-
-                // Start with welcome content
-                window.slayerSuite.showWelcome();
                 
-                console.log(' Slayer Suite initialized successfully!');
-                console.log('=� Ready to rock and roll!');
+                // Save/load button handlers are now set up in saveManager.initialize()
+                
+
+                // Start with Mapping Slayer
+                await window.slayerSuite.switchToApp('mapping_slayer');
+                
+                console.log('Slayer Suite initialized successfully!');
+                console.log('Ready to rock and roll!');
                 
             } catch (error) {
-                console.error('L Failed to initialize Slayer Suite:', error);
+                console.error('Failed to initialize Slayer Suite:', error);
                 const container = document.getElementById('app-container');
                 container.innerHTML = `
                     <div style="padding: 40px; text-align: center; color: #ff6b6b;">

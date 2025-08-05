@@ -4,12 +4,16 @@
  * Handles app registration, data requests, and event broadcasting
  */
 
+import { SYNC_EVENTS } from './data-models.js';
+
 export class AppBridge {
     constructor() {
         this.apps = new Map();           // Registered apps: name -> app instance
         this.eventBus = new EventTarget(); // Event system for broadcasts
         this.activeApp = null;           // Currently active app
         this.isDebugMode = false;        // Debug logging
+        this.syncHandlers = new Map();   // Sync event handlers
+        this.sharedData = new Map();     // Shared data store for cross-app state
     }
 
     /**
@@ -340,7 +344,176 @@ export class AppBridge {
             uptime: Date.now() // Could track actual uptime if needed
         };
     }
+
+    /**
+     * Register a sync handler for specific event types.
+     * Handlers are called when sync events are emitted by other apps.
+     * 
+     * @param {string} appName - App registering the handler
+     * @param {string} eventType - Event type from SYNC_EVENTS
+     * @param {Function} handler - Handler function (data, sourceApp) => void
+     * @example
+     * appBridge.registerSyncHandler('mapping_slayer', 
+     *   SYNC_EVENTS.SIGN_TYPE_CREATED, 
+     *   (data, sourceApp) => {
+     *     console.log(`New sign type from ${sourceApp}:`, data);
+     *     // Update local state
+     *   }
+     * );
+     */
+    registerSyncHandler(appName, eventType, handler) {
+        const key = `${appName}:${eventType}`;
+        this.syncHandlers.set(key, handler);
+        this.log(`Registered sync handler: ${key}`);
+    }
+
+    /**
+     * Emit a sync event to all registered handlers.
+     * This is the core method that enables cross-app synchronization.
+     * Events are sent to all apps except the source app.
+     * 
+     * @param {string} eventType - Event type from SYNC_EVENTS
+     * @param {object} data - Event data to broadcast
+     * @param {string} sourceApp - App that triggered the event
+     * @fires Custom event with the eventType name
+     * @example
+     * // Emit a sign type update event
+     * appBridge.emitSyncEvent(
+     *   SYNC_EVENTS.SIGN_TYPE_UPDATED,
+     *   { code: 'I.1', name: 'Updated Room Sign' },
+     *   'design_slayer'
+     * );
+     */
+    emitSyncEvent(eventType, data, sourceApp) {
+        this.log(`Sync event: ${eventType} from ${sourceApp}`, data);
+        
+        // Broadcast to all apps except the source
+        for (const [appName, app] of this.apps) {
+            if (appName !== sourceApp) {
+                const key = `${appName}:${eventType}`;
+                const handler = this.syncHandlers.get(key);
+                
+                if (handler) {
+                    try {
+                        handler(data, sourceApp);
+                    } catch (error) {
+                        console.error(`Error in sync handler ${key}:`, error);
+                    }
+                }
+                
+                // Also check if app has a generic sync handler
+                if (typeof app.handleSyncEvent === 'function') {
+                    try {
+                        app.handleSyncEvent(eventType, data, sourceApp);
+                    } catch (error) {
+                        console.error(`Error in app sync handler ${appName}:`, error);
+                    }
+                }
+            }
+        }
+        
+        // Also broadcast as a regular event
+        this.broadcast(eventType, { ...data, sourceApp });
+    }
+
+    /**
+     * Get shared data by key
+     * @param {string} key - Data key
+     * @returns {any} Shared data value
+     */
+    getSharedData(key) {
+        return this.sharedData.get(key);
+    }
+
+    /**
+     * Set shared data
+     * @param {string} key - Data key
+     * @param {any} value - Data value
+     * @param {string} sourceApp - App setting the data
+     */
+    setSharedData(key, value, sourceApp) {
+        const oldValue = this.sharedData.get(key);
+        this.sharedData.set(key, value);
+        
+        // Broadcast data change
+        this.broadcast('sharedData:changed', {
+            key,
+            value,
+            oldValue,
+            sourceApp
+        });
+    }
+
+    /**
+     * Get all sign types from shared data store.
+     * This is the single source of truth for sign types across all apps.
+     * 
+     * @returns {Map} Map of sign type code -> SignType data
+     * @example
+     * const signTypes = appBridge.getSignTypes();
+     * signTypes.forEach((signType, code) => {
+     *   console.log(`${code}: ${signType.name}`);
+     * });
+     */
+    getSignTypes() {
+        return this.getSharedData('signTypes') || new Map();
+    }
+
+    /**
+     * Update sign types in shared data store.
+     * Automatically broadcasts changes to all registered apps.
+     * 
+     * @param {Map} signTypes - Complete updated sign types map
+     * @param {string} sourceApp - App updating the data
+     * @fires sharedData:changed event
+     * @example
+     * const signTypes = appBridge.getSignTypes();
+     * signTypes.set('E.1', newExitSignType);
+     * appBridge.updateSignTypes(signTypes, 'design_slayer');
+     */
+    updateSignTypes(signTypes, sourceApp) {
+        this.setSharedData('signTypes', signTypes, sourceApp);
+    }
+
+    /**
+     * Convenience method to emit sign type-specific events.
+     * Wraps emitSyncEvent for sign type operations.
+     * 
+     * @param {string} eventType - Event type (e.g., SYNC_EVENTS.SIGN_TYPE_CREATED)
+     * @param {object} signTypeData - Sign type data or update info
+     * @param {string} sourceApp - Source app name
+     * @example
+     * appBridge.emitSignTypeEvent(
+     *   SYNC_EVENTS.SIGN_TYPE_DELETED,
+     *   { code: 'I.1', cascadedSigns: [] }, // affected signs array
+     *   'mapping_slayer'
+     * );
+     */
+    emitSignTypeEvent(eventType, signTypeData, sourceApp) {
+        this.emitSyncEvent(eventType, signTypeData, sourceApp);
+    }
+
+    /**
+     * Convenience method to emit sign instance events.
+     * Used for individual sign updates (messages, notes, etc.).
+     * 
+     * @param {string} eventType - Event type (e.g., SYNC_EVENTS.SIGN_MESSAGE_CHANGED)
+     * @param {object} signData - Sign instance data or update info
+     * @param {string} sourceApp - Source app name
+     * @example
+     * appBridge.emitSignEvent(
+     *   SYNC_EVENTS.SIGN_NOTES_CHANGED,
+     *   { signId: 'dot_123', notes: 'Updated installation notes' },
+     *   'thumbnail_slayer'
+     * );
+     */
+    emitSignEvent(eventType, signData, sourceApp) {
+        this.emitSyncEvent(eventType, signData, sourceApp);
+    }
 }
 
 // Create global bridge instance
 export const appBridge = new AppBridge();
+
+// Export event types for convenience
+export { SYNC_EVENTS };

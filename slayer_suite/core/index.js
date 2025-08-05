@@ -5,9 +5,12 @@
  */
 
 // Communication & Coordination
-export { AppBridge, appBridge } from './app-bridge.js';
+export { AppBridge, appBridge, SYNC_EVENTS } from './app-bridge.js';
 export { ProjectManager, projectManager } from './project-manager.js';
 export { saveManager } from './save-manager.js';
+export { createSyncManager } from './sync-manager.js';
+export { fileHandleStore } from './file-handle-store.js';
+export * as DataModels from './data-models.js';
 
 // Core utility functions and constants
 export const SLAYER_VERSION = '1.0.0';

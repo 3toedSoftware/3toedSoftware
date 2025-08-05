@@ -1,0 +1,17 @@
+{
+  "name": "slayer-suite-debugger",
+  "version": "1.0.0",
+  "description": "Automated debugging tool for Slayer Suite",
+  "main": "automated-debug.js",
+  "scripts": {
+    "debug": "node automated-debug.js",
+    "debug-headless": "node -e \"const {runAutomatedDebugging, CONFIG} = require('./automated-debug.js'); CONFIG.headless = true; runAutomatedDebugging().catch(console.error);\""
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {},
+  "keywords": ["debugging", "automation", "slayer-suite", "playwright"],
+  "author": "Debug Beast",
+  "license": "MIT"
+}
