@@ -305,8 +305,20 @@ async function automapSingleLocation() {
             
             const compositeCommand = new CompositeCommand(`Automap: ${searchTerm} (${dotsToAdd.length} locations)`);
             
-            dotsToAdd.forEach(dotInfo => {
-                const dot = createDotObject(dotInfo.x, dotInfo.y, markerTypeCode, dotInfo.message);
+            // Calculate the starting location number
+            const { getCurrentPageDots } = await import('./state.js');
+            const pageData = getCurrentPageDots();
+            let highestLocationNum = 0;
+            for (const dot of pageData.values()) {
+                const num = parseInt(dot.locationNumber, 10);
+                if (!isNaN(num) && num > highestLocationNum) {
+                    highestLocationNum = num;
+                }
+            }
+            
+            dotsToAdd.forEach((dotInfo, index) => {
+                const locationNumber = highestLocationNum + index + 1;
+                const dot = createDotObject(dotInfo.x, dotInfo.y, markerTypeCode, dotInfo.message, false, locationNumber);
                 if (dot) {
                     const addCommand = new AddDotCommand(appState.currentPdfPage, dot);
                     compositeCommand.add(addCommand);

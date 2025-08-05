@@ -141,7 +141,7 @@ async function finishScrape() {
                     const { CommandUndoManager, AddDotCommand } = await import('./command-undo.js');
                     const { createDotObject } = await import('./ui.js');
                     
-                    const dot = createDotObject(cluster.centerX, cluster.centerY, appState.activeMarkerType, message);
+                    const dot = createDotObject(cluster.centerX, cluster.centerY, appState.activeMarkerType, message, false);
                     if (dot) {
                         const command = new AddDotCommand(appState.currentPdfPage, dot);
                         await CommandUndoManager.execute(command);
@@ -182,8 +182,19 @@ async function finishScrape() {
                     
                     const compositeCommand = new CompositeCommand(`Scrape ${dotsToAdd.length} locations`);
                     
-                    dotsToAdd.forEach(dotInfo => {
-                        const dot = createDotObject(dotInfo.x, dotInfo.y, appState.activeMarkerType, dotInfo.message);
+                    // Calculate the starting location number
+                    const pageData = getCurrentPageDots();
+                    let highestLocationNum = 0;
+                    for (const dot of pageData.values()) {
+                        const num = parseInt(dot.locationNumber, 10);
+                        if (!isNaN(num) && num > highestLocationNum) {
+                            highestLocationNum = num;
+                        }
+                    }
+                    
+                    dotsToAdd.forEach((dotInfo, index) => {
+                        const locationNumber = highestLocationNum + index + 1;
+                        const dot = createDotObject(dotInfo.x, dotInfo.y, appState.activeMarkerType, dotInfo.message, false, locationNumber);
                         if (dot) {
                             const addCommand = new AddDotCommand(appState.currentPdfPage, dot);
                             compositeCommand.add(addCommand);

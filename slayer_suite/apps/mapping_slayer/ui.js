@@ -1612,7 +1612,7 @@ function updateListHighlighting() {
 }
 
 // Create a dot object without modifying state
-function createDotObject(x, y, markerTypeCode, message, isCodeRequired = false) {
+function createDotObject(x, y, markerTypeCode, message, isCodeRequired = false, providedLocationNumber = null) {
     const pageData = getCurrentPageData();
     const effectiveMarkerTypeCode = markerTypeCode || appState.activeMarkerType || Object.keys(appState.markerTypes)[0];
     
@@ -1636,14 +1636,19 @@ function createDotObject(x, y, markerTypeCode, message, isCodeRequired = false) 
     
     const internalId = String(appState.nextInternalId).padStart(7, '0');
     
-    let highestLocationNum = 0;
-    for (const dot of pageData.dots.values()) {
-        const num = parseInt(dot.locationNumber, 10);
-        if (!isNaN(num) && num > highestLocationNum) {
-            highestLocationNum = num;
+    let locationNumber;
+    if (providedLocationNumber !== null) {
+        locationNumber = String(providedLocationNumber).padStart(4, '0');
+    } else {
+        let highestLocationNum = 0;
+        for (const dot of pageData.dots.values()) {
+            const num = parseInt(dot.locationNumber, 10);
+            if (!isNaN(num) && num > highestLocationNum) {
+                highestLocationNum = num;
+            }
         }
+        locationNumber = String(highestLocationNum + 1).padStart(4, '0');
     }
-    const locationNumber = String(highestLocationNum + 1).padStart(4, '0');
     
     const dot = { 
         internalId: internalId,
