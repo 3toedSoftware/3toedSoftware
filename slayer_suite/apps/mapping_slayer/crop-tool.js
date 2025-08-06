@@ -16,6 +16,12 @@ export class CropTool {
         this.dragStartScale = 1;
         this.startBounds = null;
         
+        // Store original state for canceling
+        this.originalCropBounds = null;
+        this.originalCropBoundsPerPage = new Map();
+        this.originalGlobalCropBounds = null;
+        this.originalCropAllPages = false;
+        
         this.button = null;
         this.overlay = null;
         this.mapContent = null;
@@ -71,6 +77,14 @@ export class CropTool {
         // Global mouse events for dragging
         document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         document.addEventListener('mouseup', () => this.stopResize());
+        
+        // Add escape key handler to cancel crop
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isActive) {
+                e.preventDefault();
+                this.cancel();
+            }
+        });
         
         // Listen for zoom changes
         this.setupZoomListener();
@@ -208,6 +222,9 @@ export class CropTool {
             return;
         }
         
+        // Save current state before making any changes
+        this.saveOriginalState();
+        
         this.isActive = true;
         this.button.classList.add('active');
         
@@ -223,6 +240,43 @@ export class CropTool {
         
         // Load crop for current page
         this.loadCropForCurrentPage();
+    }
+    
+    saveOriginalState() {
+        // Save the current crop state so we can restore it on cancel
+        this.originalCropBounds = this.cropBounds ? {...this.cropBounds} : null;
+        this.originalGlobalCropBounds = this.globalCropBounds ? {...this.globalCropBounds} : null;
+        this.originalCropAllPages = this.cropAllPages;
+        
+        // Deep copy the per-page crop bounds
+        this.originalCropBoundsPerPage.clear();
+        this.cropBoundsPerPage.forEach((value, key) => {
+            this.originalCropBoundsPerPage.set(key, {...value});
+        });
+    }
+    
+    cancel() {
+        // Restore original state
+        this.cropBounds = this.originalCropBounds ? {...this.originalCropBounds} : null;
+        this.globalCropBounds = this.originalGlobalCropBounds ? {...this.originalGlobalCropBounds} : null;
+        this.cropAllPages = this.originalCropAllPages;
+        
+        // Restore per-page crop bounds
+        this.cropBoundsPerPage.clear();
+        this.originalCropBoundsPerPage.forEach((value, key) => {
+            this.cropBoundsPerPage.set(key, {...value});
+        });
+        
+        // Update checkbox state
+        if (this.allPagesCheckbox) {
+            this.allPagesCheckbox.checked = this.originalCropAllPages;
+        }
+        
+        // Re-apply the original crop (or clear if there was none)
+        this.loadCropForCurrentPage();
+        
+        // Now deactivate
+        this.deactivate();
     }
     
     deactivate() {

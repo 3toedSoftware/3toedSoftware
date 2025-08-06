@@ -766,7 +766,7 @@ function createMessageSchedule() {
         const typeData = appState.markerTypes[dot.markerType];
         const pageLabel = appState.pageLabels.get(dot.page) || '';
         const row = [
-            `"${typeData.code.replace(/"/g, '""')}"`, 
+            `"${dot.markerType.replace(/"/g, '""')}"`, 
             `"${typeData.name.replace(/"/g, '""')}"`, 
             `"${dot.message.replace(/"/g, '""')}"`,
             `"${(dot.message2 || '').replace(/"/g, '""')}"`,

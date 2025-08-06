@@ -634,24 +634,27 @@ function addSingleDotToLocationList(dot) {
     }
 
     const badgeClass = dot.isCodeRequired ? 'ms-marker-type-badge ms-code-required-badge' : 'ms-marker-type-badge';
-    const badgeText = dot.markerType + ' - ' + typeData.name;
+    const badgeText = dot.markerType;
+    const badgeTooltip = dot.markerType + ' - ' + typeData.name;
 
     item.innerHTML = '<div class="ms-location-header">' +
         '<span class="ms-location-number">' + dot.locationNumber + '</span>' +
         '<input type="text" class="ms-location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
-        '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + (typeData.textColor || '#FFFFFF') + ';" title="' + badgeText + '">' + badgeText + '</span>' +
+        '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + (typeData.textColor || '#FFFFFF') + ';" title="' + badgeTooltip + '">' + badgeText + '</span>' +
         '</div>';
     
     item.addEventListener('click', async (e) => {
         if (e.target.classList.contains('ms-location-message-input')) return;
         
         const dotPage = appState.currentPdfPage;
-        centerOnDot(dot.internalId);
         
         setTimeout(() => {
             if (e.shiftKey) {
+                // Multi-select: don't center on dot
                 toggleDotSelection(dot.internalId);
             } else {
+                // Single select: center on dot
+                centerOnDot(dot.internalId);
                 if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
                     clearSelection();
                 } else {
@@ -798,17 +801,11 @@ function renderFlatLocationList(allDots, container) {
     });
     
     filteredDots.sort((a, b) => {
-        // First priority: selected items come first
-        const aSelected = appState.selectedDots.has(a.internalId);
-        const bSelected = appState.selectedDots.has(b.internalId);
-        
-        if (aSelected && !bSelected) return -1;
-        if (!aSelected && bSelected) return 1;
-        
-        // If both selected or both not selected, use regular sorting
+        // Sort by page first if in all pages view
         if (appState.isAllPagesView && a.page !== b.page) {
             return a.page - b.page;
         }
+        // Then sort by location or message
         if (appState.sortMode === 'location') {
             return a.locationNumber.localeCompare(b.locationNumber);
         } else {
@@ -830,13 +827,14 @@ function renderFlatLocationList(allDots, container) {
         }
 
         const badgeClass = dot.isCodeRequired ? 'ms-marker-type-badge ms-code-required-badge' : 'ms-marker-type-badge';
-        const badgeText = dot.markerType + ' - ' + typeData.name;
+        const badgeText = dot.markerType;
+        const badgeTooltip = dot.markerType + ' - ' + typeData.name;
         const pagePrefix = appState.isAllPagesView ? '(P' + dot.page + ') ' : '';
 
         item.innerHTML = '<div class="ms-location-header">' +
             '<span class="ms-location-number">' + pagePrefix + dot.locationNumber + '</span>' +
             '<input type="text" class="ms-location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
-            '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + (typeData.textColor || '#FFFFFF') + ';" title="' + badgeText + '">' + badgeText + '</span>' +
+            '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + (typeData.textColor || '#FFFFFF') + ';" title="' + badgeTooltip + '">' + badgeText + '</span>' +
             '</div>';
         
         container.appendChild(item);
@@ -846,12 +844,14 @@ function renderFlatLocationList(allDots, container) {
             if (dotPage !== appState.currentPdfPage) {
                 await changePage(dotPage);
             }
-            centerOnDot(dot.internalId);
             
             setTimeout(() => {
                 if (e.shiftKey) {
+                    // Multi-select: don't center on dot
                     toggleDotSelection(dot.internalId);
                 } else {
+                    // Single select: center on dot
+                    centerOnDot(dot.internalId);
                     if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
                         clearSelection();
                     } else {
@@ -957,17 +957,11 @@ function renderGroupedLocationList(allDots, container) {
         
         // Sort dots within each group
         dots.sort((a, b) => {
-            // First priority: selected items come first
-            const aSelected = appState.selectedDots.has(a.internalId);
-            const bSelected = appState.selectedDots.has(b.internalId);
-            
-            if (aSelected && !bSelected) return -1;
-            if (!aSelected && bSelected) return 1;
-            
-            // If both selected or both not selected, use regular sorting
+            // Sort by page first if in all pages view
             if (appState.isAllPagesView && a.page !== b.page) {
                 return a.page - b.page;
             }
+            // Then sort by location or message
             if (appState.sortMode === 'location') {
                 return a.locationNumber.localeCompare(b.locationNumber);
             } else {
@@ -980,9 +974,10 @@ function renderGroupedLocationList(allDots, container) {
         const category = document.createElement('div');
         category.className = 'ms-marker-type-category';
         category.style.borderLeftColor = typeData.color;
-        const displayName = markerTypeCode + ' - ' + typeData.name;
+        const displayName = markerTypeCode;
+        const tooltipText = markerTypeCode + ' - ' + typeData.name;
         
-        category.innerHTML = '<div class="ms-marker-type-category-header">' +
+        category.innerHTML = '<div class="ms-marker-type-category-header" title="' + tooltipText + '">' +
             '<div class="ms-marker-type-category-title">' +
             '<span class="ms-expand-icon ' + (isExpanded ? 'ms-expanded' : '') + '">▶</span>' + displayName +
             '</div>' +
@@ -1027,12 +1022,14 @@ function renderGroupedLocationList(allDots, container) {
                 if (dotPage !== appState.currentPdfPage) {
                     await changePage(dotPage);
                 }
-                centerOnDot(dot.internalId);
                 
                 setTimeout(() => {
                     if (e.shiftKey) {
+                        // Multi-select: don't center on dot
                         toggleDotSelection(dot.internalId);
                     } else {
+                        // Single select: center on dot
+                        centerOnDot(dot.internalId);
                         if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
                             clearSelection();
                         } else {
@@ -1472,12 +1469,14 @@ function handleMouseMove(e) {
 
     // Track mouse position for paste
     const mapContainer = document.getElementById('map-container');
-    const rect = mapContainer.getBoundingClientRect();
-    const { x: mapX, y: mapY, scale } = appState.mapTransform;
-    appState.lastMousePosition = {
-        x: (e.clientX - rect.left - mapX) / scale,
-        y: (e.clientY - rect.top - mapY) / scale
-    };
+    if (mapContainer) {
+        const rect = mapContainer.getBoundingClientRect();
+        const { x: mapX, y: mapY, scale } = appState.mapTransform;
+        appState.lastMousePosition = {
+            x: (e.clientX - rect.left - mapX) / scale,
+            y: (e.clientY - rect.top - mapY) / scale
+        };
+    }
 
     if (appState.isPanning) {
         appState.mapTransform.x += e.clientX - appState.dragStart.x;
@@ -1795,12 +1794,12 @@ function finishSelectionBox() {
             clearSelection();
         }
         
-        // Select dots within the box
+        // Select dots within the box (don't scroll for multi-select)
         const dots = getCurrentPageDots();
         dots.forEach((dot, internalId) => {
             if (dot.x >= canvasLeft && dot.x <= canvasRight &&
                 dot.y >= canvasTop && dot.y <= canvasBottom) {
-                selectDot(internalId);
+                selectDot(internalId, false);
             }
         });
         
@@ -1856,7 +1855,6 @@ function clearSearchHighlights() {
 }
 
 function clearSelection() {
-    const hadSelection = appState.selectedDots.size > 0;
     appState.selectedDots.forEach(internalId => {
         const dotElement = document.querySelector('.ms-map-dot[data-dot-id="' + internalId + '"]');
         if (dotElement) {
@@ -1869,13 +1867,9 @@ function clearSelection() {
         item.classList.remove('ms-selected');
     });
     updateSelectionUI();
-    // Update location list if we had selections
-    if (hadSelection) {
-        updateLocationList();
-    }
 }
 
-function selectDot(internalId) {
+function selectDot(internalId, scrollToView = true) {
     appState.selectedDots.add(internalId);
     const dotElement = document.querySelector('.ms-map-dot[data-dot-id="' + internalId + '"]');
     if (dotElement) {
@@ -1886,8 +1880,14 @@ function selectDot(internalId) {
             zIndex: '200'
         });
     }
-    // Update location list to bring selected item to top
-    updateLocationList();
+    // Update list item highlighting and optionally scroll into view
+    const listItem = document.querySelector(`.ms-location-item[data-dot-id="${internalId}"], .ms-grouped-location-item[data-dot-id="${internalId}"]`);
+    if (listItem) {
+        listItem.classList.add('ms-selected');
+        if (scrollToView) {
+            listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
 }
 
 function deselectDot(internalId) {
@@ -1897,15 +1897,19 @@ function deselectDot(internalId) {
         dotElement.classList.remove('ms-selected');
         Object.assign(dotElement.style, { boxShadow: '', border: '', zIndex: '' });
     }
-    // Update location list to restore original order
-    updateLocationList();
+    // Update list item highlighting
+    const listItem = document.querySelector(`.ms-location-item[data-dot-id="${internalId}"], .ms-grouped-location-item[data-dot-id="${internalId}"]`);
+    if (listItem) {
+        listItem.classList.remove('ms-selected');
+    }
 }
 
 function toggleDotSelection(internalId) {
     if (appState.selectedDots.has(internalId)) { 
         deselectDot(internalId); 
     } else { 
-        selectDot(internalId); 
+        // Don't scroll when multi-selecting
+        selectDot(internalId, false); 
     }
 }
 
@@ -2012,7 +2016,9 @@ function isCollision(newX, newY) {
     const minDistance = (20 * appState.dotSize) + 1;
     for (const dot of dots.values()) {
         const distance = Math.sqrt(Math.pow(dot.x - newX, 2) + Math.pow(dot.y - newY, 2));
-        if (distance < minDistance) return true;
+        if (distance < minDistance) {
+            return true;
+        }
     }
     return false;
 }
@@ -2520,14 +2526,37 @@ function setupModalEventListeners() {
         groupDeleteBtn.addEventListener('click', groupDeleteDots);
     }
     
-    // Close modals when clicking outside
-    window.addEventListener('click', (e) => {
+    // Close modals when clicking outside (but not when selecting text)
+    window.addEventListener('mousedown', (e) => {
+        // Track if we're starting a click on the backdrop
         if (e.target === editModal) {
-            closeEditModal();
+            editModal.dataset.backdropMousedown = 'true';
         }
         if (e.target === groupEditModal) {
-            closeGroupEditModal();
+            groupEditModal.dataset.backdropMousedown = 'true';
         }
+    });
+    
+    window.addEventListener('mouseup', (e) => {
+        // Only close if both mousedown and mouseup were on the backdrop
+        // This prevents closing when dragging text selection
+        if (e.target === editModal && editModal.dataset.backdropMousedown === 'true') {
+            const selection = window.getSelection();
+            // Don't close if there's text selected
+            if (!selection || selection.toString().length === 0) {
+                closeEditModal();
+            }
+        }
+        if (e.target === groupEditModal && groupEditModal.dataset.backdropMousedown === 'true') {
+            const selection = window.getSelection();
+            // Don't close if there's text selected
+            if (!selection || selection.toString().length === 0) {
+                closeGroupEditModal();
+            }
+        }
+        // Reset the flags
+        if (editModal) editModal.dataset.backdropMousedown = 'false';
+        if (groupEditModal) groupEditModal.dataset.backdropMousedown = 'false';
     });
     
     // Close modals with Escape key
@@ -2557,12 +2586,23 @@ function setupModalEventListeners() {
         renumberModalClose.addEventListener('click', closeRenumberModal);
     }
     
-    // Close renumber modal when clicking outside
+    // Close renumber modal when clicking outside (but not when selecting text)
     if (renumberModal) {
-        window.addEventListener('click', (e) => {
+        window.addEventListener('mousedown', (e) => {
             if (e.target === renumberModal) {
-                closeRenumberModal();
+                renumberModal.dataset.backdropMousedown = 'true';
             }
+        });
+        
+        window.addEventListener('mouseup', (e) => {
+            if (e.target === renumberModal && renumberModal.dataset.backdropMousedown === 'true') {
+                const selection = window.getSelection();
+                // Don't close if there's text selected
+                if (!selection || selection.toString().length === 0) {
+                    closeRenumberModal();
+                }
+            }
+            if (renumberModal) renumberModal.dataset.backdropMousedown = 'false';
         });
     }
     
@@ -2685,10 +2725,42 @@ function addButtonEventListeners() {
     if (findInput) {
         findInput.addEventListener('input', handleFind);
         findInput.addEventListener('keydown', handleFindEnter);
+        // Prevent browser's default undo/redo in find input
+        findInput.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'y')) {
+                e.preventDefault();
+                // Trigger the app's undo/redo instead
+                if (e.key === 'z' && !e.shiftKey) {
+                    CommandUndoManager.undo().then(action => {
+                        if (action) showCSVStatus(`Undo: ${action}`, true, 2000);
+                    });
+                } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+                    CommandUndoManager.redo().then(action => {
+                        if (action) showCSVStatus(`Redo: ${action}`, true, 2000);
+                    });
+                }
+            }
+        });
     }
     
     if (replaceInput) {
         replaceInput.addEventListener('input', updateReplaceStatus);
+        // Prevent browser's default undo/redo in replace input
+        replaceInput.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'y')) {
+                e.preventDefault();
+                // Trigger the app's undo/redo instead
+                if (e.key === 'z' && !e.shiftKey) {
+                    CommandUndoManager.undo().then(action => {
+                        if (action) showCSVStatus(`Undo: ${action}`, true, 2000);
+                    });
+                } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+                    CommandUndoManager.redo().then(action => {
+                        if (action) showCSVStatus(`Redo: ${action}`, true, 2000);
+                    });
+                }
+            }
+        });
     }
     
     if (findAllBtn) {
@@ -3707,11 +3779,13 @@ async function pasteDots() {
     const pasteX = appState.lastMousePosition.x;
     const pasteY = appState.lastMousePosition.y;
     
+    
     if (!isCollision(pasteX, pasteY)) {
         clearSelection();
         
         // Create new dot object using createDotObject to get proper ID and location number
         const newDot = createDotObject(pasteX, pasteY, clipDot.markerType, clipDot.message, clipDot.isCodeRequired);
+        
         
         if (newDot) {
             // Copy over additional properties from the clipboard
