@@ -727,6 +727,11 @@ function addSingleDotToLocationList(dot) {
 }
 
 function updateLocationList() {
+    // Update spreadsheet view if it's visible
+    const spreadsheetOverlay = document.getElementById('spreadsheet-overlay');
+    if (spreadsheetOverlay && spreadsheetOverlay.style.display !== 'none') {
+        populateSpreadsheetView();
+    }
     
     const container = document.getElementById('location-list');
     if (!container) {
@@ -840,6 +845,8 @@ function renderFlatLocationList(allDots, container) {
         container.appendChild(item);
 
         item.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('ms-location-message-input')) return;
+                
             const dotPage = e.currentTarget.dataset.dotPage ? parseInt(e.currentTarget.dataset.dotPage, 10) : appState.currentPdfPage;
             if (dotPage !== appState.currentPdfPage) {
                 await changePage(dotPage);
@@ -1915,6 +1922,12 @@ function toggleDotSelection(internalId) {
 
 function updateSelectionUI() {
     updateListHighlighting();
+    
+    // Update spreadsheet selection if visible
+    const spreadsheetOverlay = document.getElementById('spreadsheet-overlay');
+    if (spreadsheetOverlay && spreadsheetOverlay.style.display !== 'none') {
+        updateSpreadsheetSelection();
+    }
 }
 
 function updateListHighlighting() {
@@ -2435,9 +2448,27 @@ function addPageNavigationEventListeners() {
     });
 }
 
+let resizeTimeout;
+function repositionSpreadsheetOverlay() {
+    const spreadsheetOverlay = document.getElementById('spreadsheet-overlay');
+    const listSection = document.querySelector('.ms-list-section');
+    
+    if (spreadsheetOverlay && spreadsheetOverlay.style.display !== 'none' && listSection) {
+        const rect = listSection.getBoundingClientRect();
+        spreadsheetOverlay.style.top = (rect.top + 45) + 'px'; // Position below header
+        spreadsheetOverlay.style.height = (rect.height - 45) + 'px'; // Subtract header height
+    }
+}
+
+function repositionSpreadsheetOverlayDebounced() {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(repositionSpreadsheetOverlay, 100);
+}
+
 function addViewToggleEventListeners() {
     const toggleViewBtn = document.querySelector('#toggle-view-btn');
     const sortToggleBtn = document.querySelector('#sort-toggle-btn');
+    const expandBtn = document.querySelector('#expand-list-btn');
     const allPagesCheckbox = document.querySelector('#all-pages-checkbox');
     
     if (toggleViewBtn) {
@@ -2452,6 +2483,39 @@ function addViewToggleEventListeners() {
             appState.sortMode = appState.sortMode === 'location' ? 'name' : 'location';
             sortToggleBtn.textContent = appState.sortMode === 'location' ? 'BY LOC' : 'BY NAME';
             updateLocationList();
+        });
+    }
+    
+    if (expandBtn) {
+        expandBtn.addEventListener('click', () => {
+            const spreadsheetOverlay = document.getElementById('spreadsheet-overlay');
+            const normalList = document.getElementById('list-with-renumber');
+            const emptyState = document.getElementById('empty-state');
+            const listSection = document.querySelector('.ms-list-section');
+            
+            if (spreadsheetOverlay.style.display === 'none') {
+                // Show spreadsheet view
+                spreadsheetOverlay.style.display = 'block';
+                repositionSpreadsheetOverlay(); // Position it correctly
+                if (normalList) normalList.style.display = 'none';
+                if (emptyState) emptyState.style.display = 'none';
+                expandBtn.textContent = 'CONTRACT';
+                populateSpreadsheetView();
+                setupSpreadsheetSorting();
+                
+                // Add resize handler when spreadsheet is shown
+                window.addEventListener('resize', repositionSpreadsheetOverlayDebounced);
+            } else {
+                // Show normal list view
+                spreadsheetOverlay.style.display = 'none';
+                const hasLocations = getCurrentPageDots().size > 0;
+                if (normalList && hasLocations) normalList.style.display = 'block';
+                if (emptyState && !hasLocations) emptyState.style.display = 'block';
+                expandBtn.textContent = 'EXPAND';
+                
+                // Remove resize handler when spreadsheet is hidden
+                window.removeEventListener('resize', repositionSpreadsheetOverlayDebounced);
+            }
         });
     }
     
@@ -4974,6 +5038,286 @@ function renderAnnotationLines() {
             setDirtyState();
         });
     });
+}
+
+// Spreadsheet sorting state
+let spreadsheetSortColumn = 'location';
+let spreadsheetSortDirection = 'asc';
+
+function populateSpreadsheetView() {
+    const tbody = document.getElementById('spreadsheet-tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    // Get all dots to display
+    let allDots = [];
+    if (appState.isAllPagesView) {
+        // Get dots from all pages
+        for (let page = 1; page <= appState.totalPages; page++) {
+            const pageDots = getDotsForPage(page);
+            pageDots.forEach(dot => {
+                allDots.push({ ...dot, page: page });
+            });
+        }
+    } else {
+        // Get dots from current page only
+        getCurrentPageDots().forEach(dot => {
+            allDots.push({ ...dot, page: appState.currentPdfPage });
+        });
+    }
+    
+    // Apply filters
+    const activeFilters = getActiveFilters();
+    allDots = allDots.filter(dot => activeFilters.includes(dot.markerType));
+    
+    // Apply code/inst filters
+    if (appState.codeFilterMode === 'codeOnly') {
+        allDots = allDots.filter(dot => dot.isCodeRequired);
+    } else if (appState.codeFilterMode === 'hideCode') {
+        allDots = allDots.filter(dot => !dot.isCodeRequired);
+    }
+    
+    if (appState.instFilterMode === 'instOnly') {
+        allDots = allDots.filter(dot => dot.installed);
+    } else if (appState.instFilterMode === 'hideInst') {
+        allDots = allDots.filter(dot => !dot.installed);
+    }
+    
+    // Sort dots based on current sort column and direction
+    allDots.sort((a, b) => {
+        let compareValue = 0;
+        
+        // First sort by page if in all pages view
+        if (appState.isAllPagesView && a.page !== b.page) {
+            return a.page - b.page;
+        }
+        
+        // Then sort by selected column
+        switch(spreadsheetSortColumn) {
+            case 'location':
+                compareValue = a.locationNumber.localeCompare(b.locationNumber);
+                break;
+            case 'type':
+                compareValue = a.markerType.localeCompare(b.markerType);
+                break;
+            case 'message':
+                compareValue = (a.message || '').localeCompare(b.message || '');
+                break;
+            case 'message2':
+                compareValue = (a.message2 || '').localeCompare(b.message2 || '');
+                break;
+            case 'notes':
+                compareValue = (a.notes || '').localeCompare(b.notes || '');
+                break;
+            case 'code':
+                compareValue = (a.isCodeRequired ? 1 : 0) - (b.isCodeRequired ? 1 : 0);
+                break;
+            case 'vinyl':
+                compareValue = (a.vinylBacker ? 1 : 0) - (b.vinylBacker ? 1 : 0);
+                break;
+            case 'inst':
+                compareValue = (a.installed ? 1 : 0) - (b.installed ? 1 : 0);
+                break;
+            default:
+                compareValue = a.locationNumber.localeCompare(b.locationNumber);
+        }
+        
+        // Apply sort direction
+        return spreadsheetSortDirection === 'asc' ? compareValue : -compareValue;
+    });
+    
+    // Create rows
+    allDots.forEach(dot => {
+        const typeData = appState.markerTypes[dot.markerType];
+        const row = document.createElement('tr');
+        row.dataset.dotId = dot.internalId;
+        row.dataset.dotPage = dot.page;
+        
+        if (appState.selectedDots.has(dot.internalId)) {
+            row.classList.add('ms-selected');
+        }
+        
+        const pagePrefix = appState.isAllPagesView ? 'P' + dot.page + '-' : '';
+        
+        row.innerHTML = 
+            '<td class="ms-col-location">' + pagePrefix + dot.locationNumber + '</td>' +
+            '<td class="ms-col-marker">' +
+                '<span class="ms-spreadsheet-marker-badge" style="background-color:' + typeData.color + '; color:' + (typeData.textColor || '#FFFFFF') + ';">' +
+                dot.markerType + '</span>' +
+            '</td>' +
+            '<td class="ms-col-message">' +
+                '<input type="text" class="ms-spreadsheet-input" value="' + (dot.message || '') + '" data-field="message" data-dot-id="' + dot.internalId + '">' +
+            '</td>' +
+            '<td class="ms-col-message2">' +
+                '<input type="text" class="ms-spreadsheet-input" value="' + (dot.message2 || '') + '" data-field="message2" data-dot-id="' + dot.internalId + '">' +
+            '</td>' +
+            '<td class="ms-col-notes">' +
+                '<input type="text" class="ms-spreadsheet-input" value="' + (dot.notes || '') + '" data-field="notes" data-dot-id="' + dot.internalId + '">' +
+            '</td>' +
+            '<td class="ms-col-checkbox">' +
+                '<input type="checkbox" class="ms-spreadsheet-checkbox" data-field="isCodeRequired" data-dot-id="' + dot.internalId + '" ' + (dot.isCodeRequired ? 'checked' : '') + '>' +
+            '</td>' +
+            '<td class="ms-col-checkbox">' +
+                '<input type="checkbox" class="ms-spreadsheet-checkbox" data-field="vinylBacker" data-dot-id="' + dot.internalId + '" ' + (dot.vinylBacker ? 'checked' : '') + '>' +
+            '</td>' +
+            '<td class="ms-col-checkbox">' +
+                '<input type="checkbox" class="ms-spreadsheet-checkbox" data-field="installed" data-dot-id="' + dot.internalId + '" ' + (dot.installed ? 'checked' : '') + '>' +
+            '</td>';
+        
+        tbody.appendChild(row);
+        
+        // Add row click handler
+        row.addEventListener('click', async (e) => {
+            // Skip if clicking on inputs
+            if (e.target.tagName === 'INPUT') return;
+            
+            const dotPage = parseInt(row.dataset.dotPage);
+            if (dotPage !== appState.currentPdfPage) {
+                await changePage(dotPage);
+            }
+            
+            setTimeout(() => {
+                if (e.shiftKey) {
+                    toggleDotSelection(dot.internalId);
+                } else {
+                    centerOnDot(dot.internalId);
+                    if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
+                        clearSelection();
+                    } else {
+                        clearSelection();
+                        selectDot(dot.internalId);
+                    }
+                }
+                updateSelectionUI();
+                updateSpreadsheetSelection();
+            }, 100);
+        });
+        
+        // Add input handlers
+        const inputs = row.querySelectorAll('.ms-spreadsheet-input');
+        inputs.forEach(input => {
+            let originalValue = input.value;
+            
+            input.addEventListener('focus', (e) => {
+                originalValue = e.target.value;
+            });
+            
+            input.addEventListener('blur', async (e) => {
+                if (e.target.value !== originalValue) {
+                    const field = e.target.dataset.field;
+                    const dotId = e.target.dataset.dotId;
+                    const oldValues = {};
+                    const newValues = {};
+                    oldValues[field] = originalValue;
+                    newValues[field] = e.target.value;
+                    
+                    const command = new EditDotCommand(dot.page, dotId, oldValues, newValues);
+                    await CommandUndoManager.execute(command);
+                    setDirtyState();
+                    
+                    // Update the regular list view if visible
+                    updateLocationList();
+                    
+                    // Update map if message changed
+                    if (field === 'message') {
+                        renderDotsForCurrentPage();
+                    }
+                }
+            });
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.target.blur();
+                }
+            });
+        });
+        
+        // Add checkbox handlers
+        const checkboxes = row.querySelectorAll('.ms-spreadsheet-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', async (e) => {
+                const field = e.target.dataset.field;
+                const dotId = e.target.dataset.dotId;
+                const dotToUpdate = getDotsForPage(dot.page).get(dotId);
+                
+                if (dotToUpdate) {
+                    const oldValues = {};
+                    const newValues = {};
+                    oldValues[field] = dotToUpdate[field];
+                    newValues[field] = e.target.checked;
+                    
+                    const command = new EditDotCommand(dot.page, dotId, oldValues, newValues);
+                    await CommandUndoManager.execute(command);
+                    setDirtyState();
+                    
+                    // Update the regular list view
+                    updateLocationList();
+                    
+                    // Always update map for checkbox changes to show icons
+                    renderDotsForCurrentPage();
+                }
+            });
+        });
+    });
+}
+
+function updateSpreadsheetSelection() {
+    const rows = document.querySelectorAll('#spreadsheet-tbody tr');
+    rows.forEach(row => {
+        const dotId = row.dataset.dotId;
+        if (appState.selectedDots.has(dotId)) {
+            row.classList.add('ms-selected');
+        } else {
+            row.classList.remove('ms-selected');
+        }
+    });
+}
+
+function setupSpreadsheetSorting() {
+    const headers = document.querySelectorAll('.ms-spreadsheet-table th.ms-sortable');
+    
+    headers.forEach(header => {
+        // Remove existing listeners to avoid duplicates
+        const newHeader = header.cloneNode(true);
+        header.parentNode.replaceChild(newHeader, header);
+        
+        newHeader.addEventListener('click', () => {
+            const sortColumn = newHeader.dataset.sort;
+            
+            // If clicking the same column, toggle direction
+            if (sortColumn === spreadsheetSortColumn) {
+                spreadsheetSortDirection = spreadsheetSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // New column, default to ascending
+                spreadsheetSortColumn = sortColumn;
+                spreadsheetSortDirection = 'asc';
+            }
+            
+            // Update indicators
+            updateSortIndicators();
+            
+            // Repopulate with new sort
+            populateSpreadsheetView();
+        });
+    });
+    
+    // Set initial indicators
+    updateSortIndicators();
+}
+
+function updateSortIndicators() {
+    // Clear all indicators
+    document.querySelectorAll('.ms-sort-indicator').forEach(indicator => {
+        indicator.classList.remove('asc', 'desc');
+    });
+    
+    // Set current sort indicator
+    const currentHeader = document.querySelector(`th[data-sort="${spreadsheetSortColumn}"] .ms-sort-indicator`);
+    if (currentHeader) {
+        currentHeader.classList.add(spreadsheetSortDirection);
+    }
 }
 
 export {

@@ -315,8 +315,18 @@ function applyMapTransform() {
 }
 
 function centerOnDot(internalId, zoomLevel = 1.5) {
+    // Check if spreadsheet view is expanded
+    const spreadsheetOverlay = document.getElementById('spreadsheet-overlay');
+    const isSpreadsheetExpanded = spreadsheetOverlay && spreadsheetOverlay.style.display !== 'none';
+    
+    // Don't move the map at all if spreadsheet is expanded
+    if (isSpreadsheetExpanded) {
+        return;
+    }
+    
     const dot = getCurrentPageDots().get(internalId); if (!dot) return;
     const containerRect = document.getElementById('map-container').getBoundingClientRect();
+    
     appState.mapTransform.scale = zoomLevel;
     appState.mapTransform.x = (containerRect.width / 2) - (dot.x * zoomLevel);
     appState.mapTransform.y = (containerRect.height / 2) - (dot.y * zoomLevel);

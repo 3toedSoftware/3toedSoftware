@@ -105,6 +105,7 @@ class MappingSlayerApp extends SlayerAppBase {
                         <div class="ms-panel-header">
                             <span>LIST</span>
                             <div id="list-header-controls">
+                                <button class="ms-btn ms-btn-secondary ms-btn-compact" id="expand-list-btn">EXPAND</button>
                                 <button class="ms-btn ms-btn-secondary ms-btn-compact" id="sort-toggle-btn">BY LOC</button>
                                 <button class="ms-btn ms-btn-secondary ms-btn-compact" id="toggle-view-btn">UNGROUPED</button>
                                 <div class="ms-all-pages-container">
@@ -253,6 +254,31 @@ class MappingSlayerApp extends SlayerAppBase {
                         <button class="ms-btn ms-btn-primary ms-btn-compact" id="create-schedule-btn" disabled="">CREATE MESSAGE SCHEDULE</button>
                         <button class="ms-btn ms-btn-primary ms-btn-compact" id="update-from-schedule-btn" disabled="">UPDATE FROM MESSAGE SCHEDULE</button>
                         <button class="ms-btn ms-btn-primary ms-btn-compact" id="export-fdf-btn" disabled="">EXPORT REVU MARKUPS (BETA)</button>
+                    </div>
+                </div>
+                
+                <!-- Spreadsheet View Overlay - Outside of panels to be above everything -->
+                <div id="spreadsheet-overlay" class="ms-spreadsheet-overlay" style="display: none;">
+                    <div class="ms-spreadsheet-header">
+                        <span>LIST - EXPANDED VIEW</span>
+                    </div>
+                    <div class="ms-spreadsheet-container">
+                        <table class="ms-spreadsheet-table">
+                            <thead>
+                                <tr>
+                                    <th class="ms-col-location ms-sortable" data-sort="location">LOC # <span class="ms-sort-indicator"></span></th>
+                                    <th class="ms-col-marker ms-sortable" data-sort="type">TYPE <span class="ms-sort-indicator"></span></th>
+                                    <th class="ms-col-message ms-sortable" data-sort="message">MESSAGE <span class="ms-sort-indicator"></span></th>
+                                    <th class="ms-col-message2 ms-sortable" data-sort="message2">MESSAGE 2 <span class="ms-sort-indicator"></span></th>
+                                    <th class="ms-col-notes ms-sortable" data-sort="notes">NOTES <span class="ms-sort-indicator"></span></th>
+                                    <th class="ms-col-checkbox ms-sortable" data-sort="code">CODE <span class="ms-sort-indicator"></span></th>
+                                    <th class="ms-col-checkbox ms-sortable" data-sort="vinyl">VINYL <span class="ms-sort-indicator"></span></th>
+                                    <th class="ms-col-checkbox ms-sortable" data-sort="inst">INST <span class="ms-sort-indicator"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="spreadsheet-tbody">
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
