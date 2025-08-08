@@ -633,6 +633,14 @@ body {
     font-size: 10px;
 }
 
+.ms-location-messages {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    min-width: 0;
+}
+
 .ms-location-message {
     flex: 1;
     color: #ccc;
@@ -644,7 +652,6 @@ body {
 }
 
 .ms-location-message-input {
-    flex: 1;
     background: transparent;
     border: none;
     color: #ccc;
@@ -653,6 +660,20 @@ body {
     padding: 2px 4px;
     border-radius: 2px;
     min-width: 0;
+}
+
+.ms-location-message-input.ms-message1 {
+    flex: 0 0 auto;
+    width: auto;
+    color: #f0f0f0;
+    min-width: 60px;
+    max-width: 50%;
+}
+
+.ms-location-message-input.ms-message2 {
+    flex: 1 1 auto;
+    color: #f0f0f0;
+    min-width: 40px;
 }
 
 .ms-location-message-input:focus {
@@ -745,205 +766,6 @@ body {
     border-left-color: #f07727 !important;
     border: 2px solid #f07727 !important;
     box-shadow: 0 0 8px rgba(255, 102, 0, 0.5) !important;
-}
-
-/* Spreadsheet Overlay Styles */
-.ms-spreadsheet-overlay {
-    position: fixed;
-    top: auto;
-    left: 0; /* Start from left edge to cover list area */
-    width: 100vw; /* Take up full screen width */
-    height: 40vh; /* Match list section height */
-    background: #2a2a2a;
-    z-index: 10000; /* Very high z-index to be above everything */
-    border: 1px solid #555;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.7);
-    bottom: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-.ms-spreadsheet-header {
-    background: #333537;
-    color: #ffffff;
-    padding: 10px 15px;
-    font-weight: bold;
-    font-size: 14px;
-    border-bottom: 1px solid #555;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex: 0 0 auto; /* Don't grow or shrink */
-    min-height: 40px;
-}
-
-.ms-spreadsheet-container {
-    flex: 1 1 auto;
-    overflow-y: auto;
-    overflow-x: auto;
-    padding: 0;
-    padding-left: 0; /* Remove padding that might cause gap */
-    min-height: 0; /* Important for flex child to scroll properly */
-    max-height: 100%; /* Ensure it doesn't exceed parent */
-    position: relative;
-}
-
-.ms-spreadsheet-table {
-    width: 100%;
-    min-width: 700px; /* Reduced since columns are narrower */
-    border-collapse: collapse;
-    font-size: 11px;
-    background: #1e1e1e;
-    margin: 0; /* Remove margins */
-    table-layout: fixed; /* Fixed layout for consistent column widths */
-    display: table; /* Ensure proper table display */
-}
-
-.ms-spreadsheet-table thead {
-    position: sticky;
-    top: -1px; /* Slight negative to ensure no gap */
-    z-index: 10;
-    background: #333537;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* Add shadow to separate from scrolling content */
-}
-
-.ms-spreadsheet-table thead tr {
-    background: #333537;
-}
-
-.ms-spreadsheet-table thead th:first-child {
-    border-left: 1px solid #333537; /* Match background to hide gap */
-}
-
-.ms-spreadsheet-table th {
-    text-align: left;
-    padding: 8px 4px; /* Reduced padding for narrow columns */
-    border: 1px solid #555;
-    background: #333537;
-    color: #fff;
-    font-weight: bold;
-    font-size: 10px;
-    white-space: nowrap;
-    position: relative; /* For proper stacking */
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ms-spreadsheet-table th.ms-sortable {
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.2s;
-}
-
-.ms-spreadsheet-table th.ms-sortable:hover {
-    background: #3a3a3a;
-}
-
-.ms-sort-indicator {
-    display: inline-block;
-    margin-left: 4px;
-    font-size: 8px;
-    color: #999;
-}
-
-.ms-sort-indicator.asc::after {
-    content: '▲';
-    color: #4a7aa7;
-}
-
-.ms-sort-indicator.desc::after {
-    content: '▼';
-    color: #4a7aa7;
-}
-
-.ms-spreadsheet-table tbody {
-    display: table-row-group;
-}
-
-.ms-spreadsheet-table tbody tr {
-    transition: background 0.2s;
-}
-
-.ms-spreadsheet-table tbody tr:hover {
-    background: #2a2a2a;
-}
-
-.ms-spreadsheet-table tbody tr.ms-selected {
-    background: #4a2f1a !important;
-}
-
-.ms-spreadsheet-table td {
-    padding: 4px;
-    border: 1px solid #444;
-    background: #1e1e1e;
-    color: #fff;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ms-col-location {
-    width: 45px;
-    max-width: 45px;
-    text-align: center;
-    padding: 4px 2px;
-}
-
-.ms-col-marker {
-    width: 45px;
-    max-width: 45px;
-    text-align: center;
-    padding: 4px 2px;
-}
-
-.ms-col-message {
-    min-width: 200px;
-    width: 35%;
-}
-
-.ms-col-message2 {
-    min-width: 200px;
-    width: 35%;
-}
-
-.ms-col-notes {
-    min-width: 150px;
-    width: 20%;
-}
-
-.ms-col-checkbox {
-    width: 35px;
-    max-width: 35px;
-    text-align: center;
-    padding: 4px 2px;
-}
-
-.ms-spreadsheet-input {
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: #fff;
-    font-size: 11px;
-    padding: 2px;
-}
-
-.ms-spreadsheet-input:focus {
-    background: #2a2a2a;
-    outline: 1px solid #4a7aa7;
-}
-
-.ms-spreadsheet-checkbox {
-    cursor: pointer;
-}
-
-.ms-spreadsheet-marker-badge {
-    display: inline-block;
-    padding: 1px 3px;
-    border-radius: 2px;
-    font-size: 9px;
-    font-weight: bold;
-    text-align: center;
-    width: auto;
-    max-width: 100%;
 }
 
 .ms-marker-type-badge {

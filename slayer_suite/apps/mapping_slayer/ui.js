@@ -211,7 +211,9 @@ function updateFilterCheckboxesImmediate() {
 
             item.querySelector('input[type="checkbox"]').addEventListener('change', applyFilters);
             codeInputEl.addEventListener('change', (e) => handleMarkerTypeCodeChange(e.target));
+            codeInputEl.addEventListener('blur', (e) => handleMarkerTypeCodeChange(e.target));
             nameInputEl.addEventListener('change', (e) => handleMarkerTypeNameChange(e.target));
+            nameInputEl.addEventListener('blur', (e) => handleMarkerTypeNameChange(e.target));
             item.querySelector('.ms-delete-marker-type-btn').addEventListener('click', () => deleteMarkerType(markerTypeCode));
             
             initializeColorPickers(item, markerTypeCode, typeData);
@@ -625,6 +627,12 @@ function addSingleDotToLocationList(dot) {
     
     // Create the list item for just this dot
     const typeData = appState.markerTypes[dot.markerType];
+    // Skip if marker type doesn't exist
+    if (!typeData) {
+        console.warn(`Marker type ${dot.markerType} not found for dot ${dot.internalId}`);
+        return;
+    }
+    
     const item = document.createElement('div');
     item.className = 'ms-location-item';
     item.dataset.dotId = dot.internalId;
@@ -637,9 +645,15 @@ function addSingleDotToLocationList(dot) {
     const badgeText = dot.markerType;
     const badgeTooltip = dot.markerType + ' - ' + typeData.name;
 
+    // Calculate size for message1 input based on content (min 60px, grows with content)
+    const message1Length = Math.max((dot.message || 'MESSAGE 1').length * 6, 60);
+    
     item.innerHTML = '<div class="ms-location-header">' +
         '<span class="ms-location-number">' + dot.locationNumber + '</span>' +
-        '<input type="text" class="ms-location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
+        '<div class="ms-location-messages">' +
+            '<input type="text" class="ms-location-message-input ms-message1" placeholder="MESSAGE 1" value="' + dot.message + '" data-dot-id="' + dot.internalId + '" data-field="message" style="width: ' + message1Length + 'px;">' +
+            '<input type="text" class="ms-location-message-input ms-message2" placeholder="MESSAGE 2" value="' + (dot.message2 || '') + '" data-dot-id="' + dot.internalId + '" data-field="message2">' +
+        '</div>' +
         '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + (typeData.textColor || '#FFFFFF') + ';" title="' + badgeTooltip + '">' + badgeText + '</span>' +
         '</div>';
     
@@ -681,42 +695,52 @@ function addSingleDotToLocationList(dot) {
         container.appendChild(item);
     }
     
-    // Add message input event listeners
-    const messageInput = item.querySelector('.ms-location-message-input');
-    let originalMessage = dot.message;
-    
-    messageInput.addEventListener('focus', (e) => {
-        originalMessage = e.target.value;
-    });
-    
-    messageInput.addEventListener('blur', async (e) => {
-        if (e.target.value !== originalMessage) {
-            const oldValues = { message: originalMessage };
-            const newValues = { message: e.target.value };
-            const command = new EditDotCommand(appState.currentPdfPage, dot.internalId, oldValues, newValues);
-            await CommandUndoManager.execute(command);
-            setDirtyState();
-        }
-    });
-    
-    messageInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            e.target.blur();
-        }
-    });
-    
-    messageInput.addEventListener('input', (e) => {
-        const dotToUpdate = getCurrentPageDots().get(dot.internalId);
-        if (dotToUpdate) {
-            dotToUpdate.message = e.target.value;
-            setDirtyState();
-            renderDotsForCurrentPage();
-        }
-    });
+    // Add message input event listeners for both inputs
+    const messageInputs = item.querySelectorAll('.ms-location-message-input');
+    messageInputs.forEach(input => {
+        let originalValue = input.value;
+        const field = input.dataset.field;
+        
+        input.addEventListener('focus', (e) => {
+            originalValue = e.target.value;
+        });
+        
+        input.addEventListener('blur', async (e) => {
+            if (e.target.value !== originalValue) {
+                const oldValues = {};
+                const newValues = {};
+                oldValues[field] = originalValue;
+                newValues[field] = e.target.value;
+                const command = new EditDotCommand(appState.currentPdfPage, dot.internalId, oldValues, newValues);
+                await CommandUndoManager.execute(command);
+                setDirtyState();
+            }
+        });
+        
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.target.blur();
+            }
+        });
+        
+        input.addEventListener('input', (e) => {
+            const dotToUpdate = getCurrentPageDots().get(dot.internalId);
+            if (dotToUpdate) {
+                dotToUpdate[field] = e.target.value;
+                setDirtyState();
+                if (field === 'message') {
+                    // Resize the input based on content
+                    const newWidth = Math.max((e.target.value || 'MESSAGE 1').length * 6, 60);
+                    e.target.style.width = newWidth + 'px';
+                    renderDotsForCurrentPage();
+                }
+            }
+        });
 
-    messageInput.addEventListener('click', (e) => {
-        e.stopPropagation();
+        input.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
     });
     
     // Update visibility
@@ -727,11 +751,6 @@ function addSingleDotToLocationList(dot) {
 }
 
 function updateLocationList() {
-    // Update spreadsheet view if it's visible
-    const spreadsheetOverlay = document.getElementById('spreadsheet-overlay');
-    if (spreadsheetOverlay && spreadsheetOverlay.style.display !== 'none') {
-        populateSpreadsheetView();
-    }
     
     const container = document.getElementById('location-list');
     if (!container) {
@@ -820,6 +839,12 @@ function renderFlatLocationList(allDots, container) {
     
     filteredDots.forEach(dot => {
         const typeData = appState.markerTypes[dot.markerType];
+        // Skip if marker type doesn't exist
+        if (!typeData) {
+            console.warn(`Marker type ${dot.markerType} not found for dot ${dot.internalId}`);
+            return;
+        }
+        
         const item = document.createElement('div');
         item.className = 'ms-location-item';
         item.dataset.dotId = dot.internalId;
@@ -836,9 +861,15 @@ function renderFlatLocationList(allDots, container) {
         const badgeTooltip = dot.markerType + ' - ' + typeData.name;
         const pagePrefix = appState.isAllPagesView ? '(P' + dot.page + ') ' : '';
 
+        // Calculate size for message1 input based on content (min 60px, grows with content)
+        const message1Length = Math.max((dot.message || 'MESSAGE 1').length * 6, 60);
+        
         item.innerHTML = '<div class="ms-location-header">' +
             '<span class="ms-location-number">' + pagePrefix + dot.locationNumber + '</span>' +
-            '<input type="text" class="ms-location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
+            '<div class="ms-location-messages">' +
+                '<input type="text" class="ms-location-message-input ms-message1" placeholder="MESSAGE 1" value="' + dot.message + '" data-dot-id="' + dot.internalId + '" data-field="message" style="width: ' + message1Length + 'px;">' +
+                '<input type="text" class="ms-location-message-input ms-message2" placeholder="MESSAGE 2" value="' + (dot.message2 || '') + '" data-dot-id="' + dot.internalId + '" data-field="message2">' +
+            '</div>' +
             '<span class="' + badgeClass + '" style="background-color:' + typeData.color + '; color: ' + (typeData.textColor || '#FFFFFF') + ';" title="' + badgeTooltip + '">' + badgeText + '</span>' +
             '</div>';
         
@@ -887,49 +918,59 @@ function renderFlatLocationList(allDots, container) {
             }
         });
 
-        const messageInput = item.querySelector('.ms-location-message-input');
-        let originalMessage = dot.message;
-        
-        messageInput.addEventListener('focus', (e) => {
-            originalMessage = e.target.value;
-        });
-        
-        messageInput.addEventListener('blur', async (e) => {
-            if (e.target.value !== originalMessage) {
-                // Find the dot being edited
-                const dotElement = e.target.closest('.dot');
-                if (dotElement) {
-                    const dotId = dotElement.dataset.id;
-                    const dot = getCurrentPageDots().get(dotId);
-                    if (dot) {
-                        const oldValues = { message: originalMessage };
-                        const newValues = { message: e.target.value };
-                        const command = new EditDotCommand(appState.currentPdfPage, dotId, oldValues, newValues);
-                        await CommandUndoManager.execute(command);
-                        setDirtyState();
+        const messageInputs = item.querySelectorAll('.ms-location-message-input');
+        messageInputs.forEach(input => {
+            let originalValue = input.value;
+            const field = input.dataset.field;
+            
+            input.addEventListener('focus', (e) => {
+                originalValue = e.target.value;
+            });
+            
+            input.addEventListener('blur', async (e) => {
+                if (e.target.value !== originalValue) {
+                    // Find the dot being edited
+                    const dotElement = e.target.closest('.dot');
+                    if (dotElement) {
+                        const dotId = dotElement.dataset.id;
+                        const dot = getCurrentPageDots().get(dotId);
+                        if (dot) {
+                            const oldValues = {};
+                            const newValues = {};
+                            oldValues[field] = originalValue;
+                            newValues[field] = e.target.value;
+                            const command = new EditDotCommand(appState.currentPdfPage, dotId, oldValues, newValues);
+                            await CommandUndoManager.execute(command);
+                            setDirtyState();
+                        }
                     }
                 }
-            }
-        });
-        
-        messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                e.target.blur(); // This will trigger the blur event and save changes
-            }
-        });
-        
-        messageInput.addEventListener('input', (e) => {
-            const dotToUpdate = getDotsForPage(dot.page || appState.currentPdfPage).get(dot.internalId);
-            if (dotToUpdate) {
-                dotToUpdate.message = e.target.value;
-                setDirtyState();
-                renderDotsForCurrentPage();
-            }
-        });
+            });
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.target.blur(); // This will trigger the blur event and save changes
+                }
+            });
+            
+            input.addEventListener('input', (e) => {
+                const dotToUpdate = getDotsForPage(dot.page || appState.currentPdfPage).get(dot.internalId);
+                if (dotToUpdate) {
+                    dotToUpdate[field] = e.target.value;
+                    setDirtyState();
+                    if (field === 'message') {
+                        // Resize the input based on content
+                        const newWidth = Math.max((e.target.value || 'MESSAGE 1').length * 6, 42);
+                        e.target.style.width = newWidth + 'px';
+                        renderDotsForCurrentPage();
+                    }
+                }
+            });
 
-        messageInput.addEventListener('click', (e) => {
-            e.stopPropagation();
+            input.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
         });
 
     });
@@ -1015,9 +1056,15 @@ function renderGroupedLocationList(allDots, container) {
 
             const pagePrefix = appState.isAllPagesView ? '(P' + dot.page + ') ' : '';
             
+            // Calculate size for message1 input based on content (min 60px, grows with content)
+            const message1Length = Math.max((dot.message || 'MESSAGE 1').length * 6, 60);
+            
             item.innerHTML = '<div class="ms-grouped-location-header">' +
                 '<span class="ms-location-number">' + pagePrefix + dot.locationNumber + '</span>' +
-                '<input type="text" class="ms-location-message-input" value="' + dot.message + '" data-dot-id="' + dot.internalId + '">' +
+                '<div class="ms-location-messages">' +
+                    '<input type="text" class="ms-location-message-input ms-message1" placeholder="MESSAGE 1" value="' + dot.message + '" data-dot-id="' + dot.internalId + '" data-field="message" style="width: ' + message1Length + 'px;">' +
+                    '<input type="text" class="ms-location-message-input ms-message2" placeholder="MESSAGE 2" value="' + (dot.message2 || '') + '" data-dot-id="' + dot.internalId + '" data-field="message2">' +
+                '</div>' +
                 '</div>';
             itemsContainer.appendChild(item);
 
@@ -1065,55 +1112,65 @@ function renderGroupedLocationList(allDots, container) {
                 }
             });
 
-            // Add message editing functionality
-            const messageInput = item.querySelector('.ms-location-message-input');
-            let originalMessage = dot.message;
-            
-            messageInput.addEventListener('focus', (e) => {
-                originalMessage = e.target.value;
-                e.stopPropagation();
-            });
-            
-            messageInput.addEventListener('blur', async (e) => {
-                const newMessage = e.target.value.trim();
-                if (newMessage !== originalMessage) {
-                    const pageData = getCurrentPageData();
-                    const dot = pageData.dots.get(e.target.dataset.dotId);
-                    if (dot) {
-                        // Execute command for undo/redo support
-                        const command = new EditDotCommand(
-                            appState.currentPdfPage,
-                            dot.internalId,
-                            { message: newMessage }
-                        );
-                        await CommandUndoManager.execute(command);
-                        
-                        // Update any open modals
-                        if (document.getElementById('edit-modal').style.display === 'block') {
-                            const editDotId = document.getElementById('edit-dot-id').value;
-                            if (editDotId === dot.internalId) {
-                                document.getElementById('edit-message').value = newMessage;
+            // Add message editing functionality for both message inputs
+            const messageInputs = item.querySelectorAll('.ms-location-message-input');
+            messageInputs.forEach(input => {
+                let originalValue = input.value;
+                const field = input.dataset.field;
+                
+                input.addEventListener('focus', (e) => {
+                    originalValue = e.target.value;
+                    e.stopPropagation();
+                });
+                
+                input.addEventListener('blur', async (e) => {
+                    const newValue = e.target.value.trim();
+                    if (newValue !== originalValue) {
+                        const pageData = getCurrentPageData();
+                        const dot = pageData.dots.get(e.target.dataset.dotId);
+                        if (dot) {
+                            const updateObj = {};
+                            updateObj[field] = newValue;
+                            
+                            // Execute command for undo/redo support
+                            const command = new EditDotCommand(
+                                appState.currentPdfPage,
+                                dot.internalId,
+                                updateObj
+                            );
+                            await CommandUndoManager.execute(command);
+                            
+                            // Update any open modals
+                            if (document.getElementById('edit-modal').style.display === 'block') {
+                                const editDotId = document.getElementById('edit-dot-id').value;
+                                if (editDotId === dot.internalId) {
+                                    if (field === 'message') {
+                                        document.getElementById('edit-message').value = newValue;
+                                    } else if (field === 'message2') {
+                                        document.getElementById('edit-message2').value = newValue;
+                                    }
+                                }
+                            }
+                            
+                            // Sync with other apps (only for message1)
+                            if (field === 'message' && window.mappingSync) {
+                                window.mappingSync.syncMessageChange(dot.internalId, newValue);
                             }
                         }
-                        
-                        // Sync with other apps
-                        if (window.mappingSync) {
-                            window.mappingSync.syncMessageChange(dot.internalId, newMessage);
-                        }
                     }
-                }
-            });
-            
-            messageInput.addEventListener('keydown', (e) => {
-                e.stopPropagation();
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    e.target.blur();
-                }
-            });
-            
-            messageInput.addEventListener('click', (e) => {
-                e.stopPropagation();
+                });
+                
+                input.addEventListener('keydown', (e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.target.blur();
+                    }
+                });
+                
+                input.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
             });
 
         });
@@ -1922,12 +1979,6 @@ function toggleDotSelection(internalId) {
 
 function updateSelectionUI() {
     updateListHighlighting();
-    
-    // Update spreadsheet selection if visible
-    const spreadsheetOverlay = document.getElementById('spreadsheet-overlay');
-    if (spreadsheetOverlay && spreadsheetOverlay.style.display !== 'none') {
-        updateSpreadsheetSelection();
-    }
 }
 
 function updateListHighlighting() {
@@ -1982,7 +2033,7 @@ function createDotObject(x, y, markerTypeCode, message, isCodeRequired = false, 
         x: x, 
         y: y, 
         markerType: effectiveMarkerTypeCode, 
-        message: message || 'NEW LOCATION',
+        message: message || 'MESSAGE 1',
         message2: '', 
         isCodeRequired: isCodeRequired || (markerTypeData?.codeRequired || false),
         notes: '',
@@ -2051,26 +2102,65 @@ function handleMarkerTypeCodeChange(input) {
         return;
     }
     
+    // Store the type data before deleting
     const typeData = appState.markerTypes[originalCode];
+    if (!typeData) {
+        console.error('Could not find marker type data for:', originalCode);
+        return;
+    }
+    
+    // Update the marker types object
     delete appState.markerTypes[originalCode];
     appState.markerTypes[newCode] = typeData;
     
-    for (const pageData of appState.dotsByPage.values()) {
-        for (const dot of pageData.dots.values()) {
+    // Update all dots across all pages that use this marker type
+    for (const [pageNum, pageData] of appState.dotsByPage.entries()) {
+        for (const [dotId, dot] of pageData.dots.entries()) {
             if (dot.markerType === originalCode) {
                 dot.markerType = newCode;
+                console.log(`Updated dot ${dotId} on page ${pageNum} from ${originalCode} to ${newCode}`);
             }
         }
     }
     
+    // Update active marker type if it was the one being changed
     if (appState.activeMarkerType === originalCode) {
         appState.activeMarkerType = newCode;
     }
     
+    // Update the data attribute for future changes
     input.dataset.originalCode = newCode;
+    
+    // Mark as dirty and update UI
     setDirtyState();
-    updateAllSectionsForCurrentPage();
-    renderDotsForCurrentPage();
+    
+    // Force a complete refresh of all UI elements
+    setTimeout(() => {
+        // Use immediate update to bypass debouncing
+        updateFilterCheckboxesImmediate();
+        updateMarkerTypeSelect();
+        updateMapLegend();
+        updateProjectLegend();
+        
+        // Force clear and rebuild the location list
+        const container = document.getElementById('location-list');
+        if (container) {
+            container.innerHTML = '';  // Clear it completely
+        }
+        updateLocationList();  // Rebuild from scratch
+        
+        renderDotsForCurrentPage();
+        
+        // Also trigger a filter apply to ensure list is properly filtered
+        applyFilters();
+        
+        console.log(`Marker type ${originalCode} changed to ${newCode}, UI updated`);
+    }, 10);  // Small delay to ensure DOM updates have completed
+    
+    // Sync with other apps if sync is active
+    if (window.mappingSync) {
+        window.mappingSync.syncMarkerTypeUpdate(originalCode, newCode);
+    }
 }
 
 function handleMarkerTypeNameChange(input) {
@@ -2448,27 +2538,10 @@ function addPageNavigationEventListeners() {
     });
 }
 
-let resizeTimeout;
-function repositionSpreadsheetOverlay() {
-    const spreadsheetOverlay = document.getElementById('spreadsheet-overlay');
-    const listSection = document.querySelector('.ms-list-section');
-    
-    if (spreadsheetOverlay && spreadsheetOverlay.style.display !== 'none' && listSection) {
-        const rect = listSection.getBoundingClientRect();
-        spreadsheetOverlay.style.top = (rect.top + 45) + 'px'; // Position below header
-        spreadsheetOverlay.style.height = (rect.height - 45) + 'px'; // Subtract header height
-    }
-}
-
-function repositionSpreadsheetOverlayDebounced() {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(repositionSpreadsheetOverlay, 100);
-}
 
 function addViewToggleEventListeners() {
     const toggleViewBtn = document.querySelector('#toggle-view-btn');
     const sortToggleBtn = document.querySelector('#sort-toggle-btn');
-    const expandBtn = document.querySelector('#expand-list-btn');
     const allPagesCheckbox = document.querySelector('#all-pages-checkbox');
     
     if (toggleViewBtn) {
@@ -2483,39 +2556,6 @@ function addViewToggleEventListeners() {
             appState.sortMode = appState.sortMode === 'location' ? 'name' : 'location';
             sortToggleBtn.textContent = appState.sortMode === 'location' ? 'BY LOC' : 'BY NAME';
             updateLocationList();
-        });
-    }
-    
-    if (expandBtn) {
-        expandBtn.addEventListener('click', () => {
-            const spreadsheetOverlay = document.getElementById('spreadsheet-overlay');
-            const normalList = document.getElementById('list-with-renumber');
-            const emptyState = document.getElementById('empty-state');
-            const listSection = document.querySelector('.ms-list-section');
-            
-            if (spreadsheetOverlay.style.display === 'none') {
-                // Show spreadsheet view
-                spreadsheetOverlay.style.display = 'block';
-                repositionSpreadsheetOverlay(); // Position it correctly
-                if (normalList) normalList.style.display = 'none';
-                if (emptyState) emptyState.style.display = 'none';
-                expandBtn.textContent = 'CONTRACT';
-                populateSpreadsheetView();
-                setupSpreadsheetSorting();
-                
-                // Add resize handler when spreadsheet is shown
-                window.addEventListener('resize', repositionSpreadsheetOverlayDebounced);
-            } else {
-                // Show normal list view
-                spreadsheetOverlay.style.display = 'none';
-                const hasLocations = getCurrentPageDots().size > 0;
-                if (normalList && hasLocations) normalList.style.display = 'block';
-                if (emptyState && !hasLocations) emptyState.style.display = 'block';
-                expandBtn.textContent = 'EXPAND';
-                
-                // Remove resize handler when spreadsheet is hidden
-                window.removeEventListener('resize', repositionSpreadsheetOverlayDebounced);
-            }
         });
     }
     
@@ -5041,284 +5081,24 @@ function renderAnnotationLines() {
 }
 
 // Spreadsheet sorting state
-let spreadsheetSortColumn = 'location';
-let spreadsheetSortDirection = 'asc';
 
-function populateSpreadsheetView() {
-    const tbody = document.getElementById('spreadsheet-tbody');
-    if (!tbody) return;
+// Global function to force refresh the UI (useful for external triggers)
+window.forceRefreshMappingUI = function() {
+    console.log('Force refreshing Mapping UI...');
+    updateFilterCheckboxesImmediate();
+    updateMarkerTypeSelect();
+    updateMapLegend();
+    updateProjectLegend();
     
-    tbody.innerHTML = '';
-    
-    // Get all dots to display
-    let allDots = [];
-    if (appState.isAllPagesView) {
-        // Get dots from all pages
-        for (let page = 1; page <= appState.totalPages; page++) {
-            const pageDots = getDotsForPage(page);
-            pageDots.forEach(dot => {
-                allDots.push({ ...dot, page: page });
-            });
-        }
-    } else {
-        // Get dots from current page only
-        getCurrentPageDots().forEach(dot => {
-            allDots.push({ ...dot, page: appState.currentPdfPage });
-        });
+    // Clear and rebuild list
+    const container = document.getElementById('location-list');
+    if (container) {
+        container.innerHTML = '';
     }
-    
-    // Apply filters
-    const activeFilters = getActiveFilters();
-    allDots = allDots.filter(dot => activeFilters.includes(dot.markerType));
-    
-    // Apply code/inst filters
-    if (appState.codeFilterMode === 'codeOnly') {
-        allDots = allDots.filter(dot => dot.isCodeRequired);
-    } else if (appState.codeFilterMode === 'hideCode') {
-        allDots = allDots.filter(dot => !dot.isCodeRequired);
-    }
-    
-    if (appState.instFilterMode === 'instOnly') {
-        allDots = allDots.filter(dot => dot.installed);
-    } else if (appState.instFilterMode === 'hideInst') {
-        allDots = allDots.filter(dot => !dot.installed);
-    }
-    
-    // Sort dots based on current sort column and direction
-    allDots.sort((a, b) => {
-        let compareValue = 0;
-        
-        // First sort by page if in all pages view
-        if (appState.isAllPagesView && a.page !== b.page) {
-            return a.page - b.page;
-        }
-        
-        // Then sort by selected column
-        switch(spreadsheetSortColumn) {
-            case 'location':
-                compareValue = a.locationNumber.localeCompare(b.locationNumber);
-                break;
-            case 'type':
-                compareValue = a.markerType.localeCompare(b.markerType);
-                break;
-            case 'message':
-                compareValue = (a.message || '').localeCompare(b.message || '');
-                break;
-            case 'message2':
-                compareValue = (a.message2 || '').localeCompare(b.message2 || '');
-                break;
-            case 'notes':
-                compareValue = (a.notes || '').localeCompare(b.notes || '');
-                break;
-            case 'code':
-                compareValue = (a.isCodeRequired ? 1 : 0) - (b.isCodeRequired ? 1 : 0);
-                break;
-            case 'vinyl':
-                compareValue = (a.vinylBacker ? 1 : 0) - (b.vinylBacker ? 1 : 0);
-                break;
-            case 'inst':
-                compareValue = (a.installed ? 1 : 0) - (b.installed ? 1 : 0);
-                break;
-            default:
-                compareValue = a.locationNumber.localeCompare(b.locationNumber);
-        }
-        
-        // Apply sort direction
-        return spreadsheetSortDirection === 'asc' ? compareValue : -compareValue;
-    });
-    
-    // Create rows
-    allDots.forEach(dot => {
-        const typeData = appState.markerTypes[dot.markerType];
-        const row = document.createElement('tr');
-        row.dataset.dotId = dot.internalId;
-        row.dataset.dotPage = dot.page;
-        
-        if (appState.selectedDots.has(dot.internalId)) {
-            row.classList.add('ms-selected');
-        }
-        
-        const pagePrefix = appState.isAllPagesView ? 'P' + dot.page + '-' : '';
-        
-        row.innerHTML = 
-            '<td class="ms-col-location">' + pagePrefix + dot.locationNumber + '</td>' +
-            '<td class="ms-col-marker">' +
-                '<span class="ms-spreadsheet-marker-badge" style="background-color:' + typeData.color + '; color:' + (typeData.textColor || '#FFFFFF') + ';">' +
-                dot.markerType + '</span>' +
-            '</td>' +
-            '<td class="ms-col-message">' +
-                '<input type="text" class="ms-spreadsheet-input" value="' + (dot.message || '') + '" data-field="message" data-dot-id="' + dot.internalId + '">' +
-            '</td>' +
-            '<td class="ms-col-message2">' +
-                '<input type="text" class="ms-spreadsheet-input" value="' + (dot.message2 || '') + '" data-field="message2" data-dot-id="' + dot.internalId + '">' +
-            '</td>' +
-            '<td class="ms-col-notes">' +
-                '<input type="text" class="ms-spreadsheet-input" value="' + (dot.notes || '') + '" data-field="notes" data-dot-id="' + dot.internalId + '">' +
-            '</td>' +
-            '<td class="ms-col-checkbox">' +
-                '<input type="checkbox" class="ms-spreadsheet-checkbox" data-field="isCodeRequired" data-dot-id="' + dot.internalId + '" ' + (dot.isCodeRequired ? 'checked' : '') + '>' +
-            '</td>' +
-            '<td class="ms-col-checkbox">' +
-                '<input type="checkbox" class="ms-spreadsheet-checkbox" data-field="vinylBacker" data-dot-id="' + dot.internalId + '" ' + (dot.vinylBacker ? 'checked' : '') + '>' +
-            '</td>' +
-            '<td class="ms-col-checkbox">' +
-                '<input type="checkbox" class="ms-spreadsheet-checkbox" data-field="installed" data-dot-id="' + dot.internalId + '" ' + (dot.installed ? 'checked' : '') + '>' +
-            '</td>';
-        
-        tbody.appendChild(row);
-        
-        // Add row click handler
-        row.addEventListener('click', async (e) => {
-            // Skip if clicking on inputs
-            if (e.target.tagName === 'INPUT') return;
-            
-            const dotPage = parseInt(row.dataset.dotPage);
-            if (dotPage !== appState.currentPdfPage) {
-                await changePage(dotPage);
-            }
-            
-            setTimeout(() => {
-                if (e.shiftKey) {
-                    toggleDotSelection(dot.internalId);
-                } else {
-                    centerOnDot(dot.internalId);
-                    if (appState.selectedDots.has(dot.internalId) && appState.selectedDots.size === 1) {
-                        clearSelection();
-                    } else {
-                        clearSelection();
-                        selectDot(dot.internalId);
-                    }
-                }
-                updateSelectionUI();
-                updateSpreadsheetSelection();
-            }, 100);
-        });
-        
-        // Add input handlers
-        const inputs = row.querySelectorAll('.ms-spreadsheet-input');
-        inputs.forEach(input => {
-            let originalValue = input.value;
-            
-            input.addEventListener('focus', (e) => {
-                originalValue = e.target.value;
-            });
-            
-            input.addEventListener('blur', async (e) => {
-                if (e.target.value !== originalValue) {
-                    const field = e.target.dataset.field;
-                    const dotId = e.target.dataset.dotId;
-                    const oldValues = {};
-                    const newValues = {};
-                    oldValues[field] = originalValue;
-                    newValues[field] = e.target.value;
-                    
-                    const command = new EditDotCommand(dot.page, dotId, oldValues, newValues);
-                    await CommandUndoManager.execute(command);
-                    setDirtyState();
-                    
-                    // Update the regular list view if visible
-                    updateLocationList();
-                    
-                    // Update map if message changed
-                    if (field === 'message') {
-                        renderDotsForCurrentPage();
-                    }
-                }
-            });
-            
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    e.target.blur();
-                }
-            });
-        });
-        
-        // Add checkbox handlers
-        const checkboxes = row.querySelectorAll('.ms-spreadsheet-checkbox');
-        checkboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', async (e) => {
-                const field = e.target.dataset.field;
-                const dotId = e.target.dataset.dotId;
-                const dotToUpdate = getDotsForPage(dot.page).get(dotId);
-                
-                if (dotToUpdate) {
-                    const oldValues = {};
-                    const newValues = {};
-                    oldValues[field] = dotToUpdate[field];
-                    newValues[field] = e.target.checked;
-                    
-                    const command = new EditDotCommand(dot.page, dotId, oldValues, newValues);
-                    await CommandUndoManager.execute(command);
-                    setDirtyState();
-                    
-                    // Update the regular list view
-                    updateLocationList();
-                    
-                    // Always update map for checkbox changes to show icons
-                    renderDotsForCurrentPage();
-                }
-            });
-        });
-    });
-}
-
-function updateSpreadsheetSelection() {
-    const rows = document.querySelectorAll('#spreadsheet-tbody tr');
-    rows.forEach(row => {
-        const dotId = row.dataset.dotId;
-        if (appState.selectedDots.has(dotId)) {
-            row.classList.add('ms-selected');
-        } else {
-            row.classList.remove('ms-selected');
-        }
-    });
-}
-
-function setupSpreadsheetSorting() {
-    const headers = document.querySelectorAll('.ms-spreadsheet-table th.ms-sortable');
-    
-    headers.forEach(header => {
-        // Remove existing listeners to avoid duplicates
-        const newHeader = header.cloneNode(true);
-        header.parentNode.replaceChild(newHeader, header);
-        
-        newHeader.addEventListener('click', () => {
-            const sortColumn = newHeader.dataset.sort;
-            
-            // If clicking the same column, toggle direction
-            if (sortColumn === spreadsheetSortColumn) {
-                spreadsheetSortDirection = spreadsheetSortDirection === 'asc' ? 'desc' : 'asc';
-            } else {
-                // New column, default to ascending
-                spreadsheetSortColumn = sortColumn;
-                spreadsheetSortDirection = 'asc';
-            }
-            
-            // Update indicators
-            updateSortIndicators();
-            
-            // Repopulate with new sort
-            populateSpreadsheetView();
-        });
-    });
-    
-    // Set initial indicators
-    updateSortIndicators();
-}
-
-function updateSortIndicators() {
-    // Clear all indicators
-    document.querySelectorAll('.ms-sort-indicator').forEach(indicator => {
-        indicator.classList.remove('asc', 'desc');
-    });
-    
-    // Set current sort indicator
-    const currentHeader = document.querySelector(`th[data-sort="${spreadsheetSortColumn}"] .ms-sort-indicator`);
-    if (currentHeader) {
-        currentHeader.classList.add(spreadsheetSortDirection);
-    }
-}
+    updateLocationList();
+    renderDotsForCurrentPage();
+    applyFilters();
+};
 
 export {
     showCSVStatus,
