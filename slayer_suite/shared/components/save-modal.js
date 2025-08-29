@@ -54,15 +54,17 @@ export class SaveModal {
 
         // Create content
         const hasIssues = Object.values(saveStatus).some(status => status !== 'saved');
-        
+
         let html = `
             <h2 style="color: #f07727; margin-bottom: 20px;">
                 ${hasIssues ? '⚠️ Save Status' : '✅ Save Complete'}
             </h2>
             <div style="margin-bottom: 20px;">
-                ${hasIssues ? 
-                    'Some apps encountered issues while saving:' : 
-                    'All apps saved successfully!'}
+                ${
+    hasIssues
+        ? 'Some apps encountered issues while saving:'
+        : 'All apps saved successfully!'
+}
             </div>
             <div style="margin-bottom: 20px;">
         `;
@@ -72,7 +74,7 @@ export class SaveModal {
             const displayName = this.formatAppName(appName);
             const icon = this.getStatusIcon(status);
             const color = this.getStatusColor(status);
-            
+
             html += `
                 <div style="display: flex; align-items: center; padding: 10px; 
                             background: #2a2a2a; margin-bottom: 5px; border-radius: 4px;">
@@ -88,7 +90,9 @@ export class SaveModal {
         html += `
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                ${hasIssues ? `
+                ${
+    hasIssues
+        ? `
                     <button id="save-modal-cancel" style="
                         padding: 8px 20px;
                         background: #6c757d;
@@ -98,7 +102,9 @@ export class SaveModal {
                         cursor: pointer;
                         font-weight: bold;
                     ">Cancel</button>
-                ` : ''}
+                `
+        : ''
+}
                 <button id="save-modal-confirm" style="
                     padding: 8px 20px;
                     background: #f07727;
@@ -130,7 +136,7 @@ export class SaveModal {
         }
 
         // Close on overlay click
-        this.overlay.addEventListener('click', (e) => {
+        this.overlay.addEventListener('click', e => {
             if (e.target === this.overlay) {
                 this.close();
                 if (onCancel) onCancel();
@@ -153,10 +159,14 @@ export class SaveModal {
      */
     getStatusIcon(status) {
         switch (status) {
-            case 'saved': return '✅';
-            case 'preserved': return '📋';
-            case 'failed': return '❌';
-            default: return '❓';
+            case 'saved':
+                return '✅';
+            case 'preserved':
+                return '📋';
+            case 'failed':
+                return '❌';
+            default:
+                return '❓';
         }
     }
 
@@ -165,10 +175,14 @@ export class SaveModal {
      */
     getStatusColor(status) {
         switch (status) {
-            case 'saved': return '#00b360';
-            case 'preserved': return '#f07727';
-            case 'failed': return '#dc3545';
-            default: return '#6c757d';
+            case 'saved':
+                return '#00b360';
+            case 'preserved':
+                return '#f07727';
+            case 'failed':
+                return '#dc3545';
+            default:
+                return '#6c757d';
         }
     }
 
@@ -177,10 +191,14 @@ export class SaveModal {
      */
     getStatusText(status) {
         switch (status) {
-            case 'saved': return 'Saved';
-            case 'preserved': return 'Preserved (Previous Data)';
-            case 'failed': return 'Failed';
-            default: return 'Unknown';
+            case 'saved':
+                return 'Saved';
+            case 'preserved':
+                return 'Preserved (Previous Data)';
+            case 'failed':
+                return 'Failed';
+            default:
+                return 'Unknown';
         }
     }
 

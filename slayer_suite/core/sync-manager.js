@@ -1,20 +1,20 @@
 /**
  * sync-manager.js
  * Central synchronization management for the Slayer Suite.
- * 
+ *
  * This module handles all cross-app data synchronization, ensuring that changes
  * in one app are immediately reflected in all other apps. It manages event
  * broadcasting, data consistency, cascade operations, and conflict resolution.
- * 
+ *
  * @module core/sync-manager
  */
 
-import { SignType, SignInstance, SYNC_EVENTS, Validators } from './data-models.js';
+import { SignType, SYNC_EVENTS, Validators } from './data-models.js';
 
 /**
  * SyncManager class handles cross-app data synchronization.
  * Each app should create its own instance and customize the event handlers.
- * 
+ *
  * @class SyncManager
  * @example
  * // In Mapping Slayer
@@ -25,7 +25,7 @@ import { SignType, SignInstance, SYNC_EVENTS, Validators } from './data-models.j
  *     markerTypes[data.code] = SignType.fromMarkerType(data);
  *   }
  * });
- * 
+ *
  * // Create a new sign type and sync it
  * await syncManager.createSignType({
  *   code: 'I.1',
@@ -56,13 +56,13 @@ export class SyncManager {
     initializeApp(appName, handlers = {}) {
         // Register default handlers
         const defaultHandlers = {
-            [SYNC_EVENTS.SIGN_TYPE_CREATED]: (data) => this.handleSignTypeCreated(appName, data),
-            [SYNC_EVENTS.SIGN_TYPE_UPDATED]: (data) => this.handleSignTypeUpdated(appName, data),
-            [SYNC_EVENTS.SIGN_TYPE_DELETED]: (data) => this.handleSignTypeDeleted(appName, data),
-            [SYNC_EVENTS.SIGN_TYPE_FIELD_ADDED]: (data) => this.handleFieldAdded(appName, data),
-            [SYNC_EVENTS.SIGN_TYPE_FIELD_REMOVED]: (data) => this.handleFieldRemoved(appName, data),
-            [SYNC_EVENTS.SIGN_MESSAGE_CHANGED]: (data) => this.handleMessageChanged(appName, data),
-            [SYNC_EVENTS.SIGN_NOTES_CHANGED]: (data) => this.handleNotesChanged(appName, data),
+            [SYNC_EVENTS.SIGN_TYPE_CREATED]: data => this.handleSignTypeCreated(appName, data),
+            [SYNC_EVENTS.SIGN_TYPE_UPDATED]: data => this.handleSignTypeUpdated(appName, data),
+            [SYNC_EVENTS.SIGN_TYPE_DELETED]: data => this.handleSignTypeDeleted(appName, data),
+            [SYNC_EVENTS.SIGN_TYPE_FIELD_ADDED]: data => this.handleFieldAdded(appName, data),
+            [SYNC_EVENTS.SIGN_TYPE_FIELD_REMOVED]: data => this.handleFieldRemoved(appName, data),
+            [SYNC_EVENTS.SIGN_MESSAGE_CHANGED]: data => this.handleMessageChanged(appName, data),
+            [SYNC_EVENTS.SIGN_NOTES_CHANGED]: data => this.handleNotesChanged(appName, data),
             ...handlers
         };
 
@@ -83,15 +83,22 @@ export class SyncManager {
      * await syncManager.syncSignTypes(markerTypes, 'mapping_slayer');
      */
     async syncSignTypes(signTypes, sourceApp) {
-        const signTypesMap = signTypes instanceof Map ? signTypes : new Map(Object.entries(signTypes));
-        
+        const signTypesMap =
+            signTypes instanceof Map ? signTypes : new Map(Object.entries(signTypes));
+
         // Update shared data
         this.appBridge.updateSignTypes(signTypesMap, sourceApp);
-        
+
         // Notify other apps
-        this.appBridge.emitSyncEvent(SYNC_EVENTS.SIGN_TYPE_UPDATED, {
-            signTypes: Array.from(signTypesMap.values()).map(st => st instanceof SignType ? st.toJSON() : st)
-        }, sourceApp);
+        this.appBridge.emitSyncEvent(
+            SYNC_EVENTS.SIGN_TYPE_UPDATED,
+            {
+                signTypes: Array.from(signTypesMap.values()).map(st =>
+                    st instanceof SignType ? st.toJSON() : st
+                )
+            },
+            sourceApp
+        );
     }
 
     /**
@@ -111,28 +118,33 @@ export class SyncManager {
      * }, 'design_slayer');
      */
     async createSignType(signTypeData, sourceApp) {
-        const signType = signTypeData instanceof SignType ? signTypeData : new SignType(signTypeData);
-        
+        const signType =
+            signTypeData instanceof SignType ? signTypeData : new SignType(signTypeData);
+
         // Validate
         if (!Validators.isValidSignTypeCode(signType.code)) {
             throw new Error(`Invalid sign type code: ${signType.code}`);
         }
-        
+
         // Get current sign types
         const signTypes = this.appBridge.getSignTypes();
-        
+
         // Check for duplicates
         if (signTypes.has(signType.code)) {
             throw new Error(`Sign type with code ${signType.code} already exists`);
         }
-        
+
         // Add to shared data
         signTypes.set(signType.code, signType.toJSON());
         this.appBridge.updateSignTypes(signTypes, sourceApp);
-        
+
         // Emit event
-        this.appBridge.emitSignTypeEvent(SYNC_EVENTS.SIGN_TYPE_CREATED, signType.toJSON(), sourceApp);
-        
+        this.appBridge.emitSignTypeEvent(
+            SYNC_EVENTS.SIGN_TYPE_CREATED,
+            signType.toJSON(),
+            sourceApp
+        );
+
         return signType;
     }
 
@@ -145,21 +157,21 @@ export class SyncManager {
     async updateSignType(code, updates, sourceApp) {
         const signTypes = this.appBridge.getSignTypes();
         const existing = signTypes.get(code);
-        
+
         if (!existing) {
             throw new Error(`Sign type ${code} not found`);
         }
-        
+
         // Apply updates
         const updated = { ...existing, ...updates, lastModified: new Date().toISOString() };
         signTypes.set(code, updated);
-        
+
         // Update shared data
         this.appBridge.updateSignTypes(signTypes, sourceApp);
-        
+
         // Emit event
         this.appBridge.emitSignTypeEvent(SYNC_EVENTS.SIGN_TYPE_UPDATED, updated, sourceApp);
-        
+
         return updated;
     }
 
@@ -170,7 +182,7 @@ export class SyncManager {
      * @param {Function} confirmCallback - Async callback to confirm deletion
      * @returns {Promise<boolean>} True if deleted, false if cancelled
      * @example
-     * const deleted = await syncManager.deleteSignType('I.1', 'design_slayer', 
+     * const deleted = await syncManager.deleteSignType('I.1', 'design_slayer',
      *   async (warningMessage) => {
      *     return await showConfirmDialog(warningMessage);
      *   }
@@ -179,35 +191,40 @@ export class SyncManager {
     async deleteSignType(code, sourceApp, confirmCallback) {
         const signTypes = this.appBridge.getSignTypes();
         const signType = signTypes.get(code);
-        
+
         if (!signType) {
             throw new Error(`Sign type ${code} not found`);
         }
-        
+
         // Check for associated signs
         const associatedSigns = await this.getSignsForType(code);
-        
+
         if (associatedSigns.length > 0) {
-            const message = `Warning: There are ${associatedSigns.length} mapped locations of sign type "${code} - ${signType.name}". ` +
-                          `Deleting this sign type will delete all corresponding dots in Mapping Slayer. This cannot be undone.`;
-            
+            const message =
+                `Warning: There are ${associatedSigns.length} mapped locations of sign type "${code} - ${signType.name}". ` +
+                'Deleting this sign type will delete all corresponding dots in Mapping Slayer. This cannot be undone.';
+
             if (confirmCallback) {
                 const confirmed = await confirmCallback(message);
                 if (!confirmed) return false;
             }
         }
-        
+
         // Delete from shared data
         signTypes.delete(code);
         this.appBridge.updateSignTypes(signTypes, sourceApp);
-        
+
         // Emit deletion event
-        this.appBridge.emitSignTypeEvent(SYNC_EVENTS.SIGN_TYPE_DELETED, {
-            code,
-            signType,
-            cascadedSigns: associatedSigns
-        }, sourceApp);
-        
+        this.appBridge.emitSignTypeEvent(
+            SYNC_EVENTS.SIGN_TYPE_DELETED,
+            {
+                code,
+                signType,
+                cascadedSigns: associatedSigns
+            },
+            sourceApp
+        );
+
         return true;
     }
 
@@ -221,8 +238,8 @@ export class SyncManager {
      * @returns {Promise<SignType>} Updated sign type
      * @throws {Error} If field name is invalid or already exists
      * @example
-     * await syncManager.addTextField('I.1', 'occupantName', 
-     *   { maxLength: 50 }, 
+     * await syncManager.addTextField('I.1', 'occupantName',
+     *   { maxLength: 50 },
      *   'mapping_slayer'
      * );
      */
@@ -230,37 +247,41 @@ export class SyncManager {
         if (!Validators.isValidFieldName(fieldName)) {
             throw new Error(`Invalid field name: ${fieldName}`);
         }
-        
+
         const signTypes = this.appBridge.getSignTypes();
         const signTypeData = signTypes.get(code);
-        
+
         if (!signTypeData) {
             throw new Error(`Sign type ${code} not found`);
         }
-        
+
         // Create SignType instance to use its methods
         const signType = new SignType(signTypeData);
-        
+
         // Check if field already exists
         if (signType.textFields.find(f => f.fieldName === fieldName)) {
             throw new Error(`Field ${fieldName} already exists in sign type ${code}`);
         }
-        
+
         // Add field
         signType.addTextField(fieldName, fieldOptions.maxLength);
-        
+
         // Update shared data
         signTypes.set(code, signType.toJSON());
         this.appBridge.updateSignTypes(signTypes, sourceApp);
-        
+
         // Emit event
-        this.appBridge.emitSyncEvent(SYNC_EVENTS.SIGN_TYPE_FIELD_ADDED, {
-            signTypeCode: code,
-            fieldName,
-            fieldOptions,
-            signType: signType.toJSON()
-        }, sourceApp);
-        
+        this.appBridge.emitSyncEvent(
+            SYNC_EVENTS.SIGN_TYPE_FIELD_ADDED,
+            {
+                signTypeCode: code,
+                fieldName,
+                fieldOptions,
+                signType: signType.toJSON()
+            },
+            sourceApp
+        );
+
         return signType;
     }
 
@@ -274,38 +295,43 @@ export class SyncManager {
     async removeTextField(code, fieldName, sourceApp, confirmCallback) {
         const signTypes = this.appBridge.getSignTypes();
         const signTypeData = signTypes.get(code);
-        
+
         if (!signTypeData) {
             throw new Error(`Sign type ${code} not found`);
         }
-        
+
         // Check if field has data
         const signsWithData = await this.getSignsWithFieldData(code, fieldName);
-        
+
         if (signsWithData.length > 0 && confirmCallback) {
-            const message = `Warning: ${signsWithData.length} signs have data in the "${fieldName}" field. ` +
-                          `Removing this field will delete all associated data. This cannot be undone.`;
-            
+            const message =
+                `Warning: ${signsWithData.length} signs have data in the "${fieldName}" field. ` +
+                'Removing this field will delete all associated data. This cannot be undone.';
+
             const confirmed = await confirmCallback(message);
             if (!confirmed) return false;
         }
-        
+
         // Create SignType instance and remove field
         const signType = new SignType(signTypeData);
         signType.removeTextField(fieldName);
-        
+
         // Update shared data
         signTypes.set(code, signType.toJSON());
         this.appBridge.updateSignTypes(signTypes, sourceApp);
-        
+
         // Emit event
-        this.appBridge.emitSyncEvent(SYNC_EVENTS.SIGN_TYPE_FIELD_REMOVED, {
-            signTypeCode: code,
-            fieldName,
-            affectedSigns: signsWithData,
-            signType: signType.toJSON()
-        }, sourceApp);
-        
+        this.appBridge.emitSyncEvent(
+            SYNC_EVENTS.SIGN_TYPE_FIELD_REMOVED,
+            {
+                signTypeCode: code,
+                fieldName,
+                affectedSigns: signsWithData,
+                signType: signType.toJSON()
+            },
+            sourceApp
+        );
+
         return true;
     }
 
@@ -318,16 +344,20 @@ export class SyncManager {
      * @fires SYNC_EVENTS.SIGN_MESSAGE_CHANGED
      * @example
      * // When user types in message field
-     * await syncManager.syncMessageChange(dot.internalId, 'message', 
+     * await syncManager.syncMessageChange(dot.internalId, 'message',
      *   'Conference Room A', 'mapping_slayer');
      */
     async syncMessageChange(signId, fieldName, value, sourceApp) {
-        this.appBridge.emitSignEvent(SYNC_EVENTS.SIGN_MESSAGE_CHANGED, {
-            signId,
-            fieldName,
-            value,
-            timestamp: new Date().toISOString()
-        }, sourceApp);
+        this.appBridge.emitSignEvent(
+            SYNC_EVENTS.SIGN_MESSAGE_CHANGED,
+            {
+                signId,
+                fieldName,
+                value,
+                timestamp: new Date().toISOString()
+            },
+            sourceApp
+        );
     }
 
     /**
@@ -338,44 +368,48 @@ export class SyncManager {
      * @fires SYNC_EVENTS.SIGN_NOTES_CHANGED
      * @example
      * // When user updates notes in Thumbnail Slayer
-     * await syncManager.syncNotesChange(thumbnail.id, 
+     * await syncManager.syncNotesChange(thumbnail.id,
      *   'Needs special mounting bracket', 'thumbnail_slayer');
      */
     async syncNotesChange(signId, notes, sourceApp) {
-        this.appBridge.emitSignEvent(SYNC_EVENTS.SIGN_NOTES_CHANGED, {
-            signId,
-            notes,
-            timestamp: new Date().toISOString()
-        }, sourceApp);
+        this.appBridge.emitSignEvent(
+            SYNC_EVENTS.SIGN_NOTES_CHANGED,
+            {
+                signId,
+                notes,
+                timestamp: new Date().toISOString()
+            },
+            sourceApp
+        );
     }
 
     // Handler methods (to be overridden by apps)
     handleSignTypeCreated(appName, data) {
-        console.log(`[${appName}] Sign type created:`, data);
+        // console.log(`[${appName}] Sign type created:`, data);
     }
 
     handleSignTypeUpdated(appName, data) {
-        console.log(`[${appName}] Sign type updated:`, data);
+        // console.log(`[${appName}] Sign type updated:`, data);
     }
 
     handleSignTypeDeleted(appName, data) {
-        console.log(`[${appName}] Sign type deleted:`, data);
+        // console.log(`[${appName}] Sign type deleted:`, data);
     }
 
     handleFieldAdded(appName, data) {
-        console.log(`[${appName}] Field added:`, data);
+        // console.log(`[${appName}] Field added:`, data);
     }
 
     handleFieldRemoved(appName, data) {
-        console.log(`[${appName}] Field removed:`, data);
+        // console.log(`[${appName}] Field removed:`, data);
     }
 
     handleMessageChanged(appName, data) {
-        console.log(`[${appName}] Message changed:`, data);
+        // console.log(`[${appName}] Message changed:`, data);
     }
 
     handleNotesChanged(appName, data) {
-        console.log(`[${appName}] Notes changed:`, data);
+        // console.log(`[${appName}] Notes changed:`, data);
     }
 
     /**
@@ -407,7 +441,7 @@ export class SyncManager {
  * @example
  * import { appBridge } from '../core/app-bridge.js';
  * import { createSyncManager } from '../core/sync-manager.js';
- * 
+ *
  * const syncManager = createSyncManager(appBridge);
  * syncManager.initializeApp('my_app', handlers);
  */

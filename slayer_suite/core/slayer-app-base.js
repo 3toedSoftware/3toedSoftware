@@ -4,34 +4,41 @@
  * Provides unified header, loading states, and core app lifecycle management
  */
 
-import { appBridge, projectManager, BRIDGE_EVENTS, APP_STATUS, appLog, createAppData } from './index.js';
+import {
+    appBridge,
+    projectManager,
+    BRIDGE_EVENTS,
+    APP_STATUS,
+    appLog,
+    createAppData
+} from './index.js';
 
 export default class SlayerAppBase {
     constructor(appName, displayName, version = '1.0.0') {
-        this.appName = appName;              // e.g., 'mapping_slayer'
-        this.displayName = displayName;      // e.g., 'MAPPING SLAYER'
+        this.appName = appName; // e.g., 'mapping_slayer'
+        this.displayName = displayName; // e.g., 'MAPPING SLAYER'
         this.version = version;
         this.status = APP_STATUS.UNREGISTERED;
         this.container = null;
         this.isActive = false;
-        
+
         // UI element references
         this.elements = {
             header: null,
             contentArea: null,
             loadingOverlay: null
         };
-        
+
         // Loading state
         this.loadingState = {
             isLoading: false,
             currentOperation: null,
             progress: 0
         };
-        
+
         // App-specific data (override in child classes)
         this.appData = {};
-        
+
         appLog(this.appName, `App instance created: ${displayName} v${version}`);
     }
 
@@ -44,16 +51,16 @@ export default class SlayerAppBase {
             this.status = APP_STATUS.INITIALIZING;
             this.container = container;
             this.isSuiteMode = isSuiteMode;
-            
+
             appLog(this.appName, 'Initializing base app structure...');
-            
+
             if (!isSuiteMode) {
                 // Create unified app structure only in standalone mode
                 this.createAppStructure();
-                
+
                 // Load shared styles
                 await this.loadSharedStyles();
-                
+
                 // Set up core event listeners
                 this.setupCoreEventListeners();
             } else {
@@ -62,21 +69,20 @@ export default class SlayerAppBase {
                 // Make sure container has proper display style for content
                 this.container.style.display = 'block';
             }
-            
+
             // Call child class content creation
             this.createAppContent();
-            
+
             // In suite mode, hide it after content creation (will be shown on activate)
             if (this.isSuiteMode) {
                 this.container.style.display = 'none';
             }
-            
+
             // Register with app bridge
             appBridge.register(this.appName, this);
-            
+
             this.status = APP_STATUS.REGISTERED;
             appLog(this.appName, 'Base initialization complete');
-            
         } catch (error) {
             this.status = APP_STATUS.ERROR;
             console.error(`${this.appName}: Base initialization failed:`, error);
@@ -170,7 +176,7 @@ export default class SlayerAppBase {
         this.elements.header = this.container.querySelector('.slayer-header');
         this.elements.contentArea = this.container.querySelector('#app-content');
         this.elements.loadingOverlay = this.container.querySelector('#loading-overlay');
-        
+
         // Set active app button
         this.updateActiveAppButton();
     }
@@ -354,13 +360,12 @@ export default class SlayerAppBase {
             this.isActive = true;
             this.status = APP_STATUS.ACTIVE;
             this.container.style.display = 'block';
-            
+
             if (!this.isSuiteMode) {
                 this.updateActiveAppButton();
             }
-            
+
             appLog(this.appName, 'App activated');
-            
         } catch (error) {
             this.status = APP_STATUS.ERROR;
             console.error(`${this.appName}: Activation failed:`, error);
@@ -372,9 +377,8 @@ export default class SlayerAppBase {
             this.isActive = false;
             this.status = APP_STATUS.INACTIVE;
             this.container.style.display = 'none';
-            
+
             appLog(this.appName, 'App deactivated');
-            
         } catch (error) {
             console.error(`${this.appName}: Deactivation failed:`, error);
         }
@@ -402,11 +406,11 @@ export default class SlayerAppBase {
         const titleEl = overlay.querySelector('#loading-title');
         const subtitleEl = overlay.querySelector('#loading-subtitle');
         const cancelBtn = overlay.querySelector('#cancel-loading');
-        
+
         titleEl.textContent = title || `Loading ${this.displayName}`;
         subtitleEl.textContent = subtitle || 'Preparing app...';
         cancelBtn.style.display = showCancel ? 'block' : 'none';
-        
+
         overlay.classList.add('visible');
         this.loadingState.isLoading = true;
     }
@@ -419,18 +423,18 @@ export default class SlayerAppBase {
 
     updateProgress(percentage, text = null, activity = null) {
         if (!this.loadingState.isLoading) return;
-        
+
         const progressBar = this.elements.loadingOverlay.querySelector('#progress-bar');
         const progressText = this.elements.loadingOverlay.querySelector('#progress-text');
         const progressPercent = this.elements.loadingOverlay.querySelector('#progress-percent');
-        
+
         progressBar.style.width = `${percentage}%`;
         progressPercent.textContent = `${percentage}%`;
-        
+
         if (text) {
             progressText.textContent = text;
         }
-        
+
         if (activity) {
             this.addActivityItem(activity);
         }
@@ -445,14 +449,14 @@ export default class SlayerAppBase {
             <span style="font-size: 12px; color: #ccc;">${text}</span>
             <span style="margin-left: auto; font-size: 10px; color: #666;">${Date.now() % 10000}ms</span>
         `;
-        
+
         activityFeed.appendChild(item);
-        
+
         // Keep only last 4 items
         while (activityFeed.children.length > 4) {
             activityFeed.removeChild(activityFeed.firstChild);
         }
-        
+
         activityFeed.scrollTop = activityFeed.scrollHeight;
     }
 
@@ -471,7 +475,7 @@ export default class SlayerAppBase {
     updateProjectStatus(isDirty) {
         const statusDot = this.container.querySelector('#status-dot');
         const statusText = this.container.querySelector('#status-text');
-        
+
         if (statusDot && statusText) {
             if (isDirty) {
                 statusDot.className = 'status-dot status-unsaved';
@@ -505,7 +509,7 @@ export default class SlayerAppBase {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.slayer';
-        input.onchange = async (e) => {
+        input.onchange = async e => {
             const file = e.target.files[0];
             if (file) {
                 await projectManager.load(file);
@@ -519,7 +523,10 @@ export default class SlayerAppBase {
      */
     getAppCode() {
         // Extract app code from app name (e.g., 'mapping_slayer' -> 'MS')
-        return this.appName.split('_').map(word => word[0].toUpperCase()).join('');
+        return this.appName
+            .split('_')
+            .map(word => word[0].toUpperCase())
+            .join('');
     }
 
     getContentArea() {

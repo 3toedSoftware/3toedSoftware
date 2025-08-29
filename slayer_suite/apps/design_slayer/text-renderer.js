@@ -32,15 +32,15 @@ function getMeasureContext() {
 export function measureText(text, font, maxWidth) {
     const ctx = getMeasureContext();
     ctx.font = font;
-    
+
     // Split text into words for wrapping
     const words = text.split(' ');
     const lines = [];
     let currentLine = '';
-    
+
     // Handle existing line breaks
     const paragraphs = text.split('\n');
-    
+
     paragraphs.forEach((paragraph, pIndex) => {
         if (pIndex > 0) {
             // Add the previous line before starting new paragraph
@@ -49,13 +49,13 @@ export function measureText(text, font, maxWidth) {
                 currentLine = '';
             }
         }
-        
+
         const words = paragraph.split(' ');
-        
+
         words.forEach(word => {
             const testLine = currentLine ? `${currentLine} ${word}` : word;
             const metrics = ctx.measureText(testLine);
-            
+
             if (metrics.width > maxWidth && currentLine) {
                 lines.push(currentLine);
                 currentLine = word;
@@ -64,15 +64,15 @@ export function measureText(text, font, maxWidth) {
             }
         });
     });
-    
+
     if (currentLine) {
         lines.push(currentLine);
     }
-    
+
     // Calculate total height
     const lineHeight = parseInt(font) * 1.2; // Default line height
     const totalHeight = lines.length * lineHeight;
-    
+
     return {
         lines,
         lineHeight,
@@ -88,18 +88,16 @@ export function renderAlignedText(container, layer, definition) {
     const font = `${layer.fontSize || definition.defaultFontSize}px "${layer.font || definition.defaultFont}"`;
     const maxWidth = layer.width * SCALE_FACTOR;
     const maxHeight = layer.height * SCALE_FACTOR;
-    
+
     // Measure the text
-    const measurement = measureText(
-        layer.text || definition.defaultText || '',
-        font,
-        maxWidth
-    );
-    
+    const measurement = measureText(layer.text || definition.defaultText || '', font, maxWidth);
+
     // Adjust line height based on layer setting
-    const lineHeight = (layer.fontSize || definition.defaultFontSize) * (layer.lineSpacing || definition.defaultLineSpacing || 1.2);
+    const lineHeight =
+        (layer.fontSize || definition.defaultFontSize) *
+        (layer.lineSpacing || definition.defaultLineSpacing || 1.2);
     const totalHeight = measurement.lines.length * lineHeight;
-    
+
     // Create text container
     let textWrapper = container.querySelector('.text-wrapper');
     if (!textWrapper) {
@@ -107,7 +105,7 @@ export function renderAlignedText(container, layer, definition) {
         textWrapper.className = 'text-wrapper';
         container.appendChild(textWrapper);
     }
-    
+
     // Calculate vertical position
     let top = 0;
     switch (layer.verticalAlign || 'middle') {
@@ -121,7 +119,7 @@ export function renderAlignedText(container, layer, definition) {
             top = maxHeight - totalHeight;
             break;
     }
-    
+
     // Apply styles to wrapper
     textWrapper.style.cssText = `
         position: absolute;
@@ -137,7 +135,7 @@ export function renderAlignedText(container, layer, definition) {
         word-wrap: break-word;
         overflow: hidden;
     `;
-    
+
     // Set the text content
     textWrapper.textContent = measurement.lines.join('\n');
 }
@@ -152,14 +150,20 @@ export function getTextBaseline(text, font) {
     const ctx = getMeasureContext();
     ctx.font = font;
     ctx.textBaseline = 'alphabetic'; // Standard baseline
-    
+
     // Use first line of text or a sample if empty
     const firstLine = (text || 'Ag').split('\n')[0] || 'Ag';
     const metrics = ctx.measureText(firstLine);
-    
+
     return {
-        ascent: metrics.actualBoundingBoxAscent || metrics.fontBoundingBoxAscent || parseInt(font) * 0.75,
-        descent: metrics.actualBoundingBoxDescent || metrics.fontBoundingBoxDescent || parseInt(font) * 0.25,
+        ascent:
+            metrics.actualBoundingBoxAscent ||
+            metrics.fontBoundingBoxAscent ||
+            parseInt(font) * 0.75,
+        descent:
+            metrics.actualBoundingBoxDescent ||
+            metrics.fontBoundingBoxDescent ||
+            parseInt(font) * 0.25
         // The baseline is at 'ascent' pixels from the top of the text
     };
 }
@@ -172,23 +176,22 @@ export function getTextBaseline(text, font) {
  */
 export function measureCapitalXHeight(fontSize, fontFamily) {
     const ctx = getMeasureContext();
-    
+
     // Use a much larger size for measurement to get better precision
     const scale = 100;
     const measureSize = fontSize * scale;
     ctx.font = `${measureSize}px "${fontFamily}"`;
     ctx.textBaseline = 'alphabetic';
-    
+
     const metrics = ctx.measureText('X');
-    
+
     // Get actual bounds of the X character
     const ascent = metrics.actualBoundingBoxAscent || measureSize * 0.75;
     const descent = metrics.actualBoundingBoxDescent || 0;
-    
-    
+
     // Scale back down to the actual font size
     const totalHeight = (ascent + descent) / scale;
-    
+
     // Total height of capital X
     return totalHeight;
 }
@@ -205,20 +208,19 @@ export function calculateFontSizeForXHeight(desiredXHeightInches, fontFamily) {
     const ctx = getMeasureContext();
     ctx.font = `${testSize}px "${fontFamily}"`;
     ctx.textBaseline = 'alphabetic';
-    
+
     const metrics = ctx.measureText('X');
     const ascent = metrics.actualBoundingBoxAscent || testSize * 0.75;
     const descent = metrics.actualBoundingBoxDescent || 0;
     const measuredHeight = ascent + descent;
-    
+
     // Get the ratio of actual X height to font size
     const ratio = measuredHeight / testSize;
-    
+
     // Calculate required font size
     const desiredXHeightPixels = desiredXHeightInches * SCALE_FACTOR;
     const requiredFontSize = desiredXHeightPixels / ratio;
-    
-    
+
     // Return exact size without rounding
     return requiredFontSize;
 }
@@ -235,14 +237,14 @@ export function calculateTextDimensions(text, font, fontSize, lineSpacing = 1.2)
     if (!text || text.trim().length === 0) {
         return { width: 0, height: 0, lines: 0 };
     }
-    
+
     const ctx = getMeasureContext();
     ctx.font = `${fontSize}px "${font}"`;
-    
+
     // Split into lines and measure each
     const lines = text.split('\n');
     let maxWidth = 0;
-    
+
     lines.forEach(line => {
         if (line.trim().length > 0) {
             const metrics = ctx.measureText(line);
@@ -252,27 +254,27 @@ export function calculateTextDimensions(text, font, fontSize, lineSpacing = 1.2)
             }
         }
     });
-    
+
     // Calculate height based on X-height and line spacing
     const xHeightPixels = measureCapitalXHeight(fontSize, font);
     const lineHeight = fontSize * lineSpacing;
-    
+
     // For single line, height is just X-height
     // For multiple lines, it's X-height + (line spacing * (lines - 1))
     const nonEmptyLines = lines.filter(line => line.trim().length > 0).length;
     let totalHeight;
-    
+
     if (nonEmptyLines <= 1) {
         totalHeight = xHeightPixels;
     } else {
         // First line X-height + gaps between lines + last line X-height
         const gapHeight = lineHeight - fontSize;
-        totalHeight = xHeightPixels + ((nonEmptyLines - 1) * lineHeight);
+        totalHeight = xHeightPixels + (nonEmptyLines - 1) * lineHeight;
     }
-    
+
     return {
-        width: maxWidth / SCALE_FACTOR,  // Convert to inches
-        height: totalHeight / SCALE_FACTOR,  // Convert to inches
+        width: maxWidth / SCALE_FACTOR, // Convert to inches
+        height: totalHeight / SCALE_FACTOR, // Convert to inches
         lines: nonEmptyLines
     };
 }

@@ -7,7 +7,7 @@
 let brailleWorker = null;
 let workerReady = false;
 let workerError = null;
-let pendingTranslations = new Map();
+const pendingTranslations = new Map();
 let translationIdCounter = 0;
 
 // Callbacks waiting for worker to be ready
@@ -18,31 +18,30 @@ const readyCallbacks = [];
  */
 export function initializeBrailleTranslator() {
     console.log('[BRAILLE V2] Initializing Braille translator with worker...');
-    
+
     try {
         // Create worker from the same directory
         brailleWorker = new Worker('./apps/design_slayer/braille-worker.js');
-        
+
         // Handle messages from worker
         brailleWorker.addEventListener('message', handleWorkerMessage);
-        
+
         // Handle worker errors
-        brailleWorker.addEventListener('error', (error) => {
+        brailleWorker.addEventListener('error', error => {
             console.error('[BRAILLE V2] Worker error:', error);
             workerError = error.message || 'Worker failed to load';
             workerReady = false;
-            
+
             // Reject all pending translations
-            pendingTranslations.forEach((callbacks) => {
+            pendingTranslations.forEach(callbacks => {
                 callbacks.reject(new Error(workerError));
             });
             pendingTranslations.clear();
         });
-        
     } catch (error) {
         console.error('[BRAILLE V2] Failed to create worker:', error);
         workerError = error.message;
-        
+
         // Try fallback method
         initializeFallbackTranslator();
     }
@@ -53,18 +52,18 @@ export function initializeBrailleTranslator() {
  */
 function handleWorkerMessage(event) {
     const { type, id, success, error } = event.data;
-    
+
     switch (type) {
         case 'initialized':
             if (success) {
                 console.log('[BRAILLE V2] Worker initialized successfully');
                 workerReady = true;
                 workerError = null;
-                
+
                 // Call ready callbacks
                 readyCallbacks.forEach(callback => callback());
                 readyCallbacks.length = 0;
-                
+
                 // Update all Braille layers
                 if (window.updateAllBrailleLayers) {
                     window.updateAllBrailleLayers();
@@ -76,26 +75,30 @@ function handleWorkerMessage(event) {
                 initializeFallbackTranslator();
             }
             break;
-            
+
         case 'translation':
-            const callbacks = pendingTranslations.get(id);
-            if (callbacks) {
-                if (success) {
-                    callbacks.resolve(event.data.brailleText);
-                } else {
-                    callbacks.reject(new Error(error));
+            {
+                const callbacks = pendingTranslations.get(id);
+                if (callbacks) {
+                    if (success) {
+                        callbacks.resolve(event.data.brailleText);
+                    } else {
+                        callbacks.reject(new Error(error));
+                    }
+                    pendingTranslations.delete(id);
                 }
-                pendingTranslations.delete(id);
             }
             break;
-            
+
         case 'testResults':
             console.log('[BRAILLE V2] Test results:', event.data.results);
             event.data.results.forEach(result => {
                 if (result.passed) {
                     console.log(`✓ "${result.input}" → "${result.actual}"`);
                 } else {
-                    console.error(`✗ "${result.input}" → "${result.actual}" (expected: "${result.expected}")`);
+                    console.error(
+                        `✗ "${result.input}" → "${result.actual}" (expected: "${result.expected}")`
+                    );
                 }
             });
             break;
@@ -107,7 +110,7 @@ function handleWorkerMessage(event) {
  */
 function initializeFallbackTranslator() {
     console.log('[BRAILLE V2] Initializing fallback translator...');
-    
+
     // Load liblouis directly in main thread (less performant)
     const script1 = document.createElement('script');
     script1.src = 'https://unpkg.com/liblouis-build@latest/build-no-tables.js';
@@ -117,14 +120,16 @@ function initializeFallbackTranslator() {
         script2.onload = () => {
             if (window.liblouis) {
                 try {
-                    window.liblouis.enableOnDemandTableLoading('https://unpkg.com/liblouis-build@latest/tables/');
+                    window.liblouis.enableOnDemandTableLoading(
+                        'https://unpkg.com/liblouis-build@latest/tables/'
+                    );
                     workerReady = true;
                     console.log('[BRAILLE V2] Fallback translator ready');
-                    
+
                     // Call ready callbacks
                     readyCallbacks.forEach(callback => callback());
                     readyCallbacks.length = 0;
-                    
+
                     // Update all Braille layers
                     if (window.updateAllBrailleLayers) {
                         window.updateAllBrailleLayers();
@@ -144,7 +149,7 @@ function initializeFallbackTranslator() {
  * Wait for the translator to be ready
  */
 function waitForReady() {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
         if (workerReady) {
             resolve();
         } else {
@@ -160,20 +165,20 @@ function waitForReady() {
  */
 export async function translateToGrade2Braille(text) {
     console.log('[BRAILLE V2] Translation requested for:', text);
-    
+
     if (!text) {
         return '';
     }
-    
+
     // Wait for translator to be ready
     await waitForReady();
-    
+
     // If using worker
     if (brailleWorker && !workerError) {
         return new Promise((resolve, reject) => {
             const id = translationIdCounter++;
             pendingTranslations.set(id, { resolve, reject });
-            
+
             brailleWorker.postMessage({
                 type: 'translate',
                 text: text,
@@ -181,7 +186,7 @@ export async function translateToGrade2Braille(text) {
             });
         });
     }
-    
+
     // Fallback: use direct translation
     if (window.liblouis) {
         try {
@@ -193,7 +198,7 @@ export async function translateToGrade2Braille(text) {
             return text; // Return original text on error
         }
     }
-    
+
     // If nothing works, return original text
     console.error('[BRAILLE V2] No translation method available');
     return text;
@@ -213,18 +218,27 @@ export function testBrailleTranslation() {
             { input: 'conference', expected: '3f};e' },
             { input: 'Sample Text', expected: ',sample ,text' }
         ];
-        
+
         testCases.forEach(test => {
             try {
-                const result = window.liblouis.translateString('unicode.dis,en-us-g2.ctb', test.input);
+                const result = window.liblouis.translateString(
+                    'unicode.dis,en-us-g2.ctb',
+                    test.input
+                );
                 const passed = result === test.expected;
-                console.log(`${passed ? '✓' : '✗'} "${test.input}" → "${result}" (expected: "${test.expected}")`);
+                console.log(
+                    `${passed ? '✓' : '✗'} "${test.input}" → "${result}" (expected: "${test.expected}")`
+                );
             } catch (e) {
                 console.error(`✗ "${test.input}" - Error:`, e.message);
             }
         });
     } else {
-        console.error('[BRAILLE V2] Cannot run tests - translator not ready');
+        console.log('[BRAILLE V2] Translator not ready yet - will run tests when ready');
+        // Schedule to run tests when translator is ready
+        waitForReady().then(() => {
+            testBrailleTranslation();
+        });
     }
 }
 

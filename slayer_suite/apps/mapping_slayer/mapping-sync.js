@@ -4,7 +4,13 @@
  */
 
 import { createSyncManager, SYNC_EVENTS, DataModels } from '../../core/index.js';
-import { appState, setDirtyState } from './state.js';
+import {
+    appState,
+    setDirtyState,
+    initializeSyncAdapter,
+    enableAutoSync,
+    withoutAutoSync
+} from './state.js';
 import { updateFilterCheckboxes, updateMarkerTypeSelect } from './ui.js';
 import { renderDotsForCurrentPage } from './map-controller.js';
 
@@ -22,23 +28,33 @@ class MappingSyncAdapter {
      */
     initialize(appBridge) {
         this.syncManager = createSyncManager(appBridge);
-        
+
+        // Initialize auto-sync system
+        initializeSyncAdapter(this);
+
         // Custom handlers for Mapping Slayer
         const handlers = {
-            [SYNC_EVENTS.SIGN_TYPE_CREATED]: (data) => this.handleSignTypeCreated(data),
-            [SYNC_EVENTS.SIGN_TYPE_UPDATED]: (data) => this.handleSignTypeUpdated(data),
-            [SYNC_EVENTS.SIGN_TYPE_DELETED]: (data) => this.handleSignTypeDeleted(data),
-            [SYNC_EVENTS.SIGN_TYPE_FIELD_ADDED]: (data) => this.handleFieldAdded(data),
-            [SYNC_EVENTS.SIGN_TYPE_FIELD_REMOVED]: (data) => this.handleFieldRemoved(data),
-            [SYNC_EVENTS.SIGN_NOTES_CHANGED]: (data) => this.handleNotesChanged(data),
-            [SYNC_EVENTS.SIGN_MESSAGE_CHANGED]: (data) => this.handleMessageChanged(data)
+            [SYNC_EVENTS.SIGN_TYPE_CREATED]: data => this.handleSignTypeCreated(data),
+            [SYNC_EVENTS.SIGN_TYPE_UPDATED]: data => this.handleSignTypeUpdated(data),
+            [SYNC_EVENTS.SIGN_TYPE_DELETED]: data => this.handleSignTypeDeleted(data),
+            [SYNC_EVENTS.SIGN_TYPE_FIELD_ADDED]: data => this.handleFieldAdded(data),
+            [SYNC_EVENTS.SIGN_TYPE_FIELD_REMOVED]: data => this.handleFieldRemoved(data),
+            [SYNC_EVENTS.SIGN_NOTES_CHANGED]: data => this.handleNotesChanged(data),
+            [SYNC_EVENTS.SIGN_MESSAGE_CHANGED]: data => this.handleMessageChanged(data)
         };
-        
+
         this.syncManager.initializeApp(this.appName, handlers);
-        
+
         // Override helper methods
-        this.syncManager.getSignsForType = (code) => this.getSignsForType(code);
-        this.syncManager.getSignsWithFieldData = (code, fieldName) => this.getSignsWithFieldData(code, fieldName);
+        this.syncManager.getSignsForType = code => this.getSignsForType(code);
+        this.syncManager.getSignsWithFieldData = (code, fieldName) =>
+            this.getSignsWithFieldData(code, fieldName);
+
+        // Enable auto-sync after everything is set up
+        setTimeout(() => {
+            enableAutoSync();
+            console.log('✅ Auto-sync enabled for marker types');
+        }, 100);
     }
 
     /**
@@ -46,13 +62,13 @@ class MappingSyncAdapter {
      */
     async syncMarkerTypes(appBridge) {
         const signTypes = new Map();
-        
+
         // Convert existing markerTypes to SignType instances
         Object.entries(appState.markerTypes).forEach(([code, markerData]) => {
             const signType = SignType.fromMarkerType(code, markerData);
             signTypes.set(code, signType.toJSON());
         });
-        
+
         // Update shared data
         appBridge.updateSignTypes(signTypes, this.appName);
     }
@@ -68,24 +84,24 @@ class MappingSyncAdapter {
             textColor,
             createdBy: this.appName
         });
-        
+
         // Add to local state
         appState.markerTypes[code] = signType.toMarkerType();
         // Include text fields in local state
         appState.markerTypes[code].textFields = signType.textFields;
-        
+
         // Set as active marker type
         appState.activeMarkerType = code;
-        
+
         setDirtyState();
-        
+
         // Sync with other apps
         await this.syncManager.createSignType(signType, this.appName);
-        
+
         // Update UI
         updateFilterCheckboxes();
         updateMarkerTypeSelect();
-        
+
         return signType;
     }
 
@@ -96,14 +112,14 @@ class MappingSyncAdapter {
         if (!appState.markerTypes[code]) {
             throw new Error(`Marker type ${code} not found`);
         }
-        
+
         // Update local state
         Object.assign(appState.markerTypes[code], updates);
         setDirtyState();
-        
+
         // Sync with other apps
         await this.syncManager.updateSignType(code, updates, this.appName);
-        
+
         // Update UI
         updateFilterCheckboxes();
         renderDotsForCurrentPage();
@@ -114,11 +130,11 @@ class MappingSyncAdapter {
      */
     async deleteMarkerType(code, confirmCallback) {
         const result = await this.syncManager.deleteSignType(code, this.appName, confirmCallback);
-        
+
         if (result) {
             // Remove from local state
             delete appState.markerTypes[code];
-            
+
             // Remove all dots of this type
             for (const pageData of appState.dotsByPage.values()) {
                 for (const [dotId, dot] of pageData.dots.entries()) {
@@ -127,21 +143,21 @@ class MappingSyncAdapter {
                     }
                 }
             }
-            
+
             // Update active marker type if needed
             if (appState.activeMarkerType === code) {
                 const remainingTypes = Object.keys(appState.markerTypes);
                 appState.activeMarkerType = remainingTypes.length > 0 ? remainingTypes[0] : null;
             }
-            
+
             setDirtyState();
-            
+
             // Update UI
             updateFilterCheckboxes();
             updateMarkerTypeSelect();
             renderDotsForCurrentPage();
         }
-        
+
         return result;
     }
 
@@ -159,7 +175,7 @@ class MappingSyncAdapter {
                 }
             }
         }
-        
+
         setDirtyState();
     }
 
@@ -175,20 +191,22 @@ class MappingSyncAdapter {
                 }
             }
         }
-        
+
         setDirtyState();
     }
 
     // Handler implementations
     handleSignTypeCreated(data) {
         console.log('Mapping Slayer: Sign type created', data);
-        
+
         // Add to local markerTypes if it doesn't exist
         if (!appState.markerTypes[data.code]) {
-            const signType = new SignType(data);
-            appState.markerTypes[data.code] = signType.toMarkerType();
+            withoutAutoSync(() => {
+                const signType = new SignType(data);
+                appState.markerTypes[data.code] = signType.toMarkerType();
+            });
             setDirtyState();
-            
+
             updateFilterCheckboxes();
             updateMarkerTypeSelect();
         }
@@ -196,13 +214,15 @@ class MappingSyncAdapter {
 
     handleSignTypeUpdated(data) {
         console.log('Mapping Slayer: Sign type updated', data);
-        
+
         // Update local markerType
         if (appState.markerTypes[data.code]) {
-            const signType = new SignType(data);
-            appState.markerTypes[data.code] = signType.toMarkerType();
+            withoutAutoSync(() => {
+                const signType = new SignType(data);
+                appState.markerTypes[data.code] = signType.toMarkerType();
+            });
             setDirtyState();
-            
+
             updateFilterCheckboxes();
             renderDotsForCurrentPage();
         }
@@ -210,11 +230,13 @@ class MappingSyncAdapter {
 
     handleSignTypeDeleted(data) {
         console.log('Mapping Slayer: Sign type deleted', data);
-        
+
         // Remove from local state
         if (appState.markerTypes[data.code]) {
-            delete appState.markerTypes[data.code];
-            
+            withoutAutoSync(() => {
+                delete appState.markerTypes[data.code];
+            });
+
             // Remove cascaded signs
             if (data.cascadedSigns) {
                 for (const pageData of appState.dotsByPage.values()) {
@@ -225,7 +247,7 @@ class MappingSyncAdapter {
                     }
                 }
             }
-            
+
             setDirtyState();
             updateFilterCheckboxes();
             updateMarkerTypeSelect();
@@ -235,9 +257,9 @@ class MappingSyncAdapter {
 
     handleFieldAdded(data) {
         console.log('Mapping Slayer: Field added', data);
-        
+
         const { signTypeCode, field } = data;
-        
+
         if (appState.markerTypes[signTypeCode]) {
             // Initialize textFields array if not exists
             if (!appState.markerTypes[signTypeCode].textFields) {
@@ -246,19 +268,19 @@ class MappingSyncAdapter {
                     { fieldName: 'message2', maxLength: null }
                 ];
             }
-            
+
             // Add the new field if it doesn't exist
             const exists = appState.markerTypes[signTypeCode].textFields.some(
                 f => f.fieldName === field.fieldName
             );
-            
+
             if (!exists) {
                 appState.markerTypes[signTypeCode].textFields.push(field);
             }
-            
+
             // Add field to all dots of this type
             this.addTextFieldToDots(signTypeCode, field.fieldName);
-            
+
             // Update UI
             updateFilterCheckboxes();
             setDirtyState();
@@ -267,9 +289,9 @@ class MappingSyncAdapter {
 
     handleFieldRemoved(data) {
         console.log('Mapping Slayer: Field removed', data);
-        
+
         const { signTypeCode, fieldName } = data;
-        
+
         if (appState.markerTypes[signTypeCode]) {
             // Remove from textFields array
             if (appState.markerTypes[signTypeCode].textFields) {
@@ -280,10 +302,10 @@ class MappingSyncAdapter {
                     appState.markerTypes[signTypeCode].textFields.splice(index, 1);
                 }
             }
-            
+
             // Remove field from all dots of this type
             this.removeTextFieldFromDots(signTypeCode, fieldName);
-            
+
             // Update UI
             updateFilterCheckboxes();
             setDirtyState();
@@ -292,14 +314,14 @@ class MappingSyncAdapter {
 
     handleNotesChanged(data) {
         console.log('Mapping Slayer: Notes changed', data);
-        
+
         // Find the dot and update its notes
         for (const pageData of appState.dotsByPage.values()) {
             for (const dot of pageData.dots.values()) {
                 if (dot.internalId === data.signId) {
                     dot.notes = data.notes;
                     setDirtyState();
-                    
+
                     // Update UI if this dot is visible
                     // TODO: Update dot display
                     return;
@@ -310,14 +332,14 @@ class MappingSyncAdapter {
 
     handleMessageChanged(data) {
         console.log('Mapping Slayer: Message changed', data);
-        
+
         // Find the dot and update its message
         for (const pageData of appState.dotsByPage.values()) {
             for (const dot of pageData.dots.values()) {
                 if (dot.internalId === data.signId) {
                     dot[data.fieldName] = data.value;
                     setDirtyState();
-                    
+
                     // Update UI if this dot is visible
                     renderDotsForCurrentPage();
                     return;
@@ -329,7 +351,7 @@ class MappingSyncAdapter {
     // Helper method implementations
     async getSignsForType(signTypeCode) {
         const signs = [];
-        
+
         for (const [pageNum, pageData] of appState.dotsByPage.entries()) {
             for (const dot of pageData.dots.values()) {
                 if (dot.markerType === signTypeCode) {
@@ -338,13 +360,13 @@ class MappingSyncAdapter {
                 }
             }
         }
-        
+
         return signs;
     }
 
     async getSignsWithFieldData(signTypeCode, fieldName) {
         const signs = [];
-        
+
         for (const [pageNum, pageData] of appState.dotsByPage.entries()) {
             for (const dot of pageData.dots.values()) {
                 if (dot.markerType === signTypeCode && dot[fieldName]) {
@@ -353,7 +375,7 @@ class MappingSyncAdapter {
                 }
             }
         }
-        
+
         return signs;
     }
 
@@ -365,10 +387,15 @@ class MappingSyncAdapter {
             await this.syncManager.syncNotesChange(dot.internalId, value, this.appName);
         } else {
             // Handle all text fields (message, message2, custom fields)
-            await this.syncManager.syncMessageChange(dot.internalId, fieldName, value, this.appName);
+            await this.syncManager.syncMessageChange(
+                dot.internalId,
+                fieldName,
+                value,
+                this.appName
+            );
         }
     }
-    
+
     /**
      * Sync text field added to marker type
      */
@@ -382,18 +409,14 @@ class MappingSyncAdapter {
             this.appName
         );
     }
-    
+
     /**
      * Sync text field removed from marker type
      */
     async syncTextFieldRemoved(markerTypeCode, fieldName) {
-        await this.syncManager.removeTextField(
-            markerTypeCode,
-            fieldName,
-            this.appName
-        );
+        await this.syncManager.removeTextField(markerTypeCode, fieldName, this.appName);
     }
-    
+
     /**
      * Sync text field updated
      * Note: Currently only maxLength can be updated since required is now auto-determined
@@ -403,17 +426,21 @@ class MappingSyncAdapter {
         // we only need to update the sign type if maxLength changed
         const signTypes = this.syncManager.appBridge.getSignTypes();
         const signTypeData = signTypes.get(markerTypeCode);
-        
+
         if (signTypeData) {
             const signType = new SignType(signTypeData);
             signType.updateTextField(fieldName, { maxLength: field.maxLength });
-            
+
             // Update shared data
             signTypes.set(markerTypeCode, signType.toJSON());
             this.syncManager.appBridge.updateSignTypes(signTypes, this.appName);
-            
+
             // Emit update event
-            this.syncManager.appBridge.emitSyncEvent(SYNC_EVENTS.SIGN_TYPE_UPDATED, signType.toJSON(), this.appName);
+            this.syncManager.appBridge.emitSyncEvent(
+                SYNC_EVENTS.SIGN_TYPE_UPDATED,
+                signType.toJSON(),
+                this.appName
+            );
         }
     }
 }

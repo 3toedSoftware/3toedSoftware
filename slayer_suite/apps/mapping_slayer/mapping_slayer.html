@@ -1,88 +1,93 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapping Slayer - Slayer Suite</title>
-    <link rel="stylesheet" href="./mapping-slayer.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css"/>
-    
-    <!-- We only load libraries here that don't have complex dependencies or race conditions. -->
-    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-    
-    <!-- PDF.js will be loaded programmatically in the script below to ensure correct order. -->
-</head>
-<body>
-    <div id="app-container"></div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Mapping Slayer - Slayer Suite</title>
+        <link rel="stylesheet" href="./mapping-slayer.css" />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css"
+        />
 
-    <script type="module">
-        /**
-         * Dynamically loads a script and returns a promise that resolves when it's loaded.
-         * @param {string} url The URL of the script to load.
-         * @returns {Promise<void>}
-         */
-        function loadScript(url) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = url;
-                script.onload = () => resolve();
-                script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
-                document.head.appendChild(script);
-            });
-        }
+        <!-- We only load libraries here that don't have complex dependencies or race conditions. -->
+        <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
-        /**
-         * Main application initializer.
-         */
-        async function initializeApp() {
-            try {
-                // Step 1: Programmatically load the PDF.js library from a new CDN (unpkg).
-                console.log('Attempting to load PDF.js library from unpkg...');
-                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-                console.log('✅ PDF.js library script loaded.');
+        <!-- PDF.js will be loaded programmatically in the script below to ensure correct order. -->
+    </head>
+    <body>
+        <div id="app-container"></div>
 
-                // Step 2: Now that the script is loaded, configure the worker.
-                if (window.pdfjsLib) {
-                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-                    console.log('✅ PDF.js library configured successfully.');
-                } else {
-                    throw new Error('pdfjsLib is not defined even after script load.');
-                }
+        <script type="module">
+            /**
+             * Dynamically loads a script and returns a promise that resolves when it's loaded.
+             * @param {string} url The URL of the script to load.
+             * @returns {Promise<void>}
+             */
+            function loadScript(url) {
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = url;
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+                    document.head.appendChild(script);
+                });
+            }
 
-            } catch (error) {
-                console.error('❌ CRITICAL: Failed to load or configure PDF.js.', error);
-                const container = document.getElementById('app-container');
-                container.innerHTML = `<div style="padding: 40px; text-align: center; color: #ff6b6b;">
+            /**
+             * Main application initializer.
+             */
+            async function initializeApp() {
+                try {
+                    // Step 1: Programmatically load the PDF.js library from a new CDN (unpkg).
+                    console.log('Attempting to load PDF.js library from unpkg...');
+                    await loadScript(
+                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+                    );
+                    console.log('✅ PDF.js library script loaded.');
+
+                    // Step 2: Now that the script is loaded, configure the worker.
+                    if (window.pdfjsLib) {
+                        pdfjsLib.GlobalWorkerOptions.workerSrc =
+                            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                        console.log('✅ PDF.js library configured successfully.');
+                    } else {
+                        throw new Error('pdfjsLib is not defined even after script load.');
+                    }
+                } catch (error) {
+                    console.error('❌ CRITICAL: Failed to load or configure PDF.js.', error);
+                    const container = document.getElementById('app-container');
+                    container.innerHTML = `<div style="padding: 40px; text-align: center; color: #ff6b6b;">
                     <h2>Fatal Error</h2>
                     <p>Could not load the required PDF library. Please check your internet connection and ad-blocker settings, then refresh the page.</p>
                 </div>`;
-                return; // Stop execution.
+                    return; // Stop execution.
+                }
+
+                // Step 3: With all dependencies ready, import and initialize the app.
+                const { initializeCore } = await import('../../core/index.js');
+                const MappingSlayerApp = (await import('./mapping-app.js')).default;
+
+                initializeCore(true); // Enable debug mode
+
+                const container = document.getElementById('app-container');
+                const mappingApp = new MappingSlayerApp();
+
+                try {
+                    await mappingApp.initialize(container);
+                    await mappingApp.activate();
+                    console.log('✅ Mapping Slayer app initialized successfully!');
+                    console.log('🗺️ Ready to integrate existing functionality');
+                } catch (initError) {
+                    console.error('❌ Mapping Slayer app failed to initialize:', initError);
+                }
             }
 
-            // Step 3: With all dependencies ready, import and initialize the app.
-            const { initializeCore } = await import('../../core/index.js');
-            const MappingSlayerApp = (await import('./mapping-app.js')).default;
-
-            initializeCore(true); // Enable debug mode
-
-            const container = document.getElementById('app-container');
-            const mappingApp = new MappingSlayerApp();
-            
-            try {
-                await mappingApp.initialize(container);
-                await mappingApp.activate();
-                console.log('✅ Mapping Slayer app initialized successfully!');
-                console.log('🗺️ Ready to integrate existing functionality');
-            } catch (initError) {
-                console.error('❌ Mapping Slayer app failed to initialize:', initError);
-            }
-        }
-
-        // Start the initialization process.
-        initializeApp();
-    </script>
-</body>
+            // Start the initialization process.
+            initializeApp();
+        </script>
+    </body>
 </html>

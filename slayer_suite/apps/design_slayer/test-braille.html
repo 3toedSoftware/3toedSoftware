@@ -1,232 +1,250 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Braille Translation Test</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .test-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        input {
-            width: 100%;
-            padding: 10px;
-            font-size: 16px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            background: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background: #45a049;
-        }
-        .result {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f0f0f0;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            min-height: 50px;
-        }
-        .status {
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-        }
-        .status.loading {
-            background: #fff3cd;
-            color: #856404;
-        }
-        .status.ready {
-            background: #d4edda;
-            color: #155724;
-        }
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        .test-results {
-            margin-top: 20px;
-        }
-        .test-case {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-        }
-        .test-case.pass {
-            background: #e8f5e9;
-        }
-        .test-case.fail {
-            background: #ffebee;
-        }
-        pre {
-            background: #f5f5f5;
-            padding: 10px;
-            border-radius: 4px;
-            overflow-x: auto;
-        }
-    </style>
-</head>
-<body>
-    <h1>Braille Translation Test</h1>
-    
-    <div class="test-container">
-        <h2>Status</h2>
-        <div id="status" class="status loading">Initializing Braille translator...</div>
-    </div>
-    
-    <div class="test-container">
-        <h2>Manual Translation Test</h2>
-        <input type="text" id="input" placeholder="Enter text to translate to Grade 2 Braille" value="conference">
-        <button onclick="translateText()">Translate to Braille</button>
-        <div class="result" id="result">Translation will appear here...</div>
-    </div>
-    
-    <div class="test-container">
-        <h2>Automated Test Results</h2>
-        <button onclick="runTests()">Run Grade 2 Braille Tests</button>
-        <div class="test-results" id="test-results"></div>
-    </div>
-    
-    <div class="test-container">
-        <h2>Console Output</h2>
-        <pre id="console-output"></pre>
-    </div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Braille Translation Test</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 40px auto;
+                padding: 20px;
+                background: #f5f5f5;
+            }
+            .test-container {
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                margin-bottom: 20px;
+            }
+            input {
+                width: 100%;
+                padding: 10px;
+                font-size: 16px;
+                margin-bottom: 10px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            button {
+                background: #4caf50;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 16px;
+            }
+            button:hover {
+                background: #45a049;
+            }
+            .result {
+                margin-top: 20px;
+                padding: 15px;
+                background: #f0f0f0;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                min-height: 50px;
+            }
+            .status {
+                padding: 10px;
+                margin-bottom: 10px;
+                border-radius: 4px;
+            }
+            .status.loading {
+                background: #fff3cd;
+                color: #856404;
+            }
+            .status.ready {
+                background: #d4edda;
+                color: #155724;
+            }
+            .status.error {
+                background: #f8d7da;
+                color: #721c24;
+            }
+            .test-results {
+                margin-top: 20px;
+            }
+            .test-case {
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            .test-case.pass {
+                background: #e8f5e9;
+            }
+            .test-case.fail {
+                background: #ffebee;
+            }
+            pre {
+                background: #f5f5f5;
+                padding: 10px;
+                border-radius: 4px;
+                overflow-x: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Braille Translation Test</h1>
 
-    <script type="module">
-        // Import the Braille translator
-        import { translateToGrade2Braille, testBrailleTranslation } from './braille-translator-v2.js';
-        
-        // Make functions available globally
-        window.translateToGrade2Braille = translateToGrade2Braille;
-        window.testBrailleTranslation = testBrailleTranslation;
-        
-        // Override console.log to capture output
-        const consoleOutput = document.getElementById('console-output');
-        const originalLog = console.log;
-        const originalError = console.error;
-        
-        console.log = function(...args) {
-            originalLog.apply(console, args);
-            const message = args.map(arg => 
-                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-            ).join(' ');
-            consoleOutput.textContent += message + '\n';
-            consoleOutput.scrollTop = consoleOutput.scrollHeight;
-        };
-        
-        console.error = function(...args) {
-            originalError.apply(console, args);
-            const message = args.map(arg => 
-                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-            ).join(' ');
-            consoleOutput.textContent += '[ERROR] ' + message + '\n';
-            consoleOutput.scrollTop = consoleOutput.scrollHeight;
-        };
-        
-        // Update status when ready
-        let checkStatusInterval = setInterval(() => {
-            // Check if translator is ready by attempting a translation
-            translateToGrade2Braille('test').then(result => {
-                if (result && result !== 'test') {
-                    document.getElementById('status').className = 'status ready';
-                    document.getElementById('status').textContent = 'Braille translator ready!';
-                    clearInterval(checkStatusInterval);
-                }
-            }).catch(error => {
-                document.getElementById('status').className = 'status error';
-                document.getElementById('status').textContent = 'Error: ' + error.message;
-            });
-        }, 500);
-        
-        // Translate function
-        window.translateText = async function() {
-            const input = document.getElementById('input').value;
-            const resultDiv = document.getElementById('result');
-            
-            try {
-                resultDiv.textContent = 'Translating...';
-                const result = await translateToGrade2Braille(input);
-                resultDiv.innerHTML = `
+        <div class="test-container">
+            <h2>Status</h2>
+            <div id="status" class="status loading">Initializing Braille translator...</div>
+        </div>
+
+        <div class="test-container">
+            <h2>Manual Translation Test</h2>
+            <input
+                type="text"
+                id="input"
+                placeholder="Enter text to translate to Grade 2 Braille"
+                value="conference"
+            />
+            <button onclick="translateText()">Translate to Braille</button>
+            <div class="result" id="result">Translation will appear here...</div>
+        </div>
+
+        <div class="test-container">
+            <h2>Automated Test Results</h2>
+            <button onclick="runTests()">Run Grade 2 Braille Tests</button>
+            <div class="test-results" id="test-results"></div>
+        </div>
+
+        <div class="test-container">
+            <h2>Console Output</h2>
+            <pre id="console-output"></pre>
+        </div>
+
+        <script type="module">
+            // Import the Braille translator
+            import {
+                translateToGrade2Braille,
+                testBrailleTranslation
+            } from './braille-translator-v2.js';
+
+            // Make functions available globally
+            window.translateToGrade2Braille = translateToGrade2Braille;
+            window.testBrailleTranslation = testBrailleTranslation;
+
+            // Override console.log to capture output
+            const consoleOutput = document.getElementById('console-output');
+            const originalLog = console.log;
+            const originalError = console.error;
+
+            console.log = function (...args) {
+                originalLog.apply(console, args);
+                const message = args
+                    .map(arg =>
+                        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                    )
+                    .join(' ');
+                consoleOutput.textContent += message + '\n';
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            };
+
+            console.error = function (...args) {
+                originalError.apply(console, args);
+                const message = args
+                    .map(arg =>
+                        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                    )
+                    .join(' ');
+                consoleOutput.textContent += '[ERROR] ' + message + '\n';
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            };
+
+            // Update status when ready
+            let checkStatusInterval = setInterval(() => {
+                // Check if translator is ready by attempting a translation
+                translateToGrade2Braille('test')
+                    .then(result => {
+                        if (result && result !== 'test') {
+                            document.getElementById('status').className = 'status ready';
+                            document.getElementById('status').textContent =
+                                'Braille translator ready!';
+                            clearInterval(checkStatusInterval);
+                        }
+                    })
+                    .catch(error => {
+                        document.getElementById('status').className = 'status error';
+                        document.getElementById('status').textContent = 'Error: ' + error.message;
+                    });
+            }, 500);
+
+            // Translate function
+            window.translateText = async function () {
+                const input = document.getElementById('input').value;
+                const resultDiv = document.getElementById('result');
+
+                try {
+                    resultDiv.textContent = 'Translating...';
+                    const result = await translateToGrade2Braille(input);
+                    resultDiv.innerHTML = `
                     <strong>Input:</strong> "${input}"<br>
                     <strong>Grade 2 Braille:</strong> "${result}"<br>
-                    <strong>Character codes:</strong> ${result.split('').map(c => c.charCodeAt(0)).join(', ')}
+                    <strong>Character codes:</strong> ${result
+                        .split('')
+                        .map(c => c.charCodeAt(0))
+                        .join(', ')}
                 `;
-            } catch (error) {
-                resultDiv.innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
-            }
-        };
-        
-        // Run tests function
-        window.runTests = async function() {
-            const resultsDiv = document.getElementById('test-results');
-            resultsDiv.innerHTML = '<p>Running tests...</p>';
-            
-            const testCases = [
-                { input: 'stair', expected: '/air' },
-                { input: 'conference', expected: '3f};e' },
-                { input: 'Sample Text', expected: ',sample ,text' },
-                { input: 'the', expected: '!' },
-                { input: 'and', expected: '&' },
-                { input: 'for', expected: '=' },
-                { input: 'of', expected: '(' },
-                { input: 'with', expected: ')' },
-                { input: 'will', expected: 'w' },
-                { input: 'you', expected: 'y' }
-            ];
-            
-            let html = '';
-            for (const test of testCases) {
-                try {
-                    const result = await translateToGrade2Braille(test.input);
-                    const passed = result === test.expected;
-                    html += `
+                } catch (error) {
+                    resultDiv.innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
+                }
+            };
+
+            // Run tests function
+            window.runTests = async function () {
+                const resultsDiv = document.getElementById('test-results');
+                resultsDiv.innerHTML = '<p>Running tests...</p>';
+
+                const testCases = [
+                    { input: 'stair', expected: '/air' },
+                    { input: 'conference', expected: '3f};e' },
+                    { input: 'Sample Text', expected: ',sample ,text' },
+                    { input: 'the', expected: '!' },
+                    { input: 'and', expected: '&' },
+                    { input: 'for', expected: '=' },
+                    { input: 'of', expected: '(' },
+                    { input: 'with', expected: ')' },
+                    { input: 'will', expected: 'w' },
+                    { input: 'you', expected: 'y' }
+                ];
+
+                let html = '';
+                for (const test of testCases) {
+                    try {
+                        const result = await translateToGrade2Braille(test.input);
+                        const passed = result === test.expected;
+                        html += `
                         <div class="test-case ${passed ? 'pass' : 'fail'}">
                             <span>"${test.input}" → "${result}"</span>
                             <span>${passed ? '✓ PASS' : `✗ FAIL (expected "${test.expected}")`}</span>
                         </div>
                     `;
-                } catch (error) {
-                    html += `
+                    } catch (error) {
+                        html += `
                         <div class="test-case fail">
                             <span>"${test.input}" → ERROR</span>
                             <span>✗ ${error.message}</span>
                         </div>
                     `;
+                    }
                 }
-            }
-            
-            resultsDiv.innerHTML = html;
-            
-            // Also run the built-in test
-            testBrailleTranslation();
-        };
-        
-        // Run initial test after a delay
-        setTimeout(() => {
-            console.log('Running initial translation test...');
-            translateText();
-        }, 3000);
-    </script>
-</body>
+
+                resultsDiv.innerHTML = html;
+
+                // Also run the built-in test
+                testBrailleTranslation();
+            };
+
+            // Run initial test after a delay
+            setTimeout(() => {
+                console.log('Running initial translation test...');
+                translateText();
+            }, 3000);
+        </script>
+    </body>
 </html>

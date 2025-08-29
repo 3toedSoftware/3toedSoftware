@@ -23,7 +23,7 @@ class FileHandleStorage {
                 resolve();
             };
 
-            request.onupgradeneeded = (event) => {
+            request.onupgradeneeded = event => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains(this.storeName)) {
                     const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
@@ -115,7 +115,7 @@ class FileHandleStorage {
             const request = index.openCursor(null, 'prev');
 
             const projects = [];
-            request.onsuccess = (event) => {
+            request.onsuccess = event => {
                 const cursor = event.target.result;
                 if (cursor && projects.length < limit) {
                     if (cursor.value.isRecent) {

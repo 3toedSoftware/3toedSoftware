@@ -1,55 +1,54 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Design Slayer - Slayer Suite</title>
-    <link rel="stylesheet" href="./design-slayer.css">
-    
-    
-    <!-- Liblouis will be loaded dynamically by design-app.js -->
-</head>
-<body>
-    <div id="app-container"></div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Design Slayer - Slayer Suite</title>
+        <link rel="stylesheet" href="./design-slayer.css" />
 
-    <script type="module">
-        /**
-         * Main application initializer for Design Slayer.
-         */
-        async function initializeApp() {
-            try {
-                // Import the core framework
-                const { initializeCore } = await import('../../core/index.js');
-                
-                // Import the Design Slayer app
-                const DesignSlayerApp = (await import('./design-app.js')).default;
+        <!-- Liblouis will be loaded dynamically by design-app.js -->
+    </head>
+    <body>
+        <div id="app-container"></div>
 
-                // Initialize the core framework
-                initializeCore(true); // Enable debug mode
+        <script type="module">
+            /**
+             * Main application initializer for Design Slayer.
+             */
+            async function initializeApp() {
+                try {
+                    // Import the core framework
+                    const { initializeCore } = await import('../../core/index.js');
 
-                // Get the container and create the app instance
-                const container = document.getElementById('app-container');
-                const designApp = new DesignSlayerApp();
-                
-                // Initialize and activate the app
-                await designApp.initialize(container);
-                await designApp.activate();
-                
-                console.log('✅ Design Slayer app initialized successfully!');
-                console.log('🎨 Ready for sign design');
-            } catch (error) {
-                console.error('❌ Design Slayer app failed to initialize:', error);
-                const container = document.getElementById('app-container');
-                container.innerHTML = `<div style="padding: 40px; text-align: center; color: #ff6b6b;">
+                    // Import the Design Slayer app
+                    const DesignSlayerApp = (await import('./design-app.js')).default;
+
+                    // Initialize the core framework
+                    initializeCore(true); // Enable debug mode
+
+                    // Get the container and create the app instance
+                    const container = document.getElementById('app-container');
+                    const designApp = new DesignSlayerApp();
+
+                    // Initialize and activate the app
+                    await designApp.initialize(container);
+                    await designApp.activate();
+
+                    console.log('✅ Design Slayer app initialized successfully!');
+                    console.log('🎨 Ready for sign design');
+                } catch (error) {
+                    console.error('❌ Design Slayer app failed to initialize:', error);
+                    const container = document.getElementById('app-container');
+                    container.innerHTML = `<div style="padding: 40px; text-align: center; color: #ff6b6b;">
                     <h2>Initialization Error</h2>
                     <p>Failed to load Design Slayer. Please check the console for details.</p>
                     <p>${error.message}</p>
                 </div>`;
+                }
             }
-        }
 
-        // Start the initialization process
-        initializeApp();
-    </script>
-</body>
+            // Start the initialization process
+            initializeApp();
+        </script>
+    </body>
 </html>

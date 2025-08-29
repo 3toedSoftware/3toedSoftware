@@ -21,23 +21,34 @@ class DesignSyncAdapter {
      */
     initialize(appBridge) {
         this.syncManager = createSyncManager(appBridge);
-        
+
         // Custom handlers for Design Slayer
         const handlers = {
-            [SYNC_EVENTS.SIGN_TYPE_CREATED]: (data) => this.handleSignTypeCreated(data),
-            [SYNC_EVENTS.SIGN_TYPE_UPDATED]: (data) => this.handleSignTypeUpdated(data),
-            [SYNC_EVENTS.SIGN_TYPE_DELETED]: (data) => this.handleSignTypeDeleted(data),
-            [SYNC_EVENTS.SIGN_TYPE_FIELD_ADDED]: (data) => this.handleFieldAdded(data),
-            [SYNC_EVENTS.SIGN_TYPE_FIELD_REMOVED]: (data) => this.handleFieldRemoved(data),
-            [SYNC_EVENTS.TEMPLATE_CREATED]: (data) => this.handleTemplateCreated(data),
-            [SYNC_EVENTS.TEMPLATE_UPDATED]: (data) => this.handleTemplateUpdated(data),
-            [SYNC_EVENTS.TEMPLATE_DELETED]: (data) => this.handleTemplateDeleted(data)
+            [SYNC_EVENTS.SIGN_TYPE_CREATED]: data => this.handleSignTypeCreated(data),
+            [SYNC_EVENTS.SIGN_TYPE_UPDATED]: data => this.handleSignTypeUpdated(data),
+            [SYNC_EVENTS.SIGN_TYPE_DELETED]: data => this.handleSignTypeDeleted(data),
+            [SYNC_EVENTS.SIGN_TYPE_FIELD_ADDED]: data => this.handleFieldAdded(data),
+            [SYNC_EVENTS.SIGN_TYPE_FIELD_REMOVED]: data => this.handleFieldRemoved(data),
+            [SYNC_EVENTS.TEMPLATE_CREATED]: data => this.handleTemplateCreated(data),
+            [SYNC_EVENTS.TEMPLATE_UPDATED]: data => this.handleTemplateUpdated(data),
+            [SYNC_EVENTS.TEMPLATE_DELETED]: data => this.handleTemplateDeleted(data)
         };
-        
+
         this.syncManager.initializeApp(this.appName, handlers);
-        
+
         // Load existing sign types from shared data
         this.loadSignTypes(appBridge);
+
+        // Listen for bulk sign type changes (e.g., when loading from .slayer files)
+        appBridge.on('sharedData:changed', event => {
+            if (event.key === 'signTypes') {
+                console.log(
+                    '📦 Design Slayer: Bulk sign types update received, count:',
+                    event.value ? event.value.size : 0
+                );
+                this.loadSignTypes(appBridge);
+            }
+        });
     }
 
     /**
@@ -46,11 +57,11 @@ class DesignSyncAdapter {
     loadSignTypes(appBridge) {
         const sharedSignTypes = appBridge.getSignTypes();
         this.signTypes.clear();
-        
+
         sharedSignTypes.forEach((signTypeData, code) => {
             this.signTypes.set(code, new SignType(signTypeData));
         });
-        
+
         // Update UI if needed
         this.updateSignTypeUI();
     }
@@ -64,21 +75,21 @@ class DesignSyncAdapter {
             name,
             createdBy: this.appName
         });
-        
+
         // Add to local cache
         this.signTypes.set(code, signType);
-        
+
         // Sync with other apps
         await this.syncManager.createSignType(signType, this.appName);
-        
+
         // Update UI
         this.updateSignTypeUI();
-        
+
         // Set as current if no current sign type
         if (!state.currentSignType) {
             state.currentSignType = code;
         }
-        
+
         return signType;
     }
 
@@ -87,21 +98,21 @@ class DesignSyncAdapter {
      */
     async deleteSignType(code, confirmCallback) {
         const result = await this.syncManager.deleteSignType(code, this.appName, confirmCallback);
-        
+
         if (result) {
             // Remove from local cache
             this.signTypes.delete(code);
-            
+
             // Clear current sign type if it was deleted
             if (state.currentSignType === code) {
                 const remaining = Array.from(this.signTypes.keys());
                 state.currentSignType = remaining.length > 0 ? remaining[0] : null;
             }
-            
+
             // Update UI
             this.updateSignTypeUI();
         }
-        
+
         return result;
     }
 
@@ -111,12 +122,17 @@ class DesignSyncAdapter {
     async addTextFieldLayer(signTypeCode, fieldName) {
         const signType = this.signTypes.get(signTypeCode);
         if (!signType) return;
-        
+
         // Add field to sign type
-        await this.syncManager.addTextField(signTypeCode, fieldName, {
-            maxLength: null
-        }, this.appName);
-        
+        await this.syncManager.addTextField(
+            signTypeCode,
+            fieldName,
+            {
+                maxLength: null
+            },
+            this.appName
+        );
+
         // Create a text layer in the current design
         if (state.currentSignType === signTypeCode) {
             this.createTextLayer(fieldName);
@@ -128,21 +144,8 @@ class DesignSyncAdapter {
      */
     createTextLayer(fieldName) {
         // This will be implemented to create actual canvas layers
-        console.log('Creating text layer for field:', fieldName);
-        
-        // Add to layers list with placeholder text
-        const layer = {
-            id: Date.now(),
-            type: 'text',
-            fieldName: fieldName,
-            content: `{{${fieldName}}}`,
-            position: { x: 100, y: 100 },
-            font: 'Arial',
-            size: 24,
-            color: '#000000'
-        };
-        
-        // This would integrate with the actual Design Slayer layer system
+        // TODO: Create layer object and integrate with Design Slayer layer system
+        // For now, just mark state as dirty
         updateState({ isDirty: true });
     }
 
@@ -153,39 +156,40 @@ class DesignSyncAdapter {
         // This will be implemented to update the actual UI
         const signTypeSelect = document.getElementById('sign-type-select');
         if (!signTypeSelect) return;
-        
+
         // Clear and rebuild options
         signTypeSelect.innerHTML = '<option value="">Select Sign Type...</option>';
-        
-        const sortedTypes = Array.from(this.signTypes.entries())
-            .sort((a, b) => a[0].localeCompare(b[0]));
-        
+
+        const sortedTypes = Array.from(this.signTypes.entries()).sort((a, b) =>
+            a[0].localeCompare(b[0])
+        );
+
         sortedTypes.forEach(([code, signType]) => {
             const option = document.createElement('option');
             option.value = code;
             option.textContent = `${code} - ${signType.name}`;
             signTypeSelect.appendChild(option);
         });
-        
+
         // Restore selection
         if (state.currentSignType) {
             signTypeSelect.value = state.currentSignType;
         }
-        
+
         // Update layer dropdown
         this.updateLayerDropdown();
     }
-    
+
     /**
      * Update layer dropdown with dynamic text fields
      */
     updateLayerDropdown() {
         const layerTypeSelect = document.getElementById('layer-type-select');
         if (!layerTypeSelect) return;
-        
+
         // Clear current options
         layerTypeSelect.innerHTML = '<option value="">Select Layer Type</option>';
-        
+
         // Add standard layer types
         const standardOptions = `
             <option value="plate">Plate</option>
@@ -195,7 +199,7 @@ class DesignSyncAdapter {
             <option value="icon">Icon</option>
         `;
         layerTypeSelect.innerHTML += standardOptions;
-        
+
         // Add dynamic text fields if a sign type is selected
         if (state.currentSignType) {
             const signType = this.signTypes.get(state.currentSignType);
@@ -205,12 +209,12 @@ class DesignSyncAdapter {
                 separator.disabled = true;
                 separator.textContent = '── Message Fields ──';
                 layerTypeSelect.appendChild(separator);
-                
+
                 // Add text field options
                 signType.textFields.forEach(async field => {
                     const option = document.createElement('option');
                     option.value = `field:${field.fieldName}`;
-                    
+
                     // Check if field is required based on usage
                     const isRequired = await signType.isFieldRequired(field.fieldName);
                     option.textContent = `${field.fieldName} Field ${isRequired ? '(Required)' : ''}`;
@@ -222,19 +226,15 @@ class DesignSyncAdapter {
 
     // Handler implementations
     handleSignTypeCreated(data) {
-        console.log('Design Slayer: Sign type created', data);
-        
         // Add to local cache
         const signType = new SignType(data);
         this.signTypes.set(data.code, signType);
-        
+
         // Update UI
         this.updateSignTypeUI();
     }
 
     handleSignTypeUpdated(data) {
-        console.log('Design Slayer: Sign type updated', data);
-        
         // Update local cache
         if (this.signTypes.has(data.code)) {
             this.signTypes.set(data.code, new SignType(data));
@@ -243,29 +243,25 @@ class DesignSyncAdapter {
     }
 
     handleSignTypeDeleted(data) {
-        console.log('Design Slayer: Sign type deleted', data);
-        
         // Remove from local cache
         this.signTypes.delete(data.code);
-        
+
         // Update current selection if needed
         if (state.currentSignType === data.code) {
             const remaining = Array.from(this.signTypes.keys());
             state.currentSignType = remaining.length > 0 ? remaining[0] : null;
         }
-        
+
         // Update UI
         this.updateSignTypeUI();
     }
 
     handleFieldAdded(data) {
-        console.log('Design Slayer: Field added', data);
-        
         // Update local sign type
         const signType = this.signTypes.get(data.signTypeCode);
         if (signType) {
             signType.addTextField(data.fieldName, data.fieldOptions.maxLength);
-            
+
             // If this is the current sign type, add a layer
             if (state.currentSignType === data.signTypeCode) {
                 this.createTextLayer(data.fieldName);
@@ -274,13 +270,11 @@ class DesignSyncAdapter {
     }
 
     handleFieldRemoved(data) {
-        console.log('Design Slayer: Field removed', data);
-        
         // Update local sign type
         const signType = this.signTypes.get(data.signTypeCode);
         if (signType) {
             signType.removeTextField(data.fieldName);
-            
+
             // TODO: Remove corresponding layers from current design
         }
     }
@@ -318,21 +312,25 @@ class DesignSyncAdapter {
                 graphics: this.extractGraphics(canvasData.side)
             }
         });
-        
+
         // Emit template created event
         if (window.appBridge) {
-            window.appBridge.emitSyncEvent(SYNC_EVENTS.TEMPLATE_CREATED, template.toJSON(), this.appName);
+            window.appBridge.emitSyncEvent(
+                SYNC_EVENTS.TEMPLATE_CREATED,
+                template.toJSON(),
+                this.appName
+            );
         }
-        
+
         return template;
     }
 
     // Helper methods
     extractTextFields(canvasData) {
         const textFields = [];
-        
+
         if (!canvasData || !canvasData.layers) return textFields;
-        
+
         canvasData.layers.forEach(layer => {
             // Check if this is a text layer with field reference
             if (layer.type && layer.type.includes('text')) {
@@ -359,15 +357,15 @@ class DesignSyncAdapter {
                 }
             }
         });
-        
+
         return textFields;
     }
 
     extractGraphics(canvasData) {
         const graphics = [];
-        
+
         if (!canvasData || !canvasData.layers) return graphics;
-        
+
         canvasData.layers.forEach(layer => {
             // Non-text layers are considered graphics
             if (layer.type && !layer.type.includes('text')) {
@@ -383,14 +381,12 @@ class DesignSyncAdapter {
                 });
             }
         });
-        
+
         return graphics;
     }
 
     // Template event handlers
     handleTemplateCreated(data) {
-        console.log('Design Slayer: Template created', data);
-        
         // If this template was created by another app, store it locally
         if (data.createdBy !== this.appName && window.designApp?.templateManager) {
             const template = new DesignTemplate(data);
@@ -399,11 +395,11 @@ class DesignSyncAdapter {
     }
 
     handleTemplateUpdated(data) {
-        console.log('Design Slayer: Template updated', data);
-        
         // Update local template cache
         if (window.designApp?.templateManager) {
-            const existingTemplate = window.designApp.templateManager.templates.get(data.signTypeCode);
+            const existingTemplate = window.designApp.templateManager.templates.get(
+                data.signTypeCode
+            );
             if (existingTemplate) {
                 Object.assign(existingTemplate, data);
             }
@@ -411,8 +407,6 @@ class DesignSyncAdapter {
     }
 
     handleTemplateDeleted(data) {
-        console.log('Design Slayer: Template deleted', data);
-        
         // Remove from local cache
         if (window.designApp?.templateManager) {
             window.designApp.templateManager.templates.delete(data.signTypeCode);

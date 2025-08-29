@@ -1,44 +1,57 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slayer Suite - Professional Signage Workflow Platform</title>
-    <link rel="stylesheet" href="./shared/styles/suite-header.css">
-    
-    <!-- App-specific stylesheets should be loaded dynamically by each app, not globally -->
-    
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css"/>
-    
-    <!-- External libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-</head>
-<body>
-    <div id="app-container"></div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Slayer Suite - Professional Signage Workflow Platform</title>
+        <link rel="stylesheet" href="./shared/styles/suite-header.css" />
 
-    <script type="module">
-        /**
-         * Dynamically loads a script and returns a promise
-         */
-        function loadScript(url) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = url;
-                script.onload = () => resolve();
-                script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
-                document.head.appendChild(script);
-            });
-        }
+        <!-- App-specific stylesheets should be loaded dynamically by each app, not globally -->
 
-        /**
-         * Creates the main suite structure with permanent header
-         */
-        function createSuiteStructure() {
-            return `
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css"
+        />
+
+        <!-- External libraries -->
+        <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+        <!-- Tabulator for Thumbnail Slayer spreadsheet -->
+        <link
+            href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator_midnight.min.css"
+            rel="stylesheet"
+        />
+        <script
+            type="text/javascript"
+            src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"
+        ></script>
+    </head>
+    <body>
+        <div id="app-container"></div>
+
+        <script type="module">
+            /**
+             * Dynamically loads a script and returns a promise
+             */
+            function loadScript(url) {
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = url;
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+                    document.head.appendChild(script);
+                });
+            }
+
+            /**
+             * Creates the main suite structure with permanent header
+             */
+            function createSuiteStructure() {
+                return `
                 <div class="slayer-app-container">
                     <!-- Unified Header (always visible) -->
                     <div class="slayer-header">
@@ -90,127 +103,138 @@
                     <div class="app-content" id="app-content"></div>
                 </div>
             `;
-        }
+            }
 
+            /**
+             * Main Slayer Suite initializer
+             */
+            async function initializeSlayerSuite() {
+                try {
+                    // Load PDF.js for Mapping Slayer
+                    console.log('Loading PDF.js library...');
+                    await loadScript(
+                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+                    );
+                    if (window.pdfjsLib) {
+                        pdfjsLib.GlobalWorkerOptions.workerSrc =
+                            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                        console.log('PDF.js configured successfully.');
+                    }
 
-        /**
-         * Main Slayer Suite initializer
-         */
-        async function initializeSlayerSuite() {
-            try {
-                // Load PDF.js for Mapping Slayer
-                console.log('Loading PDF.js library...');
-                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-                if (window.pdfjsLib) {
-                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-                    console.log('PDF.js configured successfully.');
-                }
+                    // Import core framework
+                    const { initializeCore, appBridge, saveManager } = await import(
+                        './core/index.js'
+                    );
 
-                // Import core framework
-                const { initializeCore, appBridge, saveManager } = await import('./core/index.js');
-                
-                // Import all app modules
-                const MappingSlayerApp = (await import('./apps/mapping_slayer/mapping-app.js')).default;
-                const DesignSlayerApp = (await import('./apps/design_slayer/design-app.js')).default;
-                const ThumbnailSlayerApp = (await import('./apps/thumbnail_slayer/thumbnail-app.js')).default;
+                    // Import all app modules
+                    const MappingSlayerApp = (await import('./apps/mapping_slayer/mapping-app.js'))
+                        .default;
+                    const DesignSlayerApp = (await import('./apps/design_slayer/design-app.js'))
+                        .default;
+                    const ThumbnailSlayerApp = (
+                        await import('./apps/thumbnail_slayer/thumbnail-app.js')
+                    ).default;
 
-                // Initialize core
-                initializeCore(true);
-                
-                // Expose appBridge to window for cross-app communication
-                window.appBridge = appBridge;
+                    // Initialize core
+                    initializeCore(true);
 
-                // Get main container and create suite structure
-                const mainContainer = document.getElementById('app-container');
-                mainContainer.innerHTML = createSuiteStructure();
-                
-                // Get the content area where apps will render
-                const contentArea = document.getElementById('app-content');
-                
-                // Initialize all apps
-                const apps = {
-                    mapping_slayer: new MappingSlayerApp(),
-                    design_slayer: new DesignSlayerApp(),
-                    thumbnail_slayer: new ThumbnailSlayerApp()
-                };
+                    // Expose appBridge to window for cross-app communication
+                    window.appBridge = appBridge;
 
-                // Initialize all apps with their own containers in suite mode
-                for (const [name, app] of Object.entries(apps)) {
-                    // Create a container for each app
-                    const appContainer = document.createElement('div');
-                    appContainer.id = `${name}-container`;
-                    appContainer.style.display = 'none';
-                    appContainer.style.width = '100%';
-                    appContainer.style.height = '100%';
-                    contentArea.appendChild(appContainer);
-                    
-                    await app.initialize(appContainer, true);
-                }
+                    // Get main container and create suite structure
+                    const mainContainer = document.getElementById('app-container');
+                    mainContainer.innerHTML = createSuiteStructure();
 
-                // Initialize the save manager
-                await saveManager.initialize();
+                    // Get the content area where apps will render
+                    const contentArea = document.getElementById('app-content');
 
-                // Create a global suite object for navigation
-                window.slayerSuite = {
-                    switchToApp: async (appName) => {
-                        // Update header to show app name
-                        document.getElementById('breadcrumb-sep').style.display = 'inline';
-                        document.getElementById('app-name-display').style.display = 'inline';
-                        document.getElementById('app-name-display').textContent = apps[appName].displayName;
-                        
-                        // Update active button
-                        document.querySelectorAll('.app-nav-btn').forEach(btn => {
-                            btn.classList.remove('active');
-                            if (btn.dataset.app === appName) {
-                                btn.classList.add('active');
+                    // Initialize all apps
+                    const apps = {
+                        mapping_slayer: new MappingSlayerApp(),
+                        design_slayer: new DesignSlayerApp(),
+                        thumbnail_slayer: new ThumbnailSlayerApp()
+                    };
+
+                    // Initialize all apps with their own containers in suite mode
+                    for (const [name, app] of Object.entries(apps)) {
+                        // Create a container for each app
+                        const appContainer = document.createElement('div');
+                        appContainer.id = `${name}-container`;
+                        appContainer.style.display = 'none';
+                        appContainer.style.width = '100%';
+                        appContainer.style.height = '100%';
+                        contentArea.appendChild(appContainer);
+
+                        await app.initialize(appContainer, true);
+                    }
+
+                    // Initialize the save manager
+                    await saveManager.initialize();
+
+                    // Make saveManager globally available for apps
+                    window.saveManager = saveManager;
+                    console.log('📊 [Main] SaveManager made globally available');
+
+                    // Create a global suite object for navigation
+                    window.slayerSuite = {
+                        switchToApp: async appName => {
+                            // Update header to show app name
+                            document.getElementById('breadcrumb-sep').style.display = 'inline';
+                            document.getElementById('app-name-display').style.display = 'inline';
+                            document.getElementById('app-name-display').textContent =
+                                apps[appName].displayName;
+
+                            // Update active button
+                            document.querySelectorAll('.app-nav-btn').forEach(btn => {
+                                btn.classList.remove('active');
+                                if (btn.dataset.app === appName) {
+                                    btn.classList.add('active');
+                                }
+                            });
+
+                            // Switch to the app
+                            await appBridge.switchToApp(appName);
+                        }
+                    };
+
+                    // Setup header button handlers
+                    document.querySelectorAll('.app-nav-btn').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const targetApp = btn.dataset.app;
+                            if (targetApp) {
+                                window.slayerSuite.switchToApp(targetApp);
                             }
                         });
-                        
-                        // Switch to the app
-                        await appBridge.switchToApp(appName);
-                    }
-                };
-
-                // Setup header button handlers
-                document.querySelectorAll('.app-nav-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const targetApp = btn.dataset.app;
-                        if (targetApp) {
-                            window.slayerSuite.switchToApp(targetApp);
-                        }
                     });
-                });
-                
-                // Setup suite logo handler to go to Mapping Slayer
-                document.getElementById('suite-home-link').addEventListener('click', (e) => {
-                    e.preventDefault();
-                    window.slayerSuite.switchToApp('mapping_slayer');
-                });
-                
-                // Save/load button handlers are now set up in saveManager.initialize()
-                
 
-                // Start with Mapping Slayer
-                await window.slayerSuite.switchToApp('mapping_slayer');
-                
-                console.log('Slayer Suite initialized successfully!');
-                console.log('Ready to rock and roll!');
-                
-            } catch (error) {
-                console.error('Failed to initialize Slayer Suite:', error);
-                const container = document.getElementById('app-container');
-                container.innerHTML = `
+                    // Setup suite logo handler to go to Mapping Slayer
+                    document.getElementById('suite-home-link').addEventListener('click', e => {
+                        e.preventDefault();
+                        window.slayerSuite.switchToApp('mapping_slayer');
+                    });
+
+                    // Save/load button handlers are now set up in saveManager.initialize()
+
+                    // Start with Mapping Slayer
+                    await window.slayerSuite.switchToApp('mapping_slayer');
+
+                    console.log('Slayer Suite initialized successfully!');
+                    console.log('Ready to rock and roll!');
+                } catch (error) {
+                    console.error('Failed to initialize Slayer Suite:', error);
+                    const container = document.getElementById('app-container');
+                    container.innerHTML = `
                     <div style="padding: 40px; text-align: center; color: #ff6b6b;">
                         <h2>Initialization Error</h2>
                         <p>Failed to load Slayer Suite. Please check the console for details.</p>
                         <p>${error.message}</p>
                     </div>
                 `;
+                }
             }
-        }
 
-        // Start the suite
-        initializeSlayerSuite();
-    </script>
-</body>
+            // Start the suite
+            initializeSlayerSuite();
+        </script>
+    </body>
 </html>

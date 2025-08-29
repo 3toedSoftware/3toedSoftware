@@ -3,60 +3,81 @@
  * UI management for Thumbnail Slayer - Sign Production
  */
 
-import { thumbnailState, getFilteredItems, getSignTypes, getPageNumbers } from './thumbnail-state.js';
-import { renderSignThumbnail } from './sign-renderer.js';
-import { syncAllData } from './data-integration.js';
+import {
+    thumbnailState,
+    getFilteredItems
+} from './thumbnail-state.js';
 import { thumbnailSyncAdapter } from './thumbnail-sync.js';
 import { viewportManager } from './viewport-manager.js';
+import { thumbnailSpreadsheet } from './thumbnail-spreadsheet.js';
 
 // DOM element cache
-const dom = new Proxy({}, {
-    get(target, prop) {
-        if (target[prop]) return target[prop];
-        
-        const elementMappings = {
-            // Filter controls
-            pageFilter: () => document.getElementById('page-filter'),
-            typeFilter: () => document.getElementById('type-filter'),
-            sortBy: () => document.getElementById('sort-by'),
-            
-            // View controls
-            gridViewBtn: () => document.getElementById('grid-view-btn'),
-            listViewBtn: () => document.getElementById('list-view-btn'),
-            
-            // Main content
-            thumbnailGrid: () => document.getElementById('thumbnail-grid'),
-            listView: () => document.getElementById('list-view'),
-            detailPanel: () => document.getElementById('detail-panel'),
-            
-            // Stats
-            totalSigns: () => document.getElementById('total-signs'),
-            
-            // Actions
-            exportBtn: () => document.getElementById('export-btn'),
-            
-            // Loading indicator
-            loadingOverlay: () => document.getElementById('loading-overlay')
-        };
-        
-        if (elementMappings[prop]) {
-            target[prop] = elementMappings[prop]();
-            return target[prop];
+const dom = new Proxy(
+    {},
+    {
+        get(target, prop) {
+            if (target[prop]) return target[prop];
+
+            const elementMappings = {
+                // Filter controls
+                // Filter controls removed
+
+                // Split view components
+                spreadsheetGrid: () => document.getElementById('spreadsheet-grid'),
+                previewContainer: () => document.getElementById('preview-container'),
+                thumbnailSize: () => document.getElementById('thumbnail-size'),
+
+                // Stats
+                totalSigns: () => document.getElementById('total-signs'),
+
+                // Actions
+                // Export button removed
+
+                // Loading indicator
+                loadingOverlay: () => document.getElementById('loading-overlay')
+            };
+
+            if (elementMappings[prop]) {
+                target[prop] = elementMappings[prop]();
+                return target[prop];
+            }
+
+            return null;
         }
-        
-        return null;
     }
-});
+);
 
 /**
  * Initialize UI
  */
 export function initializeUI(handlers) {
-    setupSyncHandlers(handlers);
     setupFilterHandlers(handlers);
-    setupViewHandlers(handlers);
+    setupSplitViewHandlers(handlers);
     setupActionHandlers(handlers);
     updateAllUI();
+
+    // Globally prevent middle-click scrolling
+    document.addEventListener(
+        'mousedown',
+        e => {
+            if (e.button === 1) {
+                e.preventDefault();
+                return false;
+            }
+        },
+        true
+    );
+
+    document.addEventListener(
+        'auxclick',
+        e => {
+            if (e.button === 1) {
+                e.preventDefault();
+                return false;
+            }
+        },
+        true
+    );
 }
 
 /**
@@ -70,64 +91,34 @@ function setupSyncHandlers(handlers) {
  * Setup filter handlers
  */
 function setupFilterHandlers(handlers) {
-    // Page filter
-    if (dom.pageFilter) {
-        dom.pageFilter.addEventListener('change', (e) => {
-            thumbnailState.currentPage = e.target.value === 'all' ? null : parseInt(e.target.value);
-            updateThumbnailGrid();
-        });
-    }
-    
-    // Type filter
-    if (dom.typeFilter) {
-        dom.typeFilter.addEventListener('change', (e) => {
-            thumbnailState.filterByType = e.target.value === 'all' ? null : e.target.value;
-            updateThumbnailGrid();
-        });
-    }
-    
-    
-    // Sort by
-    if (dom.sortBy) {
-        dom.sortBy.addEventListener('change', (e) => {
-            thumbnailState.sortBy = e.target.value;
-            updateThumbnailGrid();
-        });
-    }
+    // Filter handlers removed - no longer needed
 }
 
 /**
- * Setup view handlers
+ * Setup split view handlers
  */
-function setupViewHandlers(handlers) {
-    // View mode buttons
-    if (dom.gridViewBtn) {
-        dom.gridViewBtn.addEventListener('click', () => {
-            thumbnailState.viewMode = 'grid';
-            updateViewMode();
+function setupSplitViewHandlers(handlers) {
+    // Thumbnail size slider
+    if (dom.thumbnailSize) {
+        dom.thumbnailSize.addEventListener('input', e => {
+            thumbnailState.thumbnailSize = parseInt(e.target.value);
+            updateThumbnailSize();
         });
     }
-    
-    if (dom.listViewBtn) {
-        dom.listViewBtn.addEventListener('click', () => {
-            thumbnailState.viewMode = 'list';
-            updateViewMode();
-        });
-    }
-    
-    // Display toggles removed - always show all elements
+
+    // Set up preview toggle handlers
+    setupPreviewToggleHandlers();
+
+    // Set up spreadsheet and thumbnail interaction handlers
+    setupSpreadsheetHandlers();
+    setupThumbnailHandlers();
 }
 
 /**
  * Setup action handlers
  */
 function setupActionHandlers(handlers) {
-    if (dom.exportBtn) {
-        dom.exportBtn.addEventListener('click', () => {
-            if (handlers.onExport) handlers.onExport();
-        });
-    }
-    
+    // Export button removed
 }
 
 /**
@@ -136,7 +127,7 @@ function setupActionHandlers(handlers) {
 export function updateAllUI() {
     updateFilters();
     updateStats();
-    updateViewMode();
+    updateSpreadsheet();
     updateThumbnailGrid();
 }
 
@@ -144,31 +135,7 @@ export function updateAllUI() {
  * Update filter dropdowns
  */
 function updateFilters() {
-    // Update page filter
-    if (dom.pageFilter) {
-        const pages = getPageNumbers();
-        dom.pageFilter.innerHTML = `
-            <option value="all">All Pages</option>
-            ${pages.map(page => `
-                <option value="${page}" ${thumbnailState.currentPage === page ? 'selected' : ''}>
-                    Page ${page}
-                </option>
-            `).join('')}
-        `;
-    }
-    
-    // Update type filter
-    if (dom.typeFilter) {
-        const types = getSignTypes();
-        dom.typeFilter.innerHTML = `
-            <option value="all">All Types</option>
-            ${types.map(type => `
-                <option value="${type}" ${thumbnailState.filterByType === type ? 'selected' : ''}>
-                    ${type.toUpperCase()}
-                </option>
-            `).join('')}
-        `;
-    }
+    // Filter updates removed - no longer needed
 }
 
 /**
@@ -181,27 +148,311 @@ function updateStats() {
 }
 
 /**
- * Update view mode
+ * Update spreadsheet view
  */
-function updateViewMode() {
-    if (dom.thumbnailGrid && dom.listView) {
-        // Cleanup viewport manager when switching views
-        viewportManager.cleanup();
-        
-        if (thumbnailState.viewMode === 'grid') {
-            dom.thumbnailGrid.style.display = 'grid';
-            dom.listView.style.display = 'none';
-            if (dom.gridViewBtn) dom.gridViewBtn.classList.add('active');
-            if (dom.listViewBtn) dom.listViewBtn.classList.remove('active');
-            updateThumbnailGrid();
-        } else {
-            dom.thumbnailGrid.style.display = 'none';
-            dom.listView.style.display = 'block';
-            if (dom.gridViewBtn) dom.gridViewBtn.classList.remove('active');
-            if (dom.listViewBtn) dom.listViewBtn.classList.add('active');
-            updateListView();
+function updateSpreadsheet() {
+    if (!dom.spreadsheetGrid) {
+        console.warn('Spreadsheet grid container not found');
+        return;
+    }
+
+    const items = getFilteredItems();
+    console.log('Updating spreadsheet with', items.length, 'filtered items');
+
+    // Initialize spreadsheet if not already done
+    if (!thumbnailSpreadsheet.table) {
+        console.log('Initializing spreadsheet for the first time');
+        thumbnailSpreadsheet.init(dom.spreadsheetGrid);
+
+        // Set up data change handler to sync with Mapping Slayer
+        thumbnailSpreadsheet.onDataChange = data => {
+            // Update thumbnail state when data changes
+            data.forEach(item => {
+                if (item.id) {
+                    thumbnailState.productionItems.set(item.id, item);
+                }
+            });
+        };
+    }
+
+    // Transform items to ensure they have all required fields for the spreadsheet
+    const spreadsheetData = items.map(item => {
+        // Use flags from the item (now properly included from createProductionItem)
+        const flags = item.flags || {
+            topLeft: false,
+            topRight: false,
+            bottomLeft: false,
+            bottomRight: false
+        };
+
+        return {
+            id: item.id,
+            locationNumber: item.locationNumber || '',
+            signTypeCode: item.signType || item.signTypeCode || '',
+            markerType: item.markerType || item.signType || item.signTypeCode || 'default',
+            pageNumber: item.pageNumber || 1,
+            message1: item.message1 || '',
+            message2: item.message2 || '',
+            // Include both nested flags object and flat fields for spreadsheet
+            flags: flags,
+            flag1: flags.topLeft,
+            flag2: flags.topRight,
+            flag3: flags.bottomLeft,
+            flag4: flags.bottomRight,
+            installed: item.installed || false,
+            notes: item.notes || '',
+            // Include position data for map preview
+            x: item.x,
+            y: item.y,
+            // Keep original item reference for rendering
+            _originalItem: item
+        };
+    });
+
+    console.log('Spreadsheet data prepared:', spreadsheetData.length, 'items');
+
+    // Update data in spreadsheet
+    thumbnailSpreadsheet.setData(spreadsheetData);
+
+    // Make selectRowAndThumbnail globally available for the spreadsheet
+    window.selectRowAndThumbnail = selectRowAndThumbnail;
+
+    // Add middle-click handler for zooming to dot
+    window.handleMiddleClickZoom = itemId => {
+        console.log('🔶 handleMiddleClickZoom called:', {
+            itemId,
+            previewMode: thumbnailState.previewMode,
+            isMapMode: thumbnailState.previewMode === 'map'
+        });
+        if (thumbnailState.previewMode === 'map') {
+            selectRowAndThumbnail(itemId, true); // true = zoom to dot
+        }
+    };
+
+    // Make the thumbnail app available for syncing
+    if (window.thumbnailApp) {
+        window.thumbnailApp.syncAdapter = thumbnailSyncAdapter;
+    }
+
+    // Update flag column names if configuration is available
+    if (thumbnailSpreadsheet.updateFlagColumnNames) {
+        const updated = thumbnailSpreadsheet.updateFlagColumnNames();
+        if (updated) {
+            thumbnailSpreadsheet.updateHeaderCells();
         }
     }
+}
+
+/**
+ * Create spreadsheet row for an item
+ */
+
+/**
+ * Setup spreadsheet handlers
+ */
+function setupSpreadsheetHandlers() {
+    // Handled by setupSpreadsheetRowHandlers after table creation
+}
+
+/**
+ * Setup spreadsheet row interaction handlers
+ */
+
+/**
+ * Handle spreadsheet click events
+ */
+function handleSpreadsheetClick(e) {
+    const row = e.target.closest('.spreadsheet-row');
+    if (!row) return;
+
+    const itemId = row.dataset.itemId;
+    const item = thumbnailState.productionItems.get(itemId);
+    if (!item) return;
+
+    // Location cell click - highlight thumbnail
+    if (e.target.classList.contains('cell-location')) {
+        selectRowAndThumbnail(itemId);
+        // scrollToThumbnail(itemId); // TODO: Implement if needed
+        return;
+    }
+
+    // Regular row click - just select
+    selectRowAndThumbnail(itemId);
+}
+
+/**
+ * Handle spreadsheet double-click events for editing
+ */
+function handleSpreadsheetDoubleClick(e) {
+    const cell = e.target.closest('.cell-editable');
+    if (!cell) return;
+
+    const row = cell.closest('.spreadsheet-row');
+    if (!row) return;
+
+    const itemId = row.dataset.itemId;
+    const item = thumbnailState.productionItems.get(itemId);
+    if (!item) return;
+
+    makeSpreadsheetCellEditable(cell, item);
+}
+
+/**
+ * Make a spreadsheet cell editable
+ */
+function makeSpreadsheetCellEditable(cell, item) {
+    if (cell.classList.contains('editing')) return;
+
+    const field = cell.dataset.field;
+    const currentValue = item[field] || '';
+
+    // Create input element
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentValue;
+    input.className = 'cell-input';
+
+    // Replace cell content with input
+    cell.innerHTML = '';
+    cell.appendChild(input);
+    cell.classList.add('editing');
+
+    // Focus and select
+    input.focus();
+    input.select();
+
+    // Save on blur or Enter
+    const saveEdit = async () => {
+        const newValue = input.value.trim();
+
+        if (newValue !== currentValue) {
+            // Update local state
+            item[field] = newValue;
+            item.modified = new Date().toISOString();
+            thumbnailState.productionItems.set(item.id, item);
+
+            // Sync to Mapping Slayer
+            try {
+                await thumbnailSyncAdapter.updateLocationField(item.locationId, field, newValue);
+                showSuccess('Field updated successfully');
+
+                // Update thumbnail if visible
+                updateThumbnailForItem(item.id);
+            } catch (error) {
+                console.error('Failed to sync field update:', error);
+                showError('Failed to sync changes');
+            }
+        }
+
+        // Restore cell display
+        cell.textContent = item[field] || '';
+        cell.classList.remove('editing');
+    };
+
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            input.blur();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cell.textContent = currentValue;
+            cell.classList.remove('editing');
+        }
+    });
+}
+
+/**
+ * Select row and corresponding thumbnail
+ * @param {string} itemId - The item ID to select
+ * @param {boolean} zoomToDot - Whether to zoom to dot (for middle-click)
+ */
+function selectRowAndThumbnail(itemId, zoomToDot = false) {
+    console.log('🔵 selectRowAndThumbnail called:', {
+        itemId,
+        zoomToDot,
+        caller: new Error().stack.split('\n')[2]
+    });
+
+    // Update selected state
+    thumbnailState.selectedItemId = itemId;
+
+    // Update row selection
+    document.querySelectorAll('.spreadsheet-row').forEach(row => {
+        row.classList.toggle('selected', row.dataset.itemId === itemId);
+    });
+
+    // Show single preview for selected item
+    showSinglePreview(itemId, zoomToDot);
+}
+
+/**
+ * Show single preview for selected item
+ * @param {string} itemId - The item ID to show
+ * @param {boolean} zoomToDot - Whether to zoom to dot (for middle-click)
+ */
+async function showSinglePreview(itemId, zoomToDot = false) {
+    console.log('🟢 showSinglePreview called:', {
+        itemId,
+        zoomToDot,
+        previewMode: thumbnailState.previewMode
+    });
+
+    const preview = dom.previewContainer;
+    if (!preview) return;
+
+    const item = thumbnailState.productionItems.get(itemId);
+    if (!item) {
+        preview.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-text">No sign selected</div>
+                <div class="empty-hint">Click a row in the spreadsheet to preview</div>
+            </div>
+        `;
+        return;
+    }
+
+    // Use original item if it's a transformed spreadsheet item, but keep the x/y from the spreadsheet item
+    const renderItem = item._originalItem || item;
+    // Ensure we have the position data
+    if (item.x !== undefined) renderItem.x = item.x;
+    if (item.y !== undefined) renderItem.y = item.y;
+
+    // Check preview mode and show appropriate preview
+    const previewMode = thumbnailState.previewMode || 'sign';
+
+    console.log('🟡 Preview mode check:', {
+        previewMode,
+        willShowMap: previewMode === 'map',
+        zoomToDot
+    });
+
+    if (previewMode === 'map') {
+        await showMapLocationPreview(renderItem, zoomToDot);
+    } else {
+        // Clear and render sign preview directly to the preview container
+        preview.innerHTML = '';
+        preview.dataset.itemId = itemId;
+        await renderThumbnailImage(renderItem, preview);
+    }
+}
+
+/**
+ * Scroll to spreadsheet row in left panel
+ */
+
+/**
+ * Setup thumbnail handlers for split view
+ */
+function setupThumbnailHandlers() {
+    // This will be called by updateThumbnailGrid when thumbnails are created
+}
+
+/**
+ * Update thumbnail size based on slider
+ */
+function updateThumbnailSize() {
+    // Removed - single preview doesn't use dynamic sizing
 }
 
 /**
@@ -211,11 +462,11 @@ function openEditModal(item) {
     // Create modal
     const modal = document.createElement('div');
     modal.className = 'edit-modal-overlay';
-    
+
     // Get sign type info to know which fields to show
     const signType = item.signTypeInfo;
     let textFields = [];
-    
+
     // Check if we have proper sign type info with text fields
     if (signType && Array.isArray(signType.textFields) && signType.textFields.length > 0) {
         textFields = signType.textFields;
@@ -225,16 +476,33 @@ function openEditModal(item) {
             { fieldName: 'message', displayName: 'Message', maxLength: 50 },
             { fieldName: 'message2', displayName: 'Message 2', maxLength: 50 }
         ];
-        
+
         // Also check if item has any other text fields we should include
-        const knownFields = ['id', 'locationId', 'locationNumber', 'pageNumber', 'sheetName', 
-                           'signType', 'signTypeCode', 'signTypeName', 'signTypeInfo',
-                           'x', 'y', 'installed', 'vinylBacker', 'codeRequired', 'notes',
-                           'message1', 'status', 'modified'];
-        
+        const knownFields = [
+            'id',
+            'locationId',
+            'locationNumber',
+            'pageNumber',
+            'sheetName',
+            'signType',
+            'signTypeCode',
+            'signTypeName',
+            'signTypeInfo',
+            'x',
+            'y',
+            'installed',
+            'notes',
+            'message1',
+            'status',
+            'modified'
+        ];
+
         Object.keys(item).forEach(key => {
-            if (!knownFields.includes(key) && typeof item[key] === 'string' && 
-                !textFields.find(f => f.fieldName === key)) {
+            if (
+                !knownFields.includes(key) &&
+                typeof item[key] === 'string' &&
+                !textFields.find(f => f.fieldName === key)
+            ) {
                 // Add any unknown string fields as potential text fields
                 textFields.push({
                     fieldName: key,
@@ -245,7 +513,7 @@ function openEditModal(item) {
             }
         });
     }
-    
+
     modal.innerHTML = `
         <div class="edit-modal">
             <div class="edit-modal-header">
@@ -258,15 +526,16 @@ function openEditModal(item) {
                     <span class="sign-type-name">${item.signTypeName || 'Default Sign'}</span>
                 </div>
                 <div class="edit-fields">
-                    ${textFields.map(field => {
-                        const fieldValue = item[field.fieldName] || '';
-                        const displayName = field.displayName || field.fieldName;
-                        // For now, we'll show fields as not required in the UI
-                        // TODO: Update to use signType.isFieldRequired(field.fieldName) when sign type is available
-                        const isRequired = '';
-                        const maxLength = field.maxLength || 100;
-                        
-                        return `
+                    ${textFields
+        .map(field => {
+            const fieldValue = item[field.fieldName] || '';
+            const displayName = field.displayName || field.fieldName;
+            // For now, we'll show fields as not required in the UI
+            // TODO: Update to use signType.isFieldRequired(field.fieldName) when sign type is available
+            const isRequired = '';
+            const maxLength = field.maxLength || 100;
+
+            return `
                             <div class="edit-field-group">
                                 <label for="field-${field.fieldName}">
                                     ${displayName}${isRequired}
@@ -283,7 +552,8 @@ function openEditModal(item) {
                                 />
                             </div>
                         `;
-                    }).join('')}
+        })
+        .join('')}
                 </div>
             </div>
             <div class="edit-modal-footer">
@@ -292,26 +562,26 @@ function openEditModal(item) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     // Setup event handlers
     const closeModal = () => {
         modal.remove();
     };
-    
+
     // Close button
     modal.querySelector('.modal-close').addEventListener('click', closeModal);
     modal.querySelector('.modal-cancel').addEventListener('click', closeModal);
-    
+
     // Click outside
-    modal.addEventListener('click', (e) => {
+    modal.addEventListener('click', e => {
         if (e.target === modal) closeModal();
     });
-    
+
     // Character counters
     modal.querySelectorAll('.edit-field-input').forEach(input => {
-        input.addEventListener('input', (e) => {
+        input.addEventListener('input', e => {
             const fieldName = e.target.dataset.field;
             const counter = modal.querySelector(`.field-counter[data-field="${fieldName}"]`);
             if (counter) {
@@ -319,35 +589,35 @@ function openEditModal(item) {
             }
         });
     });
-    
+
     // Save button
     modal.querySelector('.modal-save').addEventListener('click', async () => {
         const updates = {};
         let hasChanges = false;
-        
+
         // Collect all field values
         modal.querySelectorAll('.edit-field-input').forEach(input => {
             const fieldName = input.dataset.field;
             const newValue = input.value.trim();
             const oldValue = item[fieldName] || '';
-            
+
             if (newValue !== oldValue) {
                 updates[fieldName] = newValue;
                 hasChanges = true;
             }
         });
-        
+
         if (!hasChanges) {
             closeModal();
             return;
         }
-        
+
         // Show loading state
         const saveBtn = modal.querySelector('.modal-save');
         const originalText = saveBtn.textContent;
         saveBtn.textContent = 'Saving...';
         saveBtn.disabled = true;
-        
+
         try {
             // Update local state
             Object.entries(updates).forEach(([field, value]) => {
@@ -356,26 +626,29 @@ function openEditModal(item) {
                 if (field === 'message') item.message1 = value;
                 if (field === 'message2') item.message2 = value;
             });
-            
+
             // Send updates to Mapping Slayer using sync adapter
             let allUpdatesSuccessful = true;
             for (const [field, value] of Object.entries(updates)) {
-                const success = await thumbnailSyncAdapter.updateLocationField(item.locationId, field, value);
+                const success = await thumbnailSyncAdapter.updateLocationField(
+                    item.locationId,
+                    field,
+                    value
+                );
                 if (!success) {
                     allUpdatesSuccessful = false;
                 }
             }
-            
+
             if (!allUpdatesSuccessful) {
                 throw new Error('Some updates failed');
             }
-            
+
             // Re-render the thumbnail using viewport manager
             await viewportManager.updateSingleThumbnail(item.id);
-            
+
             closeModal();
             showSuccess('Sign text updated successfully');
-            
         } catch (error) {
             console.error('Failed to update sign:', error);
             saveBtn.textContent = originalText;
@@ -383,7 +656,7 @@ function openEditModal(item) {
             showError('Failed to update sign text');
         }
     });
-    
+
     // Focus first input
     const firstInput = modal.querySelector('.edit-field-input');
     if (firstInput) {
@@ -393,374 +666,108 @@ function openEditModal(item) {
 }
 
 /**
- * Update thumbnail grid with viewport optimization
+ * Update thumbnail grid for split view
  */
 async function updateThumbnailGrid() {
-    if (!dom.thumbnailGrid) return;
-    
+    // Grid view removed - using single preview on row click instead
+    // Update state with filtered items for compatibility
     const items = getFilteredItems();
-    
-    if (items.length === 0) {
-        dom.thumbnailGrid.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">📋</div>
-                <div class="empty-text">No signs to display</div>
-                <div class="empty-hint">Click "Sync Data" to load signs from Mapping Slayer</div>
-            </div>
-        `;
-        return;
-    }
-    
-    // Clear existing content and cleanup viewport manager
-    viewportManager.cleanup();
-    dom.thumbnailGrid.innerHTML = '';
-    
-    // Update state with filtered items for viewport manager
     thumbnailState.productionItems.clear();
     items.forEach(item => thumbnailState.productionItems.set(item.id, item));
-    
-    // Initialize viewport manager for grid view
-    const scrollContainer = dom.thumbnailGrid.parentElement || dom.thumbnailGrid;
-    viewportManager.initialize(dom.thumbnailGrid, scrollContainer);
-    
-    // Set progress callback
-    viewportManager.onProgress = (message, progress) => {
-        showLoading(true, message);
-        if (progress >= 100) {
-            setTimeout(() => showLoading(false), 500);
+}
+
+/**
+ * Create split view thumbnail element (simplified version without icons)
+ */
+
+/**
+ * Render thumbnail image for an item
+ */
+async function renderThumbnailImage(item, container) {
+    try {
+        let element;
+        let size = thumbnailState.thumbnailSize;
+
+        // Calculate size based on container if it's the preview
+        if (container.id === 'preview-container') {
+            // For preview, use 80% of the smaller container dimension
+            const rect = container.getBoundingClientRect();
+            size = Math.min(rect.width, rect.height) * 0.8;
+            // Cap at a reasonable maximum
+            size = Math.min(size, 800);
         }
-    };
-    
-    // Start viewport-based rendering
-    await viewportManager.updateViewport();
-    
-    // Setup event handlers for thumbnails
-    setupThumbnailEventHandlers();
+
+        // Use SVG renderer
+        const { renderSignThumbnailSVG } = await import('./sign-renderer-svg.js');
+        element = await renderSignThumbnailSVG(item, size);
+
+        // Find existing SVG element and replace
+        const existingElement = container.querySelector('svg');
+        if (existingElement) {
+            existingElement.replaceWith(element);
+        } else {
+            // Insert element as first child to keep it behind overlays
+            container.insertBefore(element, container.firstChild);
+        }
+
+        // Add class to identify SVG thumbnail
+        element.classList.add('svg-thumbnail');
+    } catch (error) {
+        console.error('Failed to render thumbnail:', error);
+        // Create placeholder without removing overlays
+        let placeholder = container.querySelector('.thumbnail-placeholder');
+        if (!placeholder) {
+            placeholder = document.createElement('div');
+            placeholder.className = 'thumbnail-placeholder';
+            placeholder.textContent = 'Failed to load';
+            container.insertBefore(placeholder, container.firstChild);
+        }
+    }
 }
 
-// Note: createThumbnailElement has been replaced by viewport-manager.js
-// which handles efficient rendering with viewport virtualization
-
 /**
- * Update list view
+ * Update thumbnail for specific item
  */
-function updateListView() {
-    if (!dom.listView) return;
-    
-    const items = getFilteredItems();
-    
-    if (items.length === 0) {
-        dom.listView.innerHTML = `
-            <div class="empty-state">
-                No signs to display
-            </div>
-        `;
-        return;
-    }
-    
-    dom.listView.innerHTML = `
-        <table class="list-table">
-            <thead>
-                <tr>
-                    <th>Location</th>
-                    <th>Sign Type</th>
-                    <th>Message 1</th>
-                    <th>Message 2</th>
-                    <th>Sheet</th>
-                    <th>Details</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${items.map(item => `
-                    <tr data-item-id="${item.id}" class="list-row">
-                        <td class="loc-cell">${item.locationNumber}</td>
-                        <td class="type-cell">
-                            ${item.signTypeCode ? `<span class="sign-code">${item.signTypeCode}</span>` : ''}
-                            ${item.signTypeName ? `<span class="sign-name">${item.signTypeName}</span>` : ''}
-                        </td>
-                        <td class="msg-cell">${item.message1 || '-'}</td>
-                        <td class="msg-cell">${item.message2 || '-'}</td>
-                        <td class="sheet-cell">${item.sheetName}</td>
-                        <td class="details-cell">
-                            ${item.notes ? `<span title="${item.notes}">📝</span>` : ''}
-                            ${item.vinylBacker ? `<span title="Vinyl Backer">🎨</span>` : ''}
-                            ${item.codeRequired ? `<span title="Code Required">📋</span>` : ''}
-                            ${item.installed ? `<span title="Installed">✅</span>` : ''}
-                        </td>
-                        <td class="actions-cell">
-                            <button class="list-edit-btn" data-item-id="${item.id}" title="Edit text fields">✏️</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
-    
-    // Add click handlers for edit buttons
-    dom.listView.querySelectorAll('.list-edit-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const itemId = btn.dataset.itemId;
-            const item = thumbnailState.productionItems.get(itemId);
-            if (item) {
-                openEditModal(item);
+async function updateThumbnailForItem(itemId) {
+    const item = thumbnailState.productionItems.get(itemId);
+    if (!item) return;
+
+    // Update thumbnail via viewport manager if possible
+    if (viewportManager.updateSingleThumbnail) {
+        await viewportManager.updateSingleThumbnail(itemId);
+    } else {
+        // Fallback: find and update the thumbnail element directly
+        const thumbnailElement = document.querySelector(
+            `.thumbnail-item[data-item-id="${itemId}"]`
+        );
+        if (thumbnailElement) {
+            const imageContainer = thumbnailElement.querySelector('.thumbnail-image');
+            const textInfo = thumbnailElement.querySelector('.thumbnail-text-info');
+
+            if (imageContainer) {
+                await renderThumbnailImage(item, imageContainer);
             }
-        });
-    });
-}
 
-/**
- * Select an item
- */
-function selectItem(itemId) {
-    thumbnailState.selectedItemId = itemId;
-    
-    // Update visual selection
-    document.querySelectorAll('.thumbnail-item').forEach(el => {
-        el.classList.toggle('selected', el.dataset.itemId === itemId);
-    });
-    
-    // Show detail panel if needed
-    showDetailPanel(itemId);
-}
-
-/**
- * Show detail panel
- */
-function showDetailPanel(itemId) {
-    if (!dom.detailPanel) return;
-    
-    const item = thumbnailState.productionItems.get(itemId);
-    if (!item) return;
-    
-    // TODO: Implement detail panel display
-}
-
-// Note: setupMessageOverlay has been replaced with event delegation in setupThumbnailEventHandlers
-
-/**
- * Make message overlay editable
- */
-function makeEditable(overlay, item) {
-    overlay.contentEditable = 'true';
-    overlay.focus();
-    
-    // Select all text
-    const range = document.createRange();
-    range.selectNodeContents(overlay);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-}
-
-/**
- * Save message edit and update Mapping Slayer
- */
-async function saveMessageEdit(overlay, item) {
-    if (overlay.contentEditable !== 'true') return;
-    
-    overlay.contentEditable = 'false';
-    
-    const field = overlay.dataset.field;
-    const newValue = overlay.textContent.trim();
-    const fieldName = field === 'message' ? 'message1' : field;
-    const oldValue = item[fieldName] || '';
-    
-    // Check if value changed
-    if (newValue === oldValue) return;
-    
-    // Update local state
-    item[fieldName] = newValue;
-    if (field === 'message') {
-        item.message = newValue; // Also update message field
-    }
-    item.modified = new Date().toISOString();
-    thumbnailState.productionItems.set(item.id, item);
-    
-    // Send update to Mapping Slayer using sync adapter
-    await thumbnailSyncAdapter.updateLocationField(item.locationId, field, newValue);
-    
-    // Re-render the thumbnail with new message using viewport manager
-    await viewportManager.updateSingleThumbnail(item.id);
-}
-
-/**
- * Setup event handlers for thumbnails (using event delegation)
- */
-function setupThumbnailEventHandlers() {
-    if (!dom.thumbnailGrid) return;
-    
-    // Remove any existing listeners to prevent duplicates
-    dom.thumbnailGrid.removeEventListener('click', handleThumbnailClick);
-    dom.thumbnailGrid.removeEventListener('dblclick', handleThumbnailDoubleClick);
-    
-    // Add delegated event handlers
-    dom.thumbnailGrid.addEventListener('click', handleThumbnailClick);
-    dom.thumbnailGrid.addEventListener('dblclick', handleThumbnailDoubleClick);
-    
-    // Add delegated handlers for message overlays
-    dom.thumbnailGrid.addEventListener('blur', handleMessageBlur, true);
-    dom.thumbnailGrid.addEventListener('keydown', handleMessageKeydown, true);
-}
-
-/**
- * Handle thumbnail click events (delegated)
- */
-function handleThumbnailClick(e) {
-    const thumbnailItem = e.target.closest('.thumbnail-item');
-    if (!thumbnailItem) return;
-    
-    const itemId = thumbnailItem.dataset.itemId;
-    const item = thumbnailState.productionItems.get(itemId);
-    if (!item) return;
-    
-    // Check if clicking on edit button
-    if (e.target.closest('.thumbnail-edit-btn')) {
-        e.stopPropagation();
-        openEditModal(item);
-        return;
-    }
-    
-    // Check if clicking on an icon
-    const icon = e.target.closest('.thumbnail-icons span');
-    if (icon) {
-        e.stopPropagation();
-        handleIconClick(item, icon);
-        return;
-    }
-    
-    // Check if clicking on message overlay
-    const messageOverlay = e.target.closest('.message-overlay');
-    if (messageOverlay) {
-        e.stopPropagation();
-        makeEditable(messageOverlay, item);
-        return;
-    }
-    
-    // Otherwise select the item
-    selectItem(item.id);
-}
-
-/**
- * Handle thumbnail double-click events (delegated)
- */
-function handleThumbnailDoubleClick(e) {
-    const imageContainer = e.target.closest('.thumbnail-image');
-    if (!imageContainer || e.target.classList.contains('message-overlay')) return;
-    
-    const thumbnailItem = e.target.closest('.thumbnail-item');
-    if (!thumbnailItem) return;
-    
-    const itemId = thumbnailItem.dataset.itemId;
-    const item = thumbnailState.productionItems.get(itemId);
-    if (!item) return;
-    
-    const rect = imageContainer.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const relativeY = y / rect.height;
-    
-    // Determine which message to create based on click position
-    const field = relativeY < 0.5 ? 'message' : 'message2';
-    const fieldName = field === 'message' ? 'message1' : field;
-    
-    if (!item[fieldName]) {
-        // Create new message overlay
-        const overlay = document.createElement('div');
-        overlay.className = `message-overlay ${fieldName}-overlay`;
-        overlay.contentEditable = 'false';
-        overlay.dataset.field = field;
-        overlay.textContent = 'New Message';
-        imageContainer.appendChild(overlay);
-        
-        // Make it editable immediately
-        makeEditable(overlay, item);
+            // Text overlays removed
+        }
     }
 }
 
-/**
- * Handle message blur events (delegated)
- */
-async function handleMessageBlur(e) {
-    const messageOverlay = e.target.closest('.message-overlay');
-    if (!messageOverlay || messageOverlay.contentEditable !== 'true') return;
-    
-    const thumbnailItem = messageOverlay.closest('.thumbnail-item');
-    if (!thumbnailItem) return;
-    
-    const itemId = thumbnailItem.dataset.itemId;
-    const item = thumbnailState.productionItems.get(itemId);
-    if (!item) return;
-    
-    await saveMessageEdit(messageOverlay, item);
-}
+// Note: List view removed - replaced with spreadsheet view
+
+// Note: selectItem and showDetailPanel removed - replaced with selectRowAndThumbnail
+
+// Note: Message overlay editing functions removed - replaced with spreadsheet inline editing
 
 /**
- * Handle message keydown events (delegated)
+ * Setup event handlers for thumbnails in split view
  */
-async function handleMessageKeydown(e) {
-    const messageOverlay = e.target.closest('.message-overlay');
-    if (!messageOverlay || messageOverlay.contentEditable !== 'true') return;
-    
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        messageOverlay.blur();
-    } else if (e.key === 'Escape') {
-        e.preventDefault();
-        const thumbnailItem = messageOverlay.closest('.thumbnail-item');
-        if (!thumbnailItem) return;
-        
-        const itemId = thumbnailItem.dataset.itemId;
-        const item = thumbnailState.productionItems.get(itemId);
-        if (!item) return;
-        
-        const fieldName = messageOverlay.dataset.field === 'message' ? 'message1' : messageOverlay.dataset.field;
-        messageOverlay.textContent = item[fieldName] || '';
-        messageOverlay.contentEditable = 'false';
-    }
-}
 
 /**
- * Handle icon click to toggle state
+ * Handle thumbnail click events in split view
  */
-async function handleIconClick(item, iconElement) {
-    // Determine which icon was clicked
-    let field, newValue;
-    
-    if (iconElement.classList.contains('icon-code')) {
-        field = 'isCodeRequired';
-        newValue = !item.codeRequired;
-    } else if (iconElement.classList.contains('icon-notes')) {
-        // For notes, we might want to open an edit dialog instead
-        // For now, we'll just toggle presence
-        return; // Skip notes for now
-    } else if (iconElement.classList.contains('icon-vinyl')) {
-        field = 'vinylBacker';
-        newValue = !item.vinylBacker;
-    } else if (iconElement.classList.contains('icon-installed')) {
-        field = 'installed';
-        newValue = !item.installed;
-    } else {
-        return;
-    }
-    
-    // Update local state
-    if (field === 'isCodeRequired') {
-        item.codeRequired = newValue; // Update the local property name
-    } else {
-        item[field] = newValue;
-    }
-    
-    // Update the item in the state map to ensure consistency
-    item.modified = new Date().toISOString();
-    thumbnailState.productionItems.set(item.id, item);
-    
-    // Send update to Mapping Slayer using sync adapter
-    await thumbnailSyncAdapter.updateLocationField(item.locationId, field, newValue);
-    
-    // Re-render just this thumbnail using viewport manager
-    await viewportManager.updateSingleThumbnail(item.id);
-}
+
+// Note: Old thumbnail interaction handlers removed - simplified for split view
 
 /**
  * Send update to Mapping Slayer
@@ -802,12 +809,12 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     toast.textContent = message;
-    
+
     document.body.appendChild(toast);
-    
+
     // Animate in
     setTimeout(() => toast.classList.add('show'), 10);
-    
+
     // Remove after 3 seconds
     setTimeout(() => {
         toast.classList.remove('show');
@@ -815,3 +822,407 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
+/**
+ * Setup preview toggle handlers
+ */
+function setupPreviewToggleHandlers() {
+    const signToggle = document.getElementById('toggle-sign-preview');
+    const mapToggle = document.getElementById('toggle-map-preview');
+    const previewTitle = document.getElementById('preview-title');
+
+    if (!signToggle || !mapToggle || !previewTitle) return;
+
+    // Initialize state - Sign Preview is active by default
+    thumbnailState.previewMode = 'sign';
+
+    signToggle.addEventListener('click', () => {
+        if (thumbnailState.previewMode !== 'sign') {
+            thumbnailState.previewMode = 'sign';
+            signToggle.classList.remove('btn-secondary');
+            mapToggle.classList.add('btn-secondary');
+            previewTitle.textContent = 'Thumbnail Preview';
+
+            // Refresh preview if item is selected
+            if (thumbnailState.selectedItemId) {
+                showSinglePreview(thumbnailState.selectedItemId);
+            }
+        }
+    });
+
+    mapToggle.addEventListener('click', () => {
+        if (thumbnailState.previewMode !== 'map') {
+            thumbnailState.previewMode = 'map';
+            mapToggle.classList.remove('btn-secondary');
+            signToggle.classList.add('btn-secondary');
+            previewTitle.textContent = 'Map Location Preview';
+
+            // Refresh preview if item is selected
+            if (thumbnailState.selectedItemId) {
+                showSinglePreview(thumbnailState.selectedItemId);
+            }
+        }
+    });
+}
+
+/**
+ * Apply transform to map content
+ */
+function applyMapTransform(mapContent, transform) {
+    mapContent.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
+}
+
+/**
+ * Setup map interaction handlers
+ */
+function setupMapInteraction(mapContainer, mapContent) {
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialTransform = { x: 0, y: 0 };
+
+    // Mouse wheel zoom
+    mapContainer.addEventListener('wheel', e => {
+        e.preventDefault();
+        const rect = mapContainer.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        const transform = thumbnailState.mapTransform;
+        const oldScale = transform.scale;
+        const newScale = Math.max(0.1, Math.min(5, oldScale * scaleFactor));
+
+        // Zoom from mouse position
+        transform.x = mouseX - (mouseX - transform.x) * (newScale / oldScale);
+        transform.y = mouseY - (mouseY - transform.y) * (newScale / oldScale);
+        transform.scale = newScale;
+
+        applyMapTransform(mapContent, transform);
+    });
+
+    // Mouse down - start panning with middle button only
+    mapContainer.addEventListener('mousedown', e => {
+        if (e.button === 1) {
+            // Middle button for panning
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            initialTransform = {
+                x: thumbnailState.mapTransform.x,
+                y: thumbnailState.mapTransform.y
+            };
+            mapContainer.style.cursor = 'grabbing';
+            mapContent.style.transition = 'none';
+        } else if (e.button === 0) {
+            // Left button - do nothing (no panning)
+            e.preventDefault();
+        }
+    });
+
+    // Mouse move - pan if dragging
+    document.addEventListener('mousemove', e => {
+        if (isDragging) {
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+
+            thumbnailState.mapTransform.x = initialTransform.x + dx;
+            thumbnailState.mapTransform.y = initialTransform.y + dy;
+
+            applyMapTransform(mapContent, thumbnailState.mapTransform);
+        }
+    });
+
+    // Mouse up - stop panning
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            mapContainer.style.cursor = 'default';
+            mapContent.style.transition = 'transform 0.3s ease-out';
+        }
+    });
+
+    // Prevent context menu on right click
+    mapContainer.addEventListener('contextmenu', e => {
+        e.preventDefault();
+    });
+}
+
+/**
+ * Show Map Location Preview for selected item
+ * @param {Object} item - The item to show
+ * @param {boolean} zoomToDot - Whether to zoom to the dot location
+ */
+async function showMapLocationPreview(item, zoomToDot = false) {
+    const preview = dom.previewContainer;
+    if (!preview) return;
+
+    try {
+        const pageNum = item.pageNumber || 1;
+
+        // Initialize state if needed
+        if (!thumbnailState.mapTransform) {
+            thumbnailState.mapTransform = { x: 0, y: 0, scale: 1 };
+        }
+        if (thumbnailState.isPanning === undefined) {
+            thumbnailState.isPanning = false;
+        }
+        if (!thumbnailState.panStart) {
+            thumbnailState.panStart = { x: 0, y: 0 };
+        }
+
+        console.log('🔴 showMapLocationPreview called:', {
+            itemId: item.id,
+            zoomToDot,
+            hasExistingTransform: !!thumbnailState.mapTransform,
+            existingTransform: thumbnailState.mapTransform,
+            hasInitializedMap: thumbnailState.hasInitializedMap,
+            currentPageNum: thumbnailState.currentPageNum
+        });
+
+        // Check if we already have a map displayed for the same page
+        const existingMapContainer = preview.querySelector('.map-preview-container');
+        const needsNewMap = !existingMapContainer || thumbnailState.currentPageNum !== pageNum;
+
+        console.log('🔴 Map state check:', {
+            hasExistingMap: !!existingMapContainer,
+            currentPage: thumbnailState.currentPageNum,
+            newPage: pageNum,
+            needsNewMap
+        });
+
+        // Get page data (cache per page, not per item)
+        const pageCacheKey = `page_${pageNum}`;
+        let response = thumbnailState.mapPreviewCache.get(pageCacheKey);
+
+        if (!response) {
+            // Show loading state only if we need to fetch
+            preview.innerHTML = `
+                <div class="map-preview-loading">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading map preview...</div>
+                </div>
+            `;
+
+            // Request PDF page image from Mapping Slayer
+            response = await window.appBridge.sendRequest('mapping_slayer', {
+                type: 'get-page-image',
+                pageNumber: pageNum,
+                scale: 1.5 // Good balance of quality and performance
+            });
+
+            if (!response || response.error) {
+                throw new Error(response?.error || 'Failed to get map data');
+            }
+
+            // Cache the response for future use
+            thumbnailState.mapPreviewCache.set(pageCacheKey, response);
+        }
+
+        // Create the map preview container
+        const mapContainer = document.createElement('div');
+        mapContainer.className = 'map-preview-container';
+        mapContainer.style.cssText = `
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            cursor: default;
+            user-select: none;
+        `;
+
+        // Create a content wrapper for transformation
+        const mapContent = document.createElement('div');
+        mapContent.className = 'map-preview-content';
+        mapContent.style.cssText = `
+            position: absolute;
+            transform-origin: 0 0;
+            transition: transform 0.3s ease-out;
+            will-change: transform;
+        `;
+
+        // Create the map image
+        const mapImage = document.createElement('img');
+        mapImage.src = response.imageData;
+        mapImage.style.cssText = `
+            display: block;
+            background: #fff;
+            border: 1px solid #555;
+            pointer-events: none;
+        `;
+        mapImage.draggable = false;
+
+        // Calculate dot position on the scaled image
+        // The dots are stored at 4x scale in Mapping Slayer
+        // We need to convert from 4x coordinates to the requested scale
+        const originalScale = 4.0; // Mapping Slayer's pdfScale
+        const requestedScale = response.scale || 1.5;
+        const scaleRatio = requestedScale / originalScale;
+        const dotX = (item.x || 0) * scaleRatio;
+        const dotY = (item.y || 0) * scaleRatio;
+
+        console.log('Map preview item data:', {
+            itemId: item.id,
+            locationNumber: item.locationNumber,
+            x: item.x,
+            y: item.y,
+            pageNumber: item.pageNumber,
+            dotX,
+            dotY,
+            requestedScale,
+            scaleRatio,
+            imageDimensions: response.dimensions
+        });
+
+        // Create and position the dot (outside of onload)
+        const dot = document.createElement('div');
+        dot.className = 'map-preview-dot';
+        dot.style.cssText = `
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #f07727;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(240, 119, 39, 0.8);
+            z-index: 10;
+            pointer-events: none;
+            left: ${dotX - 8}px;
+            top: ${dotY - 8}px;
+        `;
+
+        // Function to setup the map view
+        const setupMapView = () => {
+            const containerRect = mapContainer.getBoundingClientRect();
+            const imgWidth = mapImage.naturalWidth || response.dimensions.width;
+            const imgHeight = mapImage.naturalHeight || response.dimensions.height;
+
+            console.log('🟣 setupMapView called:', {
+                zoomToDot,
+                hasInitializedMap: thumbnailState.hasInitializedMap,
+                currentTransform: thumbnailState.mapTransform,
+                containerSize: { width: containerRect.width, height: containerRect.height },
+                imageSize: { width: imgWidth, height: imgHeight }
+            });
+
+            if (zoomToDot) {
+                // Zoom to dot when requested (middle-click)
+                const zoomLevel = 2.0;
+
+                // Calculate transform to center on the dot
+                thumbnailState.mapTransform = {
+                    scale: zoomLevel,
+                    // Center the dot in the container
+                    x: containerRect.width / 2 - dotX * zoomLevel,
+                    y: containerRect.height / 2 - dotY * zoomLevel
+                };
+
+                console.log('🟣 ZOOMING to dot (middle-click):', {
+                    dotX,
+                    dotY,
+                    zoomLevel,
+                    newTransform: thumbnailState.mapTransform
+                });
+
+                // Apply the zoom transform
+                applyMapTransform(mapContent, thumbnailState.mapTransform);
+            } else if (!thumbnailState.mapTransform || !thumbnailState.hasInitializedMap) {
+                // Very first time - initialize with full view
+                const scale =
+                    Math.min(containerRect.width / imgWidth, containerRect.height / imgHeight) *
+                    0.9; // 90% to leave some margin
+
+                thumbnailState.mapTransform = {
+                    scale: scale,
+                    x: (containerRect.width - imgWidth * scale) / 2,
+                    y: (containerRect.height - imgHeight * scale) / 2
+                };
+
+                thumbnailState.hasInitializedMap = true;
+                console.log('🟣 INITIALIZING map view (first time):', {
+                    newTransform: thumbnailState.mapTransform
+                });
+                applyMapTransform(mapContent, thumbnailState.mapTransform);
+            } else {
+                // Regular click - keep existing transform, don't change anything
+                console.log('🟣 KEEPING existing transform (left-click):', {
+                    existingTransform: thumbnailState.mapTransform
+                });
+                applyMapTransform(mapContent, thumbnailState.mapTransform);
+            }
+        };
+
+        // If we already have a map for this page, just update the dot
+        if (!needsNewMap && existingMapContainer) {
+            console.log('🔴 Updating existing map - just moving dot');
+
+            // Find and update the existing dot
+            const existingDot = existingMapContainer.querySelector('.map-preview-dot');
+            if (existingDot) {
+                existingDot.style.left = `${dotX - 8}px`;
+                existingDot.style.top = `${dotY - 8}px`;
+            } else {
+                // Add the dot if it doesn't exist
+                const mapContent = existingMapContainer.querySelector('.map-preview-content');
+                if (mapContent) {
+                    mapContent.appendChild(dot);
+                }
+            }
+
+            // ONLY zoom/pan if specifically requested (middle-click)
+            if (zoomToDot) {
+                const containerRect = existingMapContainer.getBoundingClientRect();
+                const zoomLevel = 2.0;
+
+                thumbnailState.mapTransform = {
+                    scale: zoomLevel,
+                    x: containerRect.width / 2 - dotX * zoomLevel,
+                    y: containerRect.height / 2 - dotY * zoomLevel
+                };
+
+                console.log('🔴 ZOOMING to dot on existing map (middle-click)');
+                const mapContent = existingMapContainer.querySelector('.map-preview-content');
+                if (mapContent) {
+                    applyMapTransform(mapContent, thumbnailState.mapTransform);
+                }
+            } else {
+                console.log('🔴 NOT moving map (left-click) - just updating dot position');
+            }
+
+            // Don't rebuild the map, just return
+            return;
+        }
+
+        // Otherwise, build a new map
+        console.log('🔴 Building new map container');
+
+        mapContent.appendChild(mapImage);
+        mapContent.appendChild(dot); // Add dot after image
+        mapContainer.appendChild(mapContent);
+
+        // Add mouse event handlers for pan and zoom
+        setupMapInteraction(mapContainer, mapContent);
+
+        preview.innerHTML = '';
+        preview.appendChild(mapContainer);
+
+        // Store current page
+        thumbnailState.currentPageNum = pageNum;
+
+        // Setup on load or immediately if already loaded, after container is in DOM
+        if (mapImage.complete) {
+            // Use setTimeout to ensure container dimensions are calculated
+            setTimeout(setupMapView, 0);
+        } else {
+            mapImage.onload = () => setTimeout(setupMapView, 0);
+        }
+    } catch (error) {
+        console.error('Failed to show map preview:', error);
+        preview.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-text">Map preview unavailable</div>
+                <div class="empty-hint">${error.message}</div>
+            </div>
+        `;
+    }
+}

@@ -63,7 +63,7 @@ const UndoManager = {
         this.restoreState(snapshot.state);
         this.isUndoing = false;
         this.updateUI();
-        
+
         return snapshot.actionName;
     },
 
@@ -76,7 +76,7 @@ const UndoManager = {
         this.restoreState(snapshot.state);
         this.isUndoing = false;
         this.updateUI();
-        
+
         return snapshot.actionName;
     },
 

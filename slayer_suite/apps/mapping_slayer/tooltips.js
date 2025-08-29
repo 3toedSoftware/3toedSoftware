@@ -5,11 +5,11 @@ const TooltipManager = {
     tooltips: [],
     activeTooltip: null,
     showTimeout: null,
-    
+
     init() {
         this.createTooltipDefinitions();
         this.setupEventListeners();
-        
+
         // Check if tooltips were previously enabled
         try {
             const savedState = sessionStorage.getItem('mapping-slayer-tooltips-enabled');
@@ -20,7 +20,7 @@ const TooltipManager = {
             // Ignore if sessionStorage not available
         }
     },
-    
+
     createTooltipDefinitions() {
         this.tooltips = [
             // Header controls
@@ -44,7 +44,7 @@ const TooltipManager = {
                 text: 'Replace find text with replacement text in all selected locations.',
                 position: 'bottom'
             },
-            
+
             // Left panel - Marker Types
             {
                 selector: '#add-marker-type-btn',
@@ -76,7 +76,7 @@ const TooltipManager = {
                 text: 'Delete this marker type and all associated dots from the entire project.',
                 position: 'right'
             },
-            
+
             // Left panel - List section
             {
                 selector: '#toggle-view-btn',
@@ -88,7 +88,7 @@ const TooltipManager = {
                 text: 'Show locations from all pages in the list, or just the current page.',
                 position: 'right'
             },
-            
+
             // Map controls
             {
                 selector: '#help-btn',
@@ -141,7 +141,7 @@ const TooltipManager = {
                 text: 'Enter a custom label for this page (e.g., "First Floor", "A-101"). Labels appear in exports and legends.',
                 position: 'top'
             },
-            
+
             // Footer controls - Automap
             {
                 selector: '#automap-marker-type-select',
@@ -163,7 +163,7 @@ const TooltipManager = {
                 text: 'Start the automatic mapping process. Only works with PDFs that have live text (not scanned images).',
                 position: 'top'
             },
-            
+
             // Footer controls - Size and export
             {
                 selector: '#dot-size-slider',
@@ -190,14 +190,14 @@ const TooltipManager = {
                 text: 'Export annotations in Bluebeam Revu BAX format for importing into Revu projects.',
                 position: 'top'
             },
-            
+
             // Left panel - List section toggle
             {
                 selector: '#sort-toggle-btn',
                 text: 'Toggle between sorting by location number or by marker type name.',
                 position: 'right'
             },
-            
+
             // Location list items
             {
                 selector: '.location-item',
@@ -214,7 +214,7 @@ const TooltipManager = {
                 text: 'Edit the message for this location. Changes are saved automatically.',
                 position: 'right'
             },
-            
+
             // Map dots
             {
                 selector: '.ms-map-dot',
@@ -223,43 +223,43 @@ const TooltipManager = {
             }
         ];
     },
-    
+
     setupEventListeners() {
         // Add event listeners for tooltip triggers
         document.addEventListener('mouseenter', this.handleMouseEnter.bind(this), true);
         document.addEventListener('mouseleave', this.handleMouseLeave.bind(this), true);
         document.addEventListener('click', this.handleClick.bind(this), true);
     },
-    
+
     enable() {
         this.isEnabled = true;
         document.body.classList.add('ms-tooltips-enabled');
-        
+
         // Save state
         try {
             sessionStorage.setItem('mapping-slayer-tooltips-enabled', 'true');
         } catch (e) {
             // Ignore if sessionStorage not available
         }
-        
+
         this.updateToggleButton();
     },
-    
+
     disable() {
         this.isEnabled = false;
         document.body.classList.remove('ms-tooltips-enabled');
         this.hideTooltip();
-        
+
         // Save state
         try {
             sessionStorage.setItem('mapping-slayer-tooltips-enabled', 'false');
         } catch (e) {
             // Ignore if sessionStorage not available
         }
-        
+
         this.updateToggleButton();
     },
-    
+
     toggle() {
         if (this.isEnabled) {
             this.disable();
@@ -267,7 +267,7 @@ const TooltipManager = {
             this.enable();
         }
     },
-    
+
     updateToggleButton() {
         const button = document.getElementById('tooltips-btn');
         if (button) {
@@ -275,44 +275,47 @@ const TooltipManager = {
             button.classList.toggle('ms-active', this.isEnabled);
         }
     },
-    
+
     handleMouseEnter(e) {
         if (!this.isEnabled) return;
-        
+
         // Ensure target is an Element
         if (!e.target || typeof e.target.closest !== 'function') return;
-        
+
         // Check if the target or any parent matches a tooltip selector
         const element = e.target.closest(this.tooltips.map(t => t.selector).join(','));
         if (!element) return;
-        
+
         // Find the matching tooltip definition
         const tooltip = this.tooltips.find(t => element.matches(t.selector));
         if (!tooltip) return;
-        
+
         // Don't show tooltip if element is disabled
         if (element.disabled) return;
-        
+
         // Don't show tooltip on input elements that are focused
-        if ((element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') && element === document.activeElement) {
+        if (
+            (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') &&
+            element === document.activeElement
+        ) {
             return;
         }
-        
+
         // Delay before showing tooltip
         clearTimeout(this.showTimeout);
         this.showTimeout = setTimeout(() => {
             this.showTooltip(element, tooltip);
         }, 500);
     },
-    
+
     handleMouseLeave(e) {
         if (!this.isEnabled) return;
-        
+
         clearTimeout(this.showTimeout);
-        
+
         // Ensure target is an Element
         if (!e.target || typeof e.target.closest !== 'function') return;
-        
+
         // Only hide if we're leaving the element that has the tooltip
         const element = e.target.closest(this.tooltips.map(t => t.selector).join(','));
         if (element && this.activeTooltip && this.activeTooltip.element === element) {
@@ -321,85 +324,85 @@ const TooltipManager = {
             }, 100);
         }
     },
-    
+
     handleClick(e) {
         if (!this.isEnabled) return;
-        
+
         // Hide tooltip on click unless clicking the tooltip itself
         if (!e.target.closest('.ms-tooltip-popup')) {
             this.hideTooltip();
         }
     },
-    
+
     showTooltip(element, tooltipDef) {
         if (!this.isEnabled) return;
-        
+
         this.hideTooltip();
-        
+
         const tooltip = document.createElement('div');
         tooltip.className = 'ms-tooltip-popup';
         tooltip.textContent = tooltipDef.text;
         document.body.appendChild(tooltip);
-        
+
         this.positionTooltip(tooltip, element, tooltipDef.position);
-        
+
         // Show with animation
         setTimeout(() => {
             tooltip.classList.add('ms-visible');
         }, 10);
-        
+
         this.activeTooltip = {
             element: element,
             tooltip: tooltip
         };
     },
-    
+
     positionTooltip(tooltip, element, position) {
         const rect = element.getBoundingClientRect();
         const tooltipRect = tooltip.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         const spacing = 8;
-        
+
         let left, top;
-        
+
         switch (position) {
             case 'top':
-                left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+                left = rect.left + rect.width / 2 - tooltipRect.width / 2;
                 top = rect.top - tooltipRect.height - spacing;
                 tooltip.setAttribute('data-position', 'top');
                 break;
             case 'bottom':
-                left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+                left = rect.left + rect.width / 2 - tooltipRect.width / 2;
                 top = rect.bottom + spacing;
                 tooltip.setAttribute('data-position', 'bottom');
                 break;
             case 'left':
                 left = rect.left - tooltipRect.width - spacing;
-                top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+                top = rect.top + rect.height / 2 - tooltipRect.height / 2;
                 tooltip.setAttribute('data-position', 'left');
                 break;
             case 'right':
                 left = rect.right + spacing;
-                top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+                top = rect.top + rect.height / 2 - tooltipRect.height / 2;
                 tooltip.setAttribute('data-position', 'right');
                 break;
             case 'center':
             default:
-                left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+                left = rect.left + rect.width / 2 - tooltipRect.width / 2;
                 top = rect.bottom + spacing;
                 tooltip.setAttribute('data-position', 'bottom');
                 break;
         }
-        
+
         // Keep tooltip in viewport
         left = Math.max(10, Math.min(left, viewportWidth - tooltipRect.width - 10));
         top = Math.max(10, Math.min(top, viewportHeight - tooltipRect.height - 10));
-        
+
         tooltip.style.left = `${left}px`;
         tooltip.style.top = `${top}px`;
     },
-    
+
     hideTooltip() {
         if (this.activeTooltip) {
             this.activeTooltip.tooltip.classList.remove('ms-visible');

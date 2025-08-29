@@ -1,34 +1,46 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thumbnail Slayer - Slayer Suite</title>
-</head>
-<body>
-    <div id="app-container"></div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Thumbnail Slayer - Slayer Suite</title>
 
-    <script type="module">
-        async function initializeApp() {
-            try {
-                const { initializeCore } = await import('../../core/index.js');
-                const ThumbnailSlayerApp = (await import('./thumbnail-app.js')).default;
+        <!-- Tabulator CSS -->
+        <link
+            href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator_midnight.min.css"
+            rel="stylesheet"
+        />
 
-                initializeCore(true);
+        <!-- Tabulator JS -->
+        <script
+            type="text/javascript"
+            src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"
+        ></script>
+    </head>
+    <body>
+        <div id="app-container"></div>
 
-                const container = document.getElementById('app-container');
-                const thumbnailApp = new ThumbnailSlayerApp();
-                
-                await thumbnailApp.initialize(container);
-                await thumbnailApp.activate();
-                
-                console.log('✅ Thumbnail Slayer app initialized successfully!');
-            } catch (error) {
-                console.error('❌ Thumbnail Slayer app failed to initialize:', error);
+        <script type="module">
+            async function initializeApp() {
+                try {
+                    const { initializeCore } = await import('../../core/index.js');
+                    const ThumbnailSlayerApp = (await import('./thumbnail-app.js')).default;
+
+                    initializeCore(true);
+
+                    const container = document.getElementById('app-container');
+                    const thumbnailApp = new ThumbnailSlayerApp();
+
+                    await thumbnailApp.initialize(container);
+                    await thumbnailApp.activate();
+
+                    console.log('✅ Thumbnail Slayer app initialized successfully!');
+                } catch (error) {
+                    console.error('❌ Thumbnail Slayer app failed to initialize:', error);
+                }
             }
-        }
 
-        initializeApp();
-    </script>
-</body>
+            initializeApp();
+        </script>
+    </body>
 </html>

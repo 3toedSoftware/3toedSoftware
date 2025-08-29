@@ -7,39 +7,309 @@
     box-sizing: border-box;
 }
 
+/* Custom scrollbar styles - Make them always visible */
+::-webkit-scrollbar {
+    width: 16px;
+    height: 16px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 7px;
+    border: 1px solid #333;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #f07727;
+    border-radius: 8px;
+    border: 2px solid #2a2a2a;
+    opacity: 0.8;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #ff8833;
+}
+
+::-webkit-scrollbar-corner {
+    background: #2a2a2a;
+}
+
 body {
     font-family: Helvetica, Arial, sans-serif;
-    background: #1B1C1D;
+    background: #1b1c1d;
     color: #ffffff;
     font-size: 14px;
     height: 100vh;
+    margin: 0;
+    padding: 0;
     overflow: hidden;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
 }
 
 /* Main container */
 .thumbnail-slayer-app {
     display: flex;
     flex-direction: column;
+    flex: 1;
     height: 100%;
-    background: #1a1a1a;
+    background: #333537;
     position: relative;
 }
 
-/* Top Bar */
-.top-bar {
+/* Main content area */
+.main-content {
+    height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Footer bar */
+.footer-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: #2a2b2d;
+    border-top: 1px solid #3d3e40;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 100;
+}
+
+.footer-content {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #999;
+    font-size: 12px;
+}
+
+/* Status bar for selection info */
+.status-bar {
+    font-size: 13px;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+}
+
+#selection-info {
+    color: #f07727;
+    font-weight: 500;
+}
+
+/* Split View Container */
+.split-view-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    background: #555;
+    position: relative;
+}
+
+/* Panel Sections */
+.spreadsheet-panel {
+    flex: 1;
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    position: relative;
+    min-width: 300px;
+}
+
+.thumbnails-panel {
+    flex: 1;
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    position: relative;
+    min-width: 200px;
+}
+
+/* Panel Resizer */
+.panel-resizer {
+    width: 4px;
+    background: #555;
+    cursor: col-resize;
+    position: relative;
+    transition: background 0.2s;
+}
+
+.panel-resizer:hover {
+    background: #f07727;
+}
+
+.panel-resizer:active {
+    background: #ff8833;
+}
+
+/* Resizing state */
+.split-view-container.resizing {
+    user-select: none;
+    cursor: col-resize;
+}
+
+.split-view-container.resizing * {
+    pointer-events: none;
+}
+
+.panel-section {
     background: #333537;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0;
+    overflow: hidden;
+}
+
+.panel-header {
+    background: #2a2a2a;
     border-bottom: 1px solid #555;
-    padding: 10px 15px;
+    padding: 12px 15px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
     flex-shrink: 0;
 }
+
+.panel-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+/* Preview toggle controls */
+.preview-toggle-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.preview-toggle-controls .btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background: #444;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.preview-toggle-controls .btn:hover {
+    background: #555;
+    border-color: #666;
+}
+
+.preview-toggle-controls .btn:not(.btn-secondary) {
+    background: #f07727;
+    border-color: #f07727;
+    color: #fff;
+}
+
+.preview-toggle-controls .btn:not(.btn-secondary):hover {
+    background: #ff8833;
+    border-color: #ff8833;
+}
+
+.preview-toggle-controls .btn.btn-secondary {
+    background: #444;
+    border-color: #555;
+    color: #ccc;
+}
+
+.preview-toggle-controls .btn.btn-secondary:hover {
+    background: #555;
+    border-color: #666;
+    color: #fff;
+}
+
+/* Map preview styles */
+.map-preview-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #999;
+}
+
+.map-preview-loading .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #444;
+    border-top: 3px solid #f07727;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+.map-preview-loading .loading-text {
+    font-size: 14px;
+    color: #999;
+}
+
+.map-preview-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #1a1a1a;
+}
+
+.map-preview-dot {
+    position: absolute;
+    animation: dotPulse 2s ease-in-out infinite;
+}
+
+/* map-preview-info removed - info shown in spreadsheet */
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes dotPulse {
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(240, 119, 39, 0.8);
+    }
+    50% {
+        transform: scale(1.2);
+        box-shadow: 0 0 20px rgba(240, 119, 39, 1);
+    }
+}
+
+.panel-stats {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.panel-stats .stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #f07727;
+    line-height: 1;
+}
+
+.panel-stats .stat-label {
+    font-size: 11px;
+    color: #999;
+}
+
+/* Top Bar */
+/* Top bar removed */
 
 .sync-controls {
     display: flex;
@@ -57,8 +327,12 @@ body {
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .sync-status {
@@ -66,39 +340,7 @@ body {
     color: #999;
 }
 
-.filter-controls {
-    display: flex;
-    gap: 15px;
-    flex: 1;
-    justify-content: center;
-}
-
-.filter-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.filter-group label {
-    font-size: 12px;
-    color: #ccc;
-    font-weight: bold;
-}
-
-.filter-select {
-    background: #2a2a2a;
-    border: 1px solid #555;
-    color: white;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.filter-select:focus {
-    border-color: #f07727;
-    outline: none;
-}
+/* Filter controls removed */
 
 .view-controls {
     display: flex;
@@ -131,51 +373,320 @@ body {
     border-color: #f07727;
 }
 
-/* Main Content */
-.main-content {
+/* Spreadsheet Container */
+.spreadsheet-container {
     flex: 1;
     overflow: hidden;
     position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Important for Firefox to respect flex sizing */
 }
 
-/* Thumbnail Grid - Optimized for viewport virtualization */
-.thumbnail-grid {
-    height: 100%;
-    padding: 20px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    grid-auto-rows: 300px;
-    gap: 20px;
-    overflow-y: auto;
-    overflow-x: hidden;
+.spreadsheet-grid {
+    flex: 1;
+    overflow: hidden; /* Let Tabulator handle its own scrolling */
+    background: #2a2a2a;
     position: relative;
 }
 
-.thumbnail-item {
+/* Tabulator Spreadsheet Customization */
+.tabulator {
+    background-color: #2a2a2a;
+    height: 100%; /* Ensure Tabulator fills its container */
+    border: none;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 12px;
+}
+
+/* Custom styles for selected range */
+.range-selected {
+    background-color: rgba(33, 150, 243, 0.1) !important;
+    position: relative;
+}
+
+/* Style for the active/focused cell */
+.active-cell {
+    position: relative;
+    z-index: 10;
+}
+
+.active-cell::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    border: 2px solid #1976d2;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Improved selection styles for dark theme */
+.spreadsheet-table td.range-selected {
+    background-color: rgba(240, 119, 39, 0.15) !important;
+    border-color: #2196f3 !important;
+}
+
+.spreadsheet-table td.active-cell {
+    outline: 2px solid #ff9944 !important;
+    outline-offset: -1px;
+    z-index: 10;
+}
+
+/* Make sure editing still works */
+.tabulator-editing {
+    z-index: 20;
+}
+
+.tabulator .tabulator-header {
+    background-color: #2a2a2a;
+    border-bottom: 2px solid #555;
+}
+
+.tabulator .tabulator-header .tabulator-col {
+    background-color: #2a2a2a;
+    border-right: 1px solid #444;
+    color: #f07727;
+    font-weight: bold;
+}
+
+.tabulator .tabulator-header .tabulator-col.tabulator-sortable:hover {
+    background-color: #333;
+}
+
+.tabulator .tabulator-table {
+    background-color: #333537;
+}
+
+.tabulator .tabulator-row {
+    background-color: #333537;
+    border-bottom: 1px solid #444;
+    color: #fff;
+    min-height: 30px;
+}
+
+.tabulator .tabulator-row:hover {
+    background-color: #3a3a3a;
+}
+
+.tabulator .tabulator-row.tabulator-selected {
+    background-color: #4a4a4a !important;
+}
+
+.tabulator .tabulator-row .tabulator-cell {
+    border-right: 1px solid #444;
+    padding: 6px 8px;
+}
+
+.tabulator .tabulator-row .tabulator-cell.tabulator-editing {
+    background: #2a2a2a;
+    border: 2px solid #f07727;
+}
+
+.tabulator .tabulator-row .tabulator-cell.tabulator-editing input {
     background: transparent;
-    border-radius: 8px;
+    color: #fff;
+    border: none;
+}
+
+/* Sort arrows */
+.tabulator .tabulator-header .tabulator-arrow {
+    border-bottom-color: #f07727;
+    border-top-color: #f07727;
+}
+
+/* Context menu */
+.spreadsheet-context-menu {
+    background: #2a2a2a;
+    border: 1px solid #555;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Old spreadsheet table - kept for compatibility */
+.spreadsheet-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #333537;
+    min-width: 800px;
+}
+
+.spreadsheet-table th {
+    background: #2a2a2a;
+    color: #f07727;
+    padding: 5px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: bold;
+    border-bottom: 2px solid #555;
+    border-right: 1px solid #444;
+    position: sticky;
+    top: 0;
+    z-index: 2; /* Lower z-index to avoid blocking */
+    white-space: nowrap;
+    user-select: none;
+}
+
+.spreadsheet-table th:last-child {
+    border-right: none;
+}
+
+.spreadsheet-table td {
+    padding: 3px 12px;
+    border-bottom: 1px solid #444;
+    border-right: 1px solid #444;
+    font-size: 10px;
+    vertical-align: top;
+    white-space: nowrap;
+    max-width: 150px;
     overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.spreadsheet-table td:last-child {
+    border-right: none;
+}
+
+.spreadsheet-table tr {
+    transition: background 0.2s ease;
+}
+
+.spreadsheet-table tr:hover {
+    background: #3a3a3a;
+}
+
+.spreadsheet-table tr.selected {
+    background: #4a4a4a;
+    border-left: 3px solid #f07727;
+}
+
+/* Editable cells */
+.cell-editable {
+    cursor: text;
+    position: relative;
+}
+
+.cell-editable:hover {
+    background: #444;
+}
+
+.cell-editable input {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 12px;
+    width: 100%;
+    padding: 0;
+    outline: none;
+}
+
+.cell-editable.editing {
+    background: #444;
+    border: 1px solid #f07727;
+}
+
+.cell-location {
+    font-weight: bold;
+    color: #f07727;
     cursor: pointer;
-    transition: all 0.2s;
-    border: 2px solid transparent;
+}
+
+.cell-type {
+    color: #ccc;
+}
+
+.cell-message {
+    color: #fff;
+    max-width: 200px;
+}
+
+.cell-sheet {
+    color: #999;
+}
+
+/* Thumbnails Container */
+.thumbnails-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Allow shrinking */
+}
+
+.thumbnail-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.thumbnail-controls label {
+    font-size: 12px;
+    color: #ccc;
+}
+
+.size-slider {
+    width: 80px;
+    height: 4px;
+    background: #444;
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #f07727;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.size-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #f07727;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+/* Preview Container */
+.preview-container {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: #2a2a2a;
+    padding: 20px;
+    overflow: auto;
+}
+
+/* SVG renders directly in the preview container */
+.preview-container svg {
+    width: auto;
+    height: auto;
+    max-width: 90%;
+    max-height: 90%;
+    display: block;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+}
+
+/* SVG-specific styles for crisp rendering */
+.preview-container svg {
+    shape-rendering: crispEdges;
+    text-rendering: optimizeLegibility;
+}
+
+/* Ensure SVG thumbnails scale properly */
+.svg-thumbnail {
+    width: 100%;
     height: 100%;
-}
-
-.thumbnail-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.thumbnail-item.selected {
-    border-color: #f07727;
-    box-shadow: 0 0 0 3px rgba(240, 119, 39, 0.3);
-}
-
-.thumbnail-item.complete {
-    border-color: #00b360;
+    max-width: 100%;
+    max-height: 100%;
 }
 
 .thumbnail-item.in-progress {
@@ -184,7 +695,7 @@ body {
 
 .thumbnail-image {
     background: #2a2a2a;
-    flex: 1;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -193,8 +704,78 @@ body {
     overflow: hidden;
 }
 
-.thumbnail-image canvas {
+.thumbnail-image svg {
     display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* Thumbnail Location Badge */
+.thumbnail-location-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #f07727;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    z-index: 2;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Text Overlay Container */
+.thumbnail-text-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+    padding: 15px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 1;
+}
+
+/* Overlay Messages */
+.overlay-message {
+    color: white;
+    font-size: 11px;
+    line-height: 1.3;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.overlay-message.message1 {
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.overlay-message.message2 {
+    opacity: 0.9;
+    font-size: 10px;
+}
+
+/* Sign Type Badge */
+.thumbnail-type-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #999;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    z-index: 2;
+    text-transform: uppercase;
 }
 
 /* Message overlays for editing */
@@ -225,7 +806,7 @@ body {
     opacity: 1 !important;
 }
 
-.message-overlay[contenteditable="true"] {
+.message-overlay[contenteditable='true'] {
     opacity: 1 !important;
     border-color: #f07727;
     background: #ffffff;
@@ -279,21 +860,7 @@ body {
     font-size: 14px;
 }
 
-/* Detail icons */
-.thumbnail-icons {
-    display: flex;
-    gap: 4px;
-}
-
-.thumbnail-icons span {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    cursor: help;
-}
+/* Note: Icon styles removed - using text overlays instead */
 
 /* Edit button */
 .thumbnail-edit-btn {
@@ -332,8 +899,12 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .edit-modal {
@@ -523,52 +1094,7 @@ body {
     background: #17a2b8;
 }
 
-/* Icon inactive states */
-.icon-code {
-    color: #666;
-    opacity: 0.5;
-}
-
-.icon-code.active {
-    color: #FFD700;
-    opacity: 1;
-}
-
-.icon-notes {
-    font-size: 16px;
-    opacity: 0.5;
-}
-
-.icon-notes.active {
-    opacity: 1;
-}
-
-.icon-vinyl {
-    background: #444;
-    color: #666;
-    font-weight: bold;
-    opacity: 0.5;
-}
-
-.icon-vinyl.active {
-    background: #4a90e2;
-    color: #ffffff;
-    opacity: 1;
-}
-
-.icon-installed {
-    background: #444;
-    color: #666;
-    font-weight: bold;
-    font-size: 18px;
-    opacity: 0.5;
-}
-
-.icon-installed.active {
-    background: #00b360;
-    color: #ffffff;
-    opacity: 1;
-}
+/* Note: Icon styles removed for clean split-view design */
 
 /* Bottom bar */
 .thumbnail-bottom-bar {
@@ -651,13 +1177,7 @@ body {
     color: #f07727;
 }
 
-.thumbnail-details .vinyl-backer {
-    color: #00b360;
-}
-
-.thumbnail-details .code-required {
-    color: #4a90e2;
-}
+/* Vinyl backer and code required styles removed */
 
 .thumbnail-details .installed {
     color: #00b360;
@@ -897,15 +1417,12 @@ body {
     color: #ccc;
 }
 
-.toggle-label input[type="checkbox"] {
+.toggle-label input[type='checkbox'] {
     width: 14px;
     height: 14px;
 }
 
-.action-buttons {
-    display: flex;
-    gap: 10px;
-}
+/* Action buttons removed */
 
 /* Buttons */
 .btn {
@@ -965,6 +1482,11 @@ body {
     padding: 60px 20px;
     color: #666;
     grid-column: 1 / -1;
+    display: none;
+}
+
+.preview-container .empty-state {
+    display: block;
 }
 
 .empty-icon {
@@ -997,6 +1519,12 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    pointer-events: none; /* Don't block interaction when hidden */
+}
+
+.loading-overlay[style*='block'],
+.loading-overlay[style*='flex'] {
+    pointer-events: auto; /* Enable pointer events only when visible */
 }
 
 .loading-spinner {
@@ -1137,37 +1665,74 @@ body {
     .filter-controls {
         flex-wrap: wrap;
     }
-    
+
     .stats-container {
         gap: 15px;
     }
-    
+
     .stat-value {
         font-size: 20px;
     }
 }
 
 @media (max-width: 768px) {
-    .top-bar,
-    .bottom-bar {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .filter-controls {
-        width: 100%;
-        justify-content: flex-start;
-        overflow-x: auto;
-    }
-    
-    .thumbnail-grid {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 15px;
-        padding: 15px;
-    }
-    
+    /* Top bar and filter controls removed */
+
+    /* Grid styles removed - using single preview */
+
     .display-toggles {
         flex-direction: column;
         gap: 10px;
     }
+}
+
+/* When embedded in suite mode */
+.slayer-app-container .thumbnail-slayer-app {
+    height: 100%;
+}
+
+/* When in standalone mode */
+#app-container {
+    height: 100%;
+}
+
+#app-container .thumbnail-slayer-app {
+    height: 100%;
+}
+
+/* Ensure content area fills available space */
+.app-content-area {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.app-content-area .thumbnail-slayer-app {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+}
+
+/* Ensure scrollable areas work properly */
+.spreadsheet-grid *,
+.preview-container * {
+    pointer-events: auto;
+}
+
+/* Make sure scrollbars are interactive */
+.preview-container::-webkit-scrollbar {
+    pointer-events: auto !important;
+}
+
+/* Enable smooth scrolling */
+.preview-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Ensure proper touch/mouse interaction */
+.spreadsheet-panel,
+.thumbnails-panel {
+    touch-action: pan-y; /* Allow vertical scrolling on touch devices */
 }

@@ -6,7 +6,7 @@
 
 body {
     font-family: Helvetica, Arial, sans-serif;
-    background: #1B1C1D;
+    background: #1b1c1d;
     color: #ffffff;
     font-size: 14px;
     height: 100vh;
@@ -41,7 +41,6 @@ body {
     font-size: 12px;
     color: #ccc;
 }
-
 
 .ms-find-replace-container {
     display: flex;
@@ -226,7 +225,6 @@ body {
     animation: pulse-orange 2s infinite;
 }
 
-
 .ms-btn-compact {
     padding: 3px 5px;
     font-size: 9px;
@@ -258,15 +256,27 @@ body {
 }
 
 @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(255, 102, 0, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(255, 102, 0, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(255, 102, 0, 0); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 102, 0, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 102, 0, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 102, 0, 0);
+    }
 }
 
 @keyframes pulse-orange {
-    0% { box-shadow: 0 0 0 0 rgba(255, 136, 0, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(255, 136, 0, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(255, 136, 0, 0); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 136, 0, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 136, 0, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 136, 0, 0);
+    }
 }
 
 .ms-left-panel {
@@ -352,6 +362,7 @@ body {
     transition: background 0.2s;
     border: 2px solid transparent;
     min-height: 32px;
+    gap: 4px;
 }
 
 .ms-filter-checkbox:hover {
@@ -364,7 +375,7 @@ body {
     background-color: #454545;
 }
 
-.ms-filter-checkbox input[type="checkbox"] {
+.ms-filter-checkbox input[type='checkbox'] {
     margin: 0 8px;
     width: 16px;
     height: 16px;
@@ -381,13 +392,7 @@ body {
     flex-shrink: 0;
 }
 
-.ms-marker-type-inputs {
-    display: flex;
-    flex-direction: row;
-    flex: 1;
-    min-width: 0;
-    gap: 3px;
-}
+/* Removed duplicate .ms-marker-type-inputs - see line 2234 for the active rule */
 
 .ms-dynamic-input {
     padding: 1px 4px !important;
@@ -539,7 +544,6 @@ body {
     color: #ff4444;
 }
 
-
 .ms-list-section {
     flex: 2;
     min-height: 0;
@@ -563,7 +567,7 @@ body {
     margin-left: 8px;
 }
 
-.ms-all-pages-container input[type="checkbox"] {
+.ms-all-pages-container input[type='checkbox'] {
     accent-color: #f07727;
 }
 
@@ -756,7 +760,6 @@ body {
     width: 100%;
 }
 
-
 .ms-grouped-location-item:hover {
     background: #4a4a4a;
 }
@@ -783,9 +786,7 @@ body {
     text-overflow: ellipsis;
 }
 
-.ms-marker-type-badge.code-required-badge {
-    border: 2px solid yellow;
-}
+/* Code required badge removed */
 
 .ms-location-details {
     padding: 0 10px 10px;
@@ -898,7 +899,7 @@ body {
 }
 
 .ms-crop-btn.active {
-    background: #4CAF50;
+    background: #4caf50;
     color: white;
 }
 
@@ -909,7 +910,7 @@ body {
 
 .ms-crop-overlay {
     position: absolute;
-    border: 2px solid #4CAF50;
+    border: 2px solid #4caf50;
     background: rgba(76, 175, 80, 0.1);
     pointer-events: none;
     z-index: 999;
@@ -923,7 +924,7 @@ body {
     position: absolute;
     width: 25px;
     height: 25px;
-    background: #4CAF50;
+    background: #4caf50;
     border: 3px solid #fff;
     border-radius: 50%;
     cursor: pointer;
@@ -1001,7 +1002,7 @@ body {
     border-left: 1px solid #555;
 }
 
-.ms-crop-all-pages-container input[type="checkbox"] {
+.ms-crop-all-pages-container input[type='checkbox'] {
     margin: 0;
     cursor: pointer;
 }
@@ -1025,7 +1026,9 @@ body {
     font-weight: bold;
     transform: translate(-50%, -50%);
     z-index: 100;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition:
+        transform 0.2s,
+        box-shadow 0.2s;
     /* Prevent text selection on dots */
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -1033,9 +1036,8 @@ body {
     user-select: none;
 }
 
-
 .ms-dot-number {
-     text-shadow: none;
+    text-shadow: none;
 }
 
 .ms-map-dot:hover {
@@ -1050,20 +1052,29 @@ body {
 }
 
 .ms-map-dot.search-highlight {
-    box-shadow: 0 0 15px #f07727, 0 0 30px #f07727;
+    box-shadow:
+        0 0 15px #f07727,
+        0 0 30px #f07727;
     z-index: 200;
     animation: searchPulse 1.5s ease-in-out infinite;
 }
 
 .ms-map-dot.ms-selected {
-    box-shadow: 0 0 15px #f07727, 0 0 30px #f07727 !important;
+    box-shadow:
+        0 0 15px #f07727,
+        0 0 30px #f07727 !important;
     z-index: 200;
     border: 2px solid #f07727 !important;
 }
 
 @keyframes searchPulse {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); }
-    50% { transform: translate(-50%, -50%) scale(1.3); }
+    0%,
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.3);
+    }
 }
 
 .ms-map-dot-message {
@@ -1124,7 +1135,7 @@ body {
     font-weight: bold;
     color: #ffffff;
     z-index: 10;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .ms-dot-installed-checkmark {
@@ -1134,27 +1145,7 @@ body {
     justify-content: center;
 }
 
-.ms-dot-vinyl-backer {
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    background: #0088ff;
-    border: 2px solid #ffffff;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: bold;
-    color: #ffffff;
-    z-index: -1;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
-
-.ms-dot-vinyl-backer::before {
-    content: 'V';
-    line-height: 1;
-}
+/* Vinyl backer styles removed */
 
 .ms-selection-box {
     position: absolute;
@@ -1299,7 +1290,7 @@ body {
     font-size: 12px;
 }
 
-.ms-automap-checkbox-group input[type="checkbox"] {
+.ms-automap-checkbox-group input[type='checkbox'] {
     accent-color: #f07727;
 }
 
@@ -1530,8 +1521,12 @@ body {
 }
 
 @keyframes glow-green {
-    from { box-shadow: 0 0 5px #00ff00; }
-    to { box-shadow: 0 0 15px #00ff00; }
+    from {
+        box-shadow: 0 0 5px #00ff00;
+    }
+    to {
+        box-shadow: 0 0 15px #00ff00;
+    }
 }
 
 .ms-train-big-box {
@@ -1547,8 +1542,12 @@ body {
 }
 
 @keyframes glow-green-box {
-    from { box-shadow: 0 0 10px #00ff00; }
-    to { box-shadow: 0 0 20px #00ff00; }
+    from {
+        box-shadow: 0 0 10px #00ff00;
+    }
+    to {
+        box-shadow: 0 0 20px #00ff00;
+    }
 }
 
 .ms-train-small-box {
@@ -1578,30 +1577,40 @@ body {
 }
 
 @keyframes pulse-green {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
 }
 
 /* Flash animation for upload area */
 @keyframes flash-green {
-    0%, 100% { 
+    0%,
+    100% {
         border-color: #666;
         background-color: rgba(42, 42, 42, 0.8);
         box-shadow: none;
         transform: translate(-50%, -50%) scale(1);
     }
-    50% { 
+    50% {
         border-color: #00ff88;
         background-color: rgba(0, 255, 136, 0.2);
-        box-shadow: 0 0 30px rgba(0, 255, 136, 0.8), inset 0 0 20px rgba(0, 255, 136, 0.3);
+        box-shadow:
+            0 0 30px rgba(0, 255, 136, 0.8),
+            inset 0 0 20px rgba(0, 255, 136, 0.3);
         transform: translate(-50%, -50%) scale(1.05);
     }
 }
 
 /* More dramatic flash animation for buttons */
 @keyframes flash-green-button {
-    0%, 100% { 
+    0%,
+    100% {
         background-color: #f07727;
         box-shadow: none;
         transform: scale(1);
@@ -1611,9 +1620,11 @@ body {
         box-shadow: 0 0 20px rgba(0, 255, 136, 0.9);
         transform: scale(1.1);
     }
-    50% { 
+    50% {
         background-color: #00ff88;
-        box-shadow: 0 0 30px rgba(0, 255, 136, 1), 0 0 40px rgba(0, 255, 136, 0.5);
+        box-shadow:
+            0 0 30px rgba(0, 255, 136, 1),
+            0 0 40px rgba(0, 255, 136, 0.5);
         transform: scale(1.15);
     }
     75% {
@@ -1659,7 +1670,7 @@ body {
     transform: scale(1);
 }
 
-.ms-tooltip-popup[data-position="top"]::after {
+.ms-tooltip-popup[data-position='top']::after {
     content: '';
     position: absolute;
     top: 100%;
@@ -1669,7 +1680,7 @@ body {
     border-top-color: #f07727;
 }
 
-.ms-tooltip-popup[data-position="bottom"]::after {
+.ms-tooltip-popup[data-position='bottom']::after {
     content: '';
     position: absolute;
     bottom: 100%;
@@ -1679,7 +1690,7 @@ body {
     border-bottom-color: #f07727;
 }
 
-.ms-tooltip-popup[data-position="left"]::after {
+.ms-tooltip-popup[data-position='left']::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -1689,7 +1700,7 @@ body {
     border-left-color: #f07727;
 }
 
-.ms-tooltip-popup[data-position="right"]::after {
+.ms-tooltip-popup[data-position='right']::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -1750,7 +1761,7 @@ body {
     border-radius: 3px;
     border: 1px solid transparent;
     transition: all 0.2s;
-    line-height: .65;
+    line-height: 0.65;
     font-size: 11px;
 }
 
@@ -1852,14 +1863,13 @@ body {
     gap: 3px;
 }
 
-.ms-tooltip-style-selector input[type="radio"] {
+.ms-tooltip-style-selector input[type='radio'] {
     accent-color: #f07727;
 }
 
 .ms-tooltip-style-selector.ms-hidden {
     display: none;
 }
-
 
 .ms-modal {
     display: none;
@@ -1939,7 +1949,6 @@ body {
 }
 /* END NEW MODAL STYLES */
 
-
 .ms-modal-subheader {
     font-size: 9px;
     color: #aaa;
@@ -1981,7 +1990,6 @@ body {
     color: #ccc;
     font-weight: normal;
 }
-
 
 .ms-form-label {
     display: block;
@@ -2123,7 +2131,6 @@ body {
     color: #ccc;
 }
 
-
 .ms-automap-progress-bar {
     width: 100%;
     height: 20px;
@@ -2180,7 +2187,7 @@ body {
 .ms-roomlist-preview-item:last-child {
     border-bottom: none;
 }
-.ms-roomlist-preview-item input[type="checkbox"] {
+.ms-roomlist-preview-item input[type='checkbox'] {
     width: 16px;
     height: 16px;
     accent-color: #f07727;
@@ -2233,15 +2240,16 @@ body {
 .ms-marker-type-inputs {
     display: flex;
     gap: 4px;
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
+    max-width: 180px;
 }
 
 .ms-marker-type-code-input {
-      width: 100%;
-      min-width: 30px;
-      max-width: 55px;
-      flex-shrink: 0;
+    width: 100%;
+    min-width: 30px;
+    max-width: 55px;
+    flex-shrink: 0;
 }
 
 .ms-marker-type-name-input {
@@ -2251,8 +2259,10 @@ body {
 }
 
 .ms-design-reference-container {
-    margin-left: 0px;
-    margin-right: 0px;
+    display: flex;
+    align-items: center;
+    margin-left: 8px;
+    margin-right: 4px;
     flex-shrink: 0;
 }
 
@@ -2330,7 +2340,7 @@ body {
     transition: all 0.2s ease;
     z-index: 10;
     padding: 0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .ms-design-reference-delete:hover {
@@ -2380,7 +2390,8 @@ body {
 
 .ms-design-reference-input {
     display: none;
-}.train-cancel-btn {
+}
+.train-cancel-btn {
     position: absolute;
     top: -15px;
     right: 0;
@@ -2392,7 +2403,6 @@ body {
     cursor: pointer;
     z-index: 302;
 }
-
 
 /* Modal Positioning Fixes for Suite Integration */
 #mapping-slayer-edit-modal,
@@ -2457,8 +2467,6 @@ body {
     flex-direction: column;
     gap: 5px;
 }
-
-
 
 /* Fields Wrapper */
 .ms-fields-wrapper {
@@ -2571,7 +2579,6 @@ body {
     color: #f07727;
 }
 
-
 .ms-text-field-item {
     display: grid;
     grid-template-columns: auto 1fr auto auto auto;
@@ -2657,7 +2664,6 @@ body {
     border-top: 2px solid #f07727;
 }
 
-
 /* Automap progress modal has different structure */
 #mapping-slayer-automap-progress-modal .ms-automap-progress-content {
     position: fixed !important;
@@ -2676,16 +2682,16 @@ body {
 }
 
 /* Ensure modals show when they have display: block */
-#mapping-slayer-edit-modal[style*="display: block"],
-#mapping-slayer-group-edit-modal[style*="display: block"],
-#mapping-slayer-renumber-modal[style*="display: block"],
-#mapping-slayer-pdf-export-modal[style*="display: block"],
-#mapping-slayer-character-warning-modal[style*="display: block"],
-#mapping-slayer-controls-modal[style*="display: block"],
-#mapping-slayer-ocr-info-modal[style*="display: block"],
-#mapping-slayer-save-roomlist-modal[style*="display: block"],
-#mapping-slayer-disclaimer-modal[style*="display: block"],
-#mapping-slayer-automap-progress-modal[style*="display: block"] {
+#mapping-slayer-edit-modal[style*='display: block'],
+#mapping-slayer-group-edit-modal[style*='display: block'],
+#mapping-slayer-renumber-modal[style*='display: block'],
+#mapping-slayer-pdf-export-modal[style*='display: block'],
+#mapping-slayer-character-warning-modal[style*='display: block'],
+#mapping-slayer-controls-modal[style*='display: block'],
+#mapping-slayer-ocr-info-modal[style*='display: block'],
+#mapping-slayer-save-roomlist-modal[style*='display: block'],
+#mapping-slayer-disclaimer-modal[style*='display: block'],
+#mapping-slayer-automap-progress-modal[style*='display: block'] {
     display: block !important;
 }
 
@@ -2705,7 +2711,7 @@ body {
 }
 
 .ms-annotation-line.ms-selected {
-    background-color: #00FF88 !important;
+    background-color: #00ff88 !important;
     box-shadow: 0 0 4px rgba(0, 255, 136, 0.5);
 }
 
@@ -2825,4 +2831,233 @@ body {
 #single-automap-btn {
     white-space: nowrap;
     min-width: fit-content;
+}
+
+/* Flag Customization Modal Styles */
+.ms-flag-modal-content {
+    width: 280px;
+    max-width: 90vw;
+}
+
+.ms-flag-modal-body {
+    padding: 15px;
+    max-height: none;
+    overflow-y: visible;
+}
+
+.ms-flag-visual-container {
+    position: relative;
+    width: auto;
+    min-height: 162px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 20px;
+    padding: 10px;
+    justify-items: center;
+    max-width: 260px;
+}
+
+.ms-flag-corner {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: #3a3a3a;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #555;
+}
+
+.ms-flag-top-left {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.ms-flag-top-right {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.ms-flag-bottom-left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.ms-flag-bottom-right {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+.ms-flag-name-input {
+    width: 80px;
+    padding: 3px;
+    background: #2a2a2a;
+    border: 1px solid #555;
+    color: #fff;
+    border-radius: 3px;
+    text-align: center;
+    font-size: 11px;
+}
+
+.ms-flag-name-input:focus {
+    outline: none;
+    border-color: #f07727;
+}
+
+.ms-flag-symbol-selector {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: #2a2a2a;
+    padding: 4px;
+    border-radius: 3px;
+    border: 1px solid #555;
+}
+
+.ms-flag-prev-btn,
+.ms-flag-next-btn {
+    width: 18px;
+    height: 18px;
+    background: #555;
+    color: #fff;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: background 0.2s;
+}
+
+.ms-flag-prev-btn:hover,
+.ms-flag-next-btn:hover {
+    background: #f07727;
+}
+
+.ms-flag-symbol-display {
+    width: 28px;
+    height: 28px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    min-width: 28px;
+}
+
+.ms-flag-symbol-display.ms-flag-active {
+    border-color: #f07727;
+    background: #2a2a2a;
+}
+
+.ms-flag-symbol-display img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.ms-flag-upload-btn {
+    width: 100%;
+    padding: 3px;
+    background: #2a2a2a;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.2s;
+}
+
+.ms-flag-upload-btn:hover {
+    background: #3a3a3a;
+    border-color: #f07727;
+}
+
+/* Flag indicators on dots */
+.ms-dot-flag {
+    position: absolute;
+    font-size: 12px;
+    line-height: 1;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    z-index: 5;
+}
+
+.ms-dot-flag-top-left {
+    top: -8px;
+    left: -8px;
+}
+
+.ms-dot-flag-top-right {
+    top: -8px;
+    right: -8px;
+}
+
+.ms-dot-flag-bottom-left {
+    bottom: -8px;
+    left: -8px;
+}
+
+.ms-dot-flag-bottom-right {
+    bottom: -8px;
+    right: -8px;
+}
+
+/* Flag selectors in edit modals */
+.ms-modal-header-flags {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+}
+
+.ms-flag-selector-item {
+    display: flex;
+    align-items: center;
+}
+
+.ms-flag-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ms-flag-label {
+    font-size: 12px;
+    color: #ccc;
+    min-width: 80px;
+}
+
+.ms-flag-cycle-btn {
+    width: 40px;
+    height: 40px;
+    background: #2a2a2a;
+    border: 2px solid #555;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ms-flag-cycle-btn:hover {
+    border-color: #f07727;
+    background: #3a3a3a;
+}
+
+.ms-flag-cycle-btn.ms-flag-indeterminate {
+    border-style: dashed;
+    opacity: 0.6;
+}
+
+.ms-flag-symbol {
+    font-size: 20px;
+    line-height: 1;
 }

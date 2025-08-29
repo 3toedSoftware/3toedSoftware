@@ -11,7 +11,7 @@ const ProjectIO = {
      * @param {object} projectDataToSave - An object containing all necessary data to save the project.
      * @returns {void} - Triggers a file download of the .mslay file.
      */
-    save: async function(projectDataToSave) {
+    save: async function (projectDataToSave) {
         const pdfBuffer = projectDataToSave.sourcePdfBuffer;
         if (!pdfBuffer || pdfBuffer.byteLength === 0) {
             alert('Cannot save. The source PDF buffer is missing or empty.');
@@ -49,10 +49,9 @@ const ProjectIO = {
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
-
         } catch (error) {
-            console.error("Failed to save project:", error);
-            alert("An error occurred while saving the project. Check the console for details.");
+            console.error('Failed to save project:', error);
+            alert('An error occurred while saving the project. Check the console for details.');
         } finally {
             saveBtn.textContent = originalBtnText;
             saveBtn.disabled = false;
@@ -65,10 +64,10 @@ const ProjectIO = {
      * @param {File} file - The file selected by the user.
      * @returns {Promise<object|null>} A promise that resolves to an object containing the loaded data.
      */
-    load: async function(file) {
-    try {
-        const fileBuffer = await file.arrayBuffer();
-        const fileName = file.name.toLowerCase();
+    load: async function (file) {
+        try {
+            const fileBuffer = await file.arrayBuffer();
+            const fileName = file.name.toLowerCase();
 
             // --- Handle .mslay project files ---
             if (fileName.endsWith('.mslay')) {
@@ -84,7 +83,7 @@ const ProjectIO = {
                 const pdfBuffer = fileBuffer.slice(4 + jsonLength);
 
                 if (pdfBuffer.byteLength === 0) {
-                    throw new Error("The PDF file within the .mslay project is empty.");
+                    throw new Error('The PDF file within the .mslay project is empty.');
                 }
 
                 // 4. Create a copy for pdf.js to prevent buffer consumption
@@ -103,7 +102,7 @@ const ProjectIO = {
             else if (fileName.endsWith('.pdf')) {
                 // Create a copy of the buffer for pdf.js to prevent it from being consumed
                 const pdfJsBuffer = fileBuffer.slice(0);
-            
+
                 // Load the copy into pdf.js for rendering.
                 const loadingTask = pdfjsLib.getDocument(new Uint8Array(pdfJsBuffer));
                 const pdfDocForRender = await loadingTask.promise;
@@ -112,7 +111,7 @@ const ProjectIO = {
                 return {
                     isProject: false,
                     pdfDoc: pdfDocForRender,
-                    pdfBuffer: fileBuffer  // Return the original, unconsumed buffer
+                    pdfBuffer: fileBuffer // Return the original, unconsumed buffer
                 };
             }
             // --- Handle .slayer project files (suite-level) ---
@@ -128,10 +127,9 @@ const ProjectIO = {
             }
             // --- Handle unsupported file types ---
             else {
-                 alert('Unsupported file type. Please upload a .pdf, .mslay, or .slayer file.');
-                 return null;
+                alert('Unsupported file type. Please upload a .pdf, .mslay, or .slayer file.');
+                return null;
             }
-
         } catch (error) {
             console.error('Error loading file in ProjectIO:', error);
             alert(`Failed to load file: ${error.message}`);

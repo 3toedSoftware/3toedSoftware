@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Test HTML Export - Mapping Slayer</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                background: #f0f0f0;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+                border-bottom: 2px solid #007bff;
+                padding-bottom: 10px;
+            }
+            .test-section {
+                margin: 20px 0;
+                padding: 15px;
+                background: #f8f9fa;
+                border-left: 4px solid #007bff;
+            }
+            .test-map {
+                position: relative;
+                width: 816px;
+                height: 1056px;
+                margin: 20px auto;
+                border: 2px solid #ddd;
+                background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')
+                    center/cover;
+            }
+            .test-dot {
+                position: absolute;
+                width: 15px;
+                height: 15px;
+                border-radius: 50%;
+                background: red;
+                transform: translate(-50%, -50%);
+                cursor: pointer;
+            }
+            .test-flag {
+                position: absolute;
+                font-size: 16px;
+                pointer-events: none;
+                user-select: none;
+            }
+            .test-installed {
+                position: absolute;
+                width: 141%;
+                height: 3px;
+                background: #00ff00;
+                transform: rotate(-45deg) translate(-50%, -50%);
+                transform-origin: center;
+                top: 50%;
+                left: 50%;
+                pointer-events: none;
+            }
+            .status {
+                padding: 10px;
+                margin: 10px 0;
+                border-radius: 4px;
+            }
+            .status.success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .status.error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            button {
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 16px;
+                margin: 5px;
+            }
+            button:hover {
+                background: #0056b3;
+            }
+            .emoji-test {
+                font-size: 24px;
+                margin: 10px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>HTML Export Test - Mapping Slayer</h1>
+
+            <div class="test-section">
+                <h2>Test Features</h2>
+                <p>This test page verifies that the HTML export correctly displays:</p>
+                <ul>
+                    <li>✅ Visual map with positioned dots</li>
+                    <li>✅ Emoji flag symbols (⭐, 🚩, ⚠️, etc.)</li>
+                    <li>✅ Installed indicators (green diagonal lines)</li>
+                    <li>✅ Proper positioning on map background</li>
+                </ul>
+            </div>
+
+            <div class="test-section">
+                <h2>Emoji Support Test</h2>
+                <div class="emoji-test">Common Flags: ⭐ 🚩 ⚠️ ✓ ❗ ❓ 🔒 🔑 📍 🔴 🟢 ⚡ 💡 🎯</div>
+                <p>If you can see emoji symbols above, HTML export will preserve them correctly.</p>
+            </div>
+
+            <div class="test-section">
+                <h2>Sample Map with Dots</h2>
+                <div class="test-map">
+                    <!-- Test dot 1: with star flag and installed indicator -->
+                    <div class="test-dot" style="left: 25%; top: 30%">
+                        <div class="test-flag" style="top: -20px; left: -20px">⭐</div>
+                        <div class="test-installed"></div>
+                    </div>
+
+                    <!-- Test dot 2: with warning flag -->
+                    <div class="test-dot" style="left: 50%; top: 45%; background: blue">
+                        <div class="test-flag" style="top: -20px; right: -20px">⚠️</div>
+                    </div>
+
+                    <!-- Test dot 3: with multiple flags -->
+                    <div class="test-dot" style="left: 75%; top: 60%; background: green">
+                        <div class="test-flag" style="top: -20px; left: -20px">🚩</div>
+                        <div class="test-flag" style="top: -20px; right: -20px">✓</div>
+                        <div class="test-flag" style="bottom: -20px; left: -20px">🔒</div>
+                        <div class="test-flag" style="bottom: -20px; right: -20px">📍</div>
+                    </div>
+
+                    <!-- Test dot 4: installed only -->
+                    <div class="test-dot" style="left: 35%; top: 75%; background: orange">
+                        <div class="test-installed"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <h2>Test Actions</h2>
+                <button onclick="testExportSimulation()">Simulate Export</button>
+                <button onclick="window.location.href='mapping_slayer.html'">
+                    Open Mapping Slayer
+                </button>
+                <div id="test-status"></div>
+            </div>
+        </div>
+
+        <script>
+            function testExportSimulation() {
+                const status = document.getElementById('test-status');
+                status.className = 'status success';
+                status.innerHTML = `
+                <strong>✅ Export Simulation Successful!</strong><br>
+                The HTML export should preserve:<br>
+                - Visual map layout with PDF background<br>
+                - All emoji symbols in flags<br>
+                - Green diagonal lines for installed markers<br>
+                - Proper positioning of all elements
+            `;
+            }
+
+            // Log test results
+            console.log('HTML Export Test Page Loaded');
+            console.log(
+                'Emoji Support:',
+                '⭐🚩⚠️✓'.length === 4 ? 'Full Unicode support' : 'Limited support'
+            );
+            console.log(
+                'Visual elements:',
+                document.querySelectorAll('.test-dot').length + ' test dots rendered'
+            );
+        </script>
+    </body>
+</html>

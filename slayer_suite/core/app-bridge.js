@@ -8,12 +8,12 @@ import { SYNC_EVENTS } from './data-models.js';
 
 export class AppBridge {
     constructor() {
-        this.apps = new Map();           // Registered apps: name -> app instance
+        this.apps = new Map(); // Registered apps: name -> app instance
         this.eventBus = new EventTarget(); // Event system for broadcasts
-        this.activeApp = null;           // Currently active app
-        this.isDebugMode = false;        // Debug logging
-        this.syncHandlers = new Map();   // Sync event handlers
-        this.sharedData = new Map();     // Shared data store for cross-app state
+        this.activeApp = null; // Currently active app
+        this.isDebugMode = false; // Debug logging
+        this.syncHandlers = new Map(); // Sync event handlers
+        this.sharedData = new Map(); // Shared data store for cross-app state
     }
 
     /**
@@ -27,7 +27,13 @@ export class AppBridge {
         }
 
         // Validate app has required methods
-        const requiredMethods = ['initialize', 'activate', 'deactivate', 'exportData', 'importData'];
+        const requiredMethods = [
+            'initialize',
+            'activate',
+            'deactivate',
+            'exportData',
+            'importData'
+        ];
         for (const method of requiredMethods) {
             if (typeof app[method] !== 'function') {
                 throw new Error(`AppBridge: App '${name}' missing required method: ${method}`);
@@ -100,10 +106,9 @@ export class AppBridge {
             await targetApp.activate();
             this.activeApp = targetApp;
             this.broadcast('app:activated', { appName: appName });
-            
+
             this.log(`Switched to app: ${appName}`);
             return true;
-
         } catch (error) {
             console.error(`AppBridge: Error switching to app '${appName}':`, error);
             return false;
@@ -126,30 +131,29 @@ export class AppBridge {
 
         try {
             this.log(`Data request: ${fromApp} -> ${targetApp}`, query);
-            
+
             // Check if target app supports data requests
             if (typeof target.handleDataRequest === 'function') {
                 const result = await target.handleDataRequest(fromApp, query);
-                this.broadcast('data:requested', { 
-                    fromApp, 
-                    targetApp, 
-                    query, 
-                    success: true 
+                this.broadcast('data:requested', {
+                    fromApp,
+                    targetApp,
+                    query,
+                    success: true
                 });
                 return result;
             } else {
                 console.warn(`AppBridge: App '${targetApp}' doesn't support data requests`);
                 return null;
             }
-
         } catch (error) {
             console.error(`AppBridge: Error requesting data from '${targetApp}':`, error);
-            this.broadcast('data:requested', { 
-                fromApp, 
-                targetApp, 
-                query, 
-                success: false, 
-                error: error.message 
+            this.broadcast('data:requested', {
+                fromApp,
+                targetApp,
+                query,
+                success: false,
+                error: error.message
             });
             return null;
         }
@@ -182,16 +186,19 @@ export class AppBridge {
      * @param {object} data - Event data
      */
     broadcast(eventType, data = {}) {
-        const event = new CustomEvent(eventType, { 
-            detail: { 
-                ...data, 
+        const event = new CustomEvent(eventType, {
+            detail: {
+                ...data,
                 timestamp: Date.now(),
                 source: 'app-bridge'
-            } 
+            }
         });
-        
+
         this.eventBus.dispatchEvent(event);
-        this.log(`Broadcast event: ${eventType}`, data);
+        // Suppress noisy project:dirty events
+        if (eventType !== 'project:dirty') {
+            this.log(`Broadcast event: ${eventType}`, data);
+        }
     }
 
     /**
@@ -201,9 +208,9 @@ export class AppBridge {
      * @returns {Function} Unsubscribe function
      */
     subscribe(eventType, callback) {
-        const handler = (event) => callback(event.detail);
+        const handler = event => callback(event.detail);
         this.eventBus.addEventListener(eventType, handler);
-        
+
         // Return unsubscribe function
         return () => {
             this.eventBus.removeEventListener(eventType, handler);
@@ -273,7 +280,7 @@ export class AppBridge {
 
         for (const [appName, appData] of Object.entries(projectData.apps)) {
             const app = this.apps.get(appName);
-            
+
             if (!app) {
                 results.skipped.push({ app: appName, reason: 'App not registered' });
                 continue;
@@ -348,13 +355,13 @@ export class AppBridge {
     /**
      * Register a sync handler for specific event types.
      * Handlers are called when sync events are emitted by other apps.
-     * 
+     *
      * @param {string} appName - App registering the handler
      * @param {string} eventType - Event type from SYNC_EVENTS
      * @param {Function} handler - Handler function (data, sourceApp) => void
      * @example
-     * appBridge.registerSyncHandler('mapping_slayer', 
-     *   SYNC_EVENTS.SIGN_TYPE_CREATED, 
+     * appBridge.registerSyncHandler('mapping_slayer',
+     *   SYNC_EVENTS.SIGN_TYPE_CREATED,
      *   (data, sourceApp) => {
      *     console.log(`New sign type from ${sourceApp}:`, data);
      *     // Update local state
@@ -371,7 +378,7 @@ export class AppBridge {
      * Emit a sync event to all registered handlers.
      * This is the core method that enables cross-app synchronization.
      * Events are sent to all apps except the source app.
-     * 
+     *
      * @param {string} eventType - Event type from SYNC_EVENTS
      * @param {object} data - Event data to broadcast
      * @param {string} sourceApp - App that triggered the event
@@ -386,13 +393,13 @@ export class AppBridge {
      */
     emitSyncEvent(eventType, data, sourceApp) {
         this.log(`Sync event: ${eventType} from ${sourceApp}`, data);
-        
+
         // Broadcast to all apps except the source
         for (const [appName, app] of this.apps) {
             if (appName !== sourceApp) {
                 const key = `${appName}:${eventType}`;
                 const handler = this.syncHandlers.get(key);
-                
+
                 if (handler) {
                     try {
                         handler(data, sourceApp);
@@ -400,7 +407,7 @@ export class AppBridge {
                         console.error(`Error in sync handler ${key}:`, error);
                     }
                 }
-                
+
                 // Also check if app has a generic sync handler
                 if (typeof app.handleSyncEvent === 'function') {
                     try {
@@ -411,7 +418,7 @@ export class AppBridge {
                 }
             }
         }
-        
+
         // Also broadcast as a regular event
         this.broadcast(eventType, { ...data, sourceApp });
     }
@@ -434,7 +441,7 @@ export class AppBridge {
     setSharedData(key, value, sourceApp) {
         const oldValue = this.sharedData.get(key);
         this.sharedData.set(key, value);
-        
+
         // Broadcast data change
         this.broadcast('sharedData:changed', {
             key,
@@ -447,7 +454,7 @@ export class AppBridge {
     /**
      * Get all sign types from shared data store.
      * This is the single source of truth for sign types across all apps.
-     * 
+     *
      * @returns {Map} Map of sign type code -> SignType data
      * @example
      * const signTypes = appBridge.getSignTypes();
@@ -462,7 +469,7 @@ export class AppBridge {
     /**
      * Update sign types in shared data store.
      * Automatically broadcasts changes to all registered apps.
-     * 
+     *
      * @param {Map} signTypes - Complete updated sign types map
      * @param {string} sourceApp - App updating the data
      * @fires sharedData:changed event
@@ -478,7 +485,7 @@ export class AppBridge {
     /**
      * Convenience method to emit sign type-specific events.
      * Wraps emitSyncEvent for sign type operations.
-     * 
+     *
      * @param {string} eventType - Event type (e.g., SYNC_EVENTS.SIGN_TYPE_CREATED)
      * @param {object} signTypeData - Sign type data or update info
      * @param {string} sourceApp - Source app name
@@ -496,7 +503,7 @@ export class AppBridge {
     /**
      * Convenience method to emit sign instance events.
      * Used for individual sign updates (messages, notes, etc.).
-     * 
+     *
      * @param {string} eventType - Event type (e.g., SYNC_EVENTS.SIGN_MESSAGE_CHANGED)
      * @param {object} signData - Sign instance data or update info
      * @param {string} sourceApp - Source app name

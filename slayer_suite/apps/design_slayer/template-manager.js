@@ -14,11 +14,11 @@ export class TemplateManager {
         this.templates = new Map(); // signTypeCode -> DesignTemplate
         this.currentTemplate = null;
         this.storageKey = 'slayer_design_templates';
-        
+
         // Load templates from localStorage on initialization
         this.loadTemplatesFromStorage();
     }
-    
+
     /**
      * Load templates from localStorage
      */
@@ -28,7 +28,7 @@ export class TemplateManager {
             if (stored) {
                 const data = JSON.parse(stored);
                 // Removed debug log: Loading templates from storage
-                
+
                 // Reconstruct templates
                 Object.entries(data).forEach(([signTypeCode, templateData]) => {
                     try {
@@ -43,7 +43,7 @@ export class TemplateManager {
             console.error('Failed to load templates from storage:', error);
         }
     }
-    
+
     /**
      * Save templates to localStorage
      */
@@ -53,7 +53,7 @@ export class TemplateManager {
             this.templates.forEach((template, signTypeCode) => {
                 data[signTypeCode] = template.toJSON();
             });
-            
+
             localStorage.setItem(this.storageKey, JSON.stringify(data));
             // Removed debug log: Saved templates to storage
         } catch (error) {
@@ -69,22 +69,24 @@ export class TemplateManager {
     extractCanvasData(layers) {
         // Filter layers that are on canvas
         const canvasLayers = layers.filter(layer => layer.onCanvas);
-        
+
         // Find the bounds of all layers
-        let minX = Infinity, minY = Infinity;
-        let maxX = -Infinity, maxY = -Infinity;
-        
+        let minX = Infinity,
+            minY = Infinity;
+        let maxX = -Infinity,
+            maxY = -Infinity;
+
         canvasLayers.forEach(layer => {
             minX = Math.min(minX, layer.x);
             minY = Math.min(minY, layer.y);
-            maxX = Math.max(maxX, layer.x + (layer.width * SCALE_FACTOR));
-            maxY = Math.max(maxY, layer.y + (layer.height * SCALE_FACTOR));
+            maxX = Math.max(maxX, layer.x + layer.width * SCALE_FACTOR);
+            maxY = Math.max(maxY, layer.y + layer.height * SCALE_FACTOR);
         });
-        
+
         // Calculate canvas dimensions
         const canvasWidth = maxX - minX;
         const canvasHeight = maxY - minY;
-        
+
         // Extract layer data
         const layerData = canvasLayers.map(layer => ({
             type: layer.type,
@@ -111,7 +113,7 @@ export class TemplateManager {
             // Field reference for dynamic text
             fieldName: layer.fieldName
         }));
-        
+
         return {
             layers: layerData,
             dimensions: {
@@ -132,10 +134,10 @@ export class TemplateManager {
      */
     extractTextFields(canvasData) {
         const textFields = [];
-        
+
         canvasData.layers.forEach(layer => {
             const definition = LAYER_DEFINITIONS[layer.type];
-            
+
             // Check if this is a text layer with a field reference
             if (definition && definition.isText && layer.fieldName) {
                 textFields.push({
@@ -169,7 +171,7 @@ export class TemplateManager {
                 }
             }
         });
-        
+
         return textFields;
     }
 
@@ -180,10 +182,10 @@ export class TemplateManager {
      */
     extractGraphics(canvasData) {
         const graphics = [];
-        
+
         canvasData.layers.forEach(layer => {
             const definition = LAYER_DEFINITIONS[layer.type];
-            
+
             // Non-text layers are considered graphics
             if (definition && !definition.isText) {
                 graphics.push({
@@ -198,7 +200,7 @@ export class TemplateManager {
                 });
             }
         });
-        
+
         return graphics;
     }
 
@@ -212,23 +214,23 @@ export class TemplateManager {
         if (!signTypeCode) {
             throw new Error('Sign type code is required to save template');
         }
-        
+
         // Get the sign type from sync adapter
         const signType = window.designApp?.syncAdapter?.getSignType(signTypeCode);
         if (!signType) {
             throw new Error(`Sign type ${signTypeCode} not found`);
         }
-        
+
         // Extract canvas data from current layers
         const faceCanvasData = this.extractCanvasData(state.layersList);
-        
+
         // For now, side view is empty - could be enhanced later
         const sideCanvasData = {
             layers: [],
             dimensions: { width: 2, height: faceCanvasData.dimensions.height },
             metadata: { layerCount: 0, createdAt: new Date().toISOString() }
         };
-        
+
         // Create the template
         const template = new DesignTemplate({
             signTypeCode: signTypeCode,
@@ -247,28 +249,28 @@ export class TemplateManager {
             materials: this.extractMaterials(faceCanvasData),
             createdBy: 'design_slayer'
         });
-        
+
         // Store template
         this.templates.set(signTypeCode, template);
-        
+
         // Save to localStorage
         this.saveTemplatesToStorage();
-        
+
         // Emit sync event if available
         if (window.appBridge) {
             const { SYNC_EVENTS } = await import('../../core/index.js');
             window.appBridge.emitSyncEvent(
-                SYNC_EVENTS.TEMPLATE_CREATED, 
-                template.toJSON(), 
+                SYNC_EVENTS.TEMPLATE_CREATED,
+                template.toJSON(),
                 'design_slayer'
             );
         }
-        
+
         // Update sign type to reference this template
         signType.designTemplateId = template.id;
-        
+
         // Removed debug log: Template saved and persisted
-        
+
         return template;
     }
 
@@ -283,14 +285,14 @@ export class TemplateManager {
             mounting: '',
             finish: ''
         };
-        
+
         // Find the main plate layer
         const plateLayers = canvasData.layers.filter(l => l.type === 'plate');
         if (plateLayers.length > 0) {
             const mainPlate = plateLayers[0];
             materials.substrate = mainPlate.material || 'Aluminum';
         }
-        
+
         return materials;
     }
 
@@ -305,17 +307,17 @@ export class TemplateManager {
             console.warn(`No template found for sign type ${signTypeCode}`);
             return false;
         }
-        
+
         // Clear current canvas
         state.layersList = [];
         state.layerCounter = 0;
-        
+
         // Load layers from template
         const faceData = template.faceView.canvas;
         if (faceData && faceData.layers) {
             faceData.layers.forEach(layerData => {
                 const layerId = `layer-${getNextLayerId()}`;
-                
+
                 // Create new layer from template data
                 const newLayer = {
                     id: layerId,
@@ -323,39 +325,39 @@ export class TemplateManager {
                     onCanvas: true,
                     showDimensions: false
                 };
-                
+
                 state.layersList.push(newLayer);
             });
         }
-        
+
         // Update state
-        updateState({ 
+        updateState({
             layersList: state.layersList,
             currentTemplate: template,
             isDirty: false
         });
-        
+
         // Refresh UI
         if (window.designApp) {
             const { refreshLayerList } = await import('./ui.js');
-            const { createCanvasLayer, updateLayerOrder } = await import('./canvas.js');
-            
+            const { designSVG } = await import('./design-svg.js');
+
             refreshLayerList(window.designApp.eventHandlers);
-            
-            // Create canvas layers
+
+            // Create SVG layers
             state.layersList.forEach(layer => {
                 if (layer.onCanvas) {
-                    createCanvasLayer(
-                        layer, 
+                    designSVG.createLayer(
+                        layer,
                         window.designApp.eventHandlers.onSelectLayer,
-                        window.designApp.eventHandlers.startLayerDrag
+                        window.designApp.eventHandlers.onStartDrag
                     );
                 }
             });
-            
-            updateLayerOrder();
+
+            // SVG layers are automatically ordered by z-index
         }
-        
+
         this.currentTemplate = template;
         return true;
     }
@@ -396,22 +398,22 @@ export class TemplateManager {
     async deleteTemplate(signTypeCode) {
         const template = this.templates.get(signTypeCode);
         if (!template) return false;
-        
+
         this.templates.delete(signTypeCode);
-        
+
         // Save to localStorage after deletion
         this.saveTemplatesToStorage();
-        
+
         // Emit sync event if available
         if (window.appBridge) {
             const { SYNC_EVENTS } = await import('../../core/index.js');
             window.appBridge.emitSyncEvent(
-                SYNC_EVENTS.TEMPLATE_DELETED, 
-                { id: template.id, signTypeCode }, 
+                SYNC_EVENTS.TEMPLATE_DELETED,
+                { id: template.id, signTypeCode },
                 'design_slayer'
             );
         }
-        
+
         return true;
     }
 

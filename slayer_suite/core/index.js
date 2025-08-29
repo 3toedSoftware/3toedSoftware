@@ -7,6 +7,10 @@
 // Communication & Coordination
 export { AppBridge, appBridge, SYNC_EVENTS } from './app-bridge.js';
 export { ProjectManager, projectManager } from './project-manager.js';
+
+// Import instances for internal use
+import { appBridge } from './app-bridge.js';
+import { projectManager } from './project-manager.js';
 export { saveManager } from './save-manager.js';
 export { createSyncManager } from './sync-manager.js';
 export { fileHandleStore } from './file-handle-store.js';
@@ -31,7 +35,7 @@ export const DEFAULT_PROJECT_SETTINGS = {
  */
 export const APP_STATUS = {
     UNREGISTERED: 'unregistered',
-    REGISTERED: 'registered', 
+    REGISTERED: 'registered',
     INITIALIZING: 'initializing',
     ACTIVE: 'active',
     INACTIVE: 'inactive',
@@ -47,22 +51,22 @@ export const BRIDGE_EVENTS = {
     APP_UNREGISTERED: 'app:unregistered',
     APP_ACTIVATED: 'app:activated',
     APP_DEACTIVATED: 'app:deactivated',
-    
+
     // Data operations
     DATA_REQUESTED: 'data:requested',
     DATA_SHARED: 'data:shared',
-    
+
     // Project lifecycle
     PROJECT_CREATED: 'project:created',
     PROJECT_LOADED: 'project:loaded',
     PROJECT_SAVED: 'project:saved',
     PROJECT_DIRTY: 'project:dirty',
     PROJECT_META_UPDATED: 'project:meta-updated',
-    
+
     // Cross-app links
     LINK_ADDED: 'project:link-added',
     LINK_REMOVED: 'project:link-removed',
-    
+
     // Error events
     SAVE_FAILED: 'project:save-failed',
     LOAD_FAILED: 'project:load-failed'
@@ -76,20 +80,20 @@ export const QUERY_TYPES = {
     GET_ALL_DATA: 'get-all-data',
     GET_STATUS: 'get-status',
     GET_METADATA: 'get-metadata',
-    
+
     // Location-based queries (for mapping/survey integration)
     GET_COORDINATES: 'get-coordinates',
     GET_LOCATIONS: 'get-locations',
     GET_MEASUREMENTS: 'get-measurements',
-    
+
     // Design-related queries
     GET_LAYOUTS: 'get-layouts',
     GET_SPECIFICATIONS: 'get-specifications',
-    
+
     // Production queries
     GET_SCHEDULES: 'get-schedules',
     GET_RESOURCES: 'get-resources',
-    
+
     // Installation queries
     GET_WORK_ORDERS: 'get-work-orders',
     GET_PROGRESS: 'get-progress'
@@ -101,13 +105,7 @@ export const QUERY_TYPES = {
  * @returns {boolean} Is valid app
  */
 export function validateApp(app) {
-    const requiredMethods = [
-        'initialize',
-        'activate', 
-        'deactivate',
-        'exportData',
-        'importData'
-    ];
+    const requiredMethods = ['initialize', 'activate', 'deactivate', 'exportData', 'importData'];
 
     for (const method of requiredMethods) {
         if (typeof app[method] !== 'function') {
@@ -162,7 +160,7 @@ export function createAppEvent(appName, eventType) {
 export function appLog(appName, message, data = null) {
     const timestamp = new Date().toLocaleTimeString();
     const prefix = `[${appName.toUpperCase()} ${timestamp}]`;
-    
+
     if (data !== null) {
         console.log(prefix, message, data);
     } else {
@@ -176,24 +174,24 @@ export function appLog(appName, message, data = null) {
  */
 export function initializeCore(debugMode = false) {
     // Import here to avoid circular dependency
-    import('./app-bridge.js').then(({ appBridge }) => {
-        appBridge.setDebugMode(debugMode);
+    import('./app-bridge.js').then(({ appBridge: bridgeInstance }) => {
+        bridgeInstance.setDebugMode(debugMode);
     });
-    
+
     // Set up global error handling for unhandled promises
-    window.addEventListener('unhandledrejection', (event) => {
+    window.addEventListener('unhandledrejection', event => {
         console.error('Unhandled promise rejection in Slayer Suite:', event.reason);
         // Only broadcast if appBridge is available
         if (typeof appBridge !== 'undefined') {
-            appBridge.broadcast('system:error', { 
+            appBridge.broadcast('system:error', {
                 type: 'unhandled-rejection',
-                error: event.reason 
+                error: event.reason
             });
         }
     });
 
     // Set up beforeunload warning for unsaved changes
-    window.addEventListener('beforeunload', (event) => {
+    window.addEventListener('beforeunload', event => {
         // Only check if projectManager is available
         if (typeof projectManager !== 'undefined' && projectManager.hasUnsavedChanges()) {
             event.preventDefault();
@@ -212,8 +210,8 @@ export function initializeCore(debugMode = false) {
 export function getSystemStatus() {
     return {
         version: SLAYER_VERSION,
-        bridge: appBridge.getStatus(),
-        project: projectManager.getCurrentProject(),
+        bridge: appBridge ? appBridge.getStatus() : { status: 'not_initialized' },
+        project: projectManager ? projectManager.getCurrentProject() : null,
         timestamp: new Date().toISOString()
     };
 }

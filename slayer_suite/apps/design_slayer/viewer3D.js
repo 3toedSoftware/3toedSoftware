@@ -10,36 +10,39 @@ import { LAYER_DEFINITIONS, SCALE_FACTOR } from './config.js';
 let scene, camera, renderer, animationId;
 
 // --- DOM Element Selectors ---
-const getElement = (id) => document.getElementById(id);
+const getElement = id => document.getElementById(id);
 
 // Create a lazy-loaded DOM object that queries elements only when accessed
-const dom = new Proxy({}, {
-    get(target, prop) {
-        if (target[prop]) return target[prop];
-        
-        const elementMappings = {
-            container: () => getElement('threejs-container'),
-            resetViewBtn: () => getElement('viewer-reset-btn'),
-            frontViewBtn: () => getElement('viewer-front-btn'),
-            backViewBtn: () => getElement('viewer-back-btn'),
-            sideViewBtn: () => getElement('viewer-side-btn'),
-        };
-        
-        if (elementMappings[prop]) {
-            target[prop] = elementMappings[prop]();
-            return target[prop];
+const dom = new Proxy(
+    {},
+    {
+        get(target, prop) {
+            if (target[prop]) return target[prop];
+
+            const elementMappings = {
+                container: () => getElement('threejs-container'),
+                resetViewBtn: () => getElement('viewer-reset-btn'),
+                frontViewBtn: () => getElement('viewer-front-btn'),
+                backViewBtn: () => getElement('viewer-back-btn'),
+                sideViewBtn: () => getElement('viewer-side-btn')
+            };
+
+            if (elementMappings[prop]) {
+                target[prop] = elementMappings[prop]();
+                return target[prop];
+            }
+
+            return null;
         }
-        
-        return null;
     }
-});
+);
 
 /**
  * Initializes the 3D viewer, sets up the scene, camera, renderer, and controls.
  */
 export function init3DViewer() {
     console.log('init3DViewer called');
-    
+
     if (!dom.container) {
         console.error('Three.js container not found');
         return;
@@ -50,11 +53,12 @@ export function init3DViewer() {
         console.error('THREE.js library not loaded!');
         // Try to show error message in container
         if (dom.container) {
-            dom.container.innerHTML = '<div style="color: #f07727; text-align: center; padding: 40px;">THREE.js library not loaded. Please check if the library is properly included.</div>';
+            dom.container.innerHTML =
+                '<div style="color: #f07727; text-align: center; padding: 40px;">THREE.js library not loaded. Please check if the library is properly included.</div>';
         }
         return;
     }
-    
+
     // Clear any existing renderer
     if (renderer) {
         cleanup3DViewer();
@@ -67,7 +71,7 @@ export function init3DViewer() {
     // Get container dimensions - ensure it has size
     const containerWidth = dom.container.offsetWidth || 800;
     const containerHeight = dom.container.offsetHeight || 600;
-    
+
     // Camera setup
     camera = new THREE.PerspectiveCamera(75, containerWidth / containerHeight, 0.1, 1000);
     camera.position.set(10, 10, 10);
@@ -108,7 +112,7 @@ export function init3DViewer() {
 
     // Handle window resize
     window.addEventListener('resize', onWindowResize);
-    
+
     console.log('init3DViewer completed successfully');
 }
 
@@ -121,10 +125,11 @@ function create3DSign() {
     if (canvasLayers.length === 0) return;
 
     // Center the model based on the bounding box of all layers
-    let centerX = 0, centerY = 0;
+    let centerX = 0,
+        centerY = 0;
     canvasLayers.forEach(layer => {
-        centerX += (layer.x / SCALE_FACTOR) + (layer.width / 2);
-        centerY += (layer.y / SCALE_FACTOR) + (layer.height / 2);
+        centerX += layer.x / SCALE_FACTOR + layer.width / 2;
+        centerY += layer.y / SCALE_FACTOR + layer.height / 2;
     });
     centerX /= canvasLayers.length;
     centerY /= canvasLayers.length;
@@ -132,18 +137,27 @@ function create3DSign() {
     let zOffset = 0;
 
     // Create a 3D box for each layer
-    canvasLayers.forEach((layer) => {
+    canvasLayers.forEach(layer => {
         const geometry = new THREE.BoxGeometry(layer.width, layer.height, layer.thickness);
         const color = new THREE.Color(layer.color || LAYER_DEFINITIONS[layer.type].color);
-        
+
         // Use different materials for a more realistic look
         let material;
-        switch(layer.material) {
+        switch (layer.material) {
             case 'acrylic':
-                material = new THREE.MeshPhongMaterial({ color, transparent: true, opacity: 0.9, shininess: 100 });
+                material = new THREE.MeshPhongMaterial({
+                    color,
+                    transparent: true,
+                    opacity: 0.9,
+                    shininess: 100
+                });
                 break;
             case 'aluminum':
-                material = new THREE.MeshStandardMaterial({ color, metalness: 0.9, roughness: 0.1 });
+                material = new THREE.MeshStandardMaterial({
+                    color,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
                 break;
             case 'vinyl':
                 material = new THREE.MeshLambertMaterial({ color });
@@ -153,12 +167,12 @@ function create3DSign() {
         }
 
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.x = (layer.x / SCALE_FACTOR) + (layer.width / 2) - centerX;
-        mesh.position.y = -((layer.y / SCALE_FACTOR) + (layer.height / 2) - centerY); // Flip Y axis
-        mesh.position.z = zOffset + (layer.thickness / 2);
+        mesh.position.x = layer.x / SCALE_FACTOR + layer.width / 2 - centerX;
+        mesh.position.y = -(layer.y / SCALE_FACTOR + layer.height / 2 - centerY); // Flip Y axis
+        mesh.position.z = zOffset + layer.thickness / 2;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-        
+
         scene.add(mesh);
         zOffset += layer.thickness;
     });
@@ -174,8 +188,10 @@ function setupSimpleOrbitControls() {
     }
 
     let isMouseDown = false;
-    let mouseX = 0, mouseY = 0;
-    let targetX = 0, targetY = 0;
+    let mouseX = 0,
+        mouseY = 0;
+    let targetX = 0,
+        targetY = 0;
     let targetDistance = 15;
     let currentDistance = 15;
 
@@ -187,13 +203,13 @@ function setupSimpleOrbitControls() {
         camera.lookAt(0, 0, 0);
     };
 
-    dom.container.addEventListener('mousedown', (e) => {
+    dom.container.addEventListener('mousedown', e => {
         isMouseDown = true;
         mouseX = e.clientX;
         mouseY = e.clientY;
     });
 
-    dom.container.addEventListener('mousemove', (e) => {
+    dom.container.addEventListener('mousemove', e => {
         if (!isMouseDown) return;
         targetX += (e.clientX - mouseX) * 0.01;
         targetY += (e.clientY - mouseY) * 0.01;
@@ -202,17 +218,20 @@ function setupSimpleOrbitControls() {
         updateCameraPosition();
     });
 
-    dom.container.addEventListener('mouseup', () => { isMouseDown = false; });
-    dom.container.addEventListener('mouseleave', () => { isMouseDown = false; });
+    dom.container.addEventListener('mouseup', () => {
+        isMouseDown = false;
+    });
+    dom.container.addEventListener('mouseleave', () => {
+        isMouseDown = false;
+    });
 
-    dom.container.addEventListener('wheel', (e) => {
+    dom.container.addEventListener('wheel', e => {
         e.preventDefault();
         targetDistance += e.deltaY * 0.01;
         targetDistance = Math.max(5, Math.min(50, targetDistance)); // Clamp zoom
         updateCameraPosition();
     });
 }
-
 
 /**
  * The main render loop.
@@ -248,7 +267,7 @@ export function cleanup3DViewer() {
         cancelAnimationFrame(animationId);
         animationId = null;
     }
-    
+
     if (renderer) {
         if (dom.container && renderer.domElement) {
             dom.container.removeChild(renderer.domElement);
@@ -256,9 +275,9 @@ export function cleanup3DViewer() {
         renderer.dispose();
         renderer = null;
     }
-    
+
     if (scene) {
-        while(scene.children.length > 0) {
+        while (scene.children.length > 0) {
             const object = scene.children[0];
             if (object.geometry) object.geometry.dispose();
             if (object.material) {
@@ -272,7 +291,7 @@ export function cleanup3DViewer() {
         }
         scene = null;
     }
-    
+
     camera = null;
     window.removeEventListener('resize', onWindowResize);
 }
