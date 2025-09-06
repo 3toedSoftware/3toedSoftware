@@ -3687,33 +3687,76 @@ function generateFlagSelectors(modalType, dot, multipleDots = null) {
     
     // Add long press handler to open flag customization modal
     let longPressTimer = null;
-    let isLongPress = false;
+    let touchStarted = false;
     
     const handleLongPressStart = (e) => {
-        // Prevent default touch behavior
-        e.preventDefault();
-        isLongPress = false;
+        // Clear any existing timer
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+        }
+        
+        touchStarted = true;
+        
+        // Check if it's a touch event or mouse event
+        const isTouch = e.type === 'touchstart';
+        
+        // For touch events, prevent default to avoid scrolling
+        if (isTouch) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         
         longPressTimer = setTimeout(() => {
-            isLongPress = true;
-            openFlagModal();
+            if (touchStarted) {
+                // Open the modal after 500ms while still holding
+                openFlagModal();
+                touchStarted = false;
+                
+                // Clear the timer so it doesn't trigger again
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            }
         }, 500); // 500ms for long press
     };
     
-    const handleLongPressEnd = () => {
+    const handleLongPressEnd = (e) => {
+        touchStarted = false;
         if (longPressTimer) {
             clearTimeout(longPressTimer);
             longPressTimer = null;
         }
     };
     
+    const handleLongPressMove = (e) => {
+        // If finger/mouse moves too much, cancel the long press
+        if (e.type === 'touchmove') {
+            const touch = e.touches[0];
+            // You could add distance checking here if needed
+            // For now, any significant move cancels
+            if (Math.abs(touch.clientX) > 10 || Math.abs(touch.clientY) > 10) {
+                handleLongPressEnd(e);
+            }
+        }
+    };
+    
+    // Remove any existing listeners first (in case this is called multiple times)
+    container.replaceWith(container.cloneNode(true));
+    const newContainer = document.getElementById(containerId);
+    
     // Add both touch and mouse events for compatibility
-    container.addEventListener('touchstart', handleLongPressStart, { passive: false });
-    container.addEventListener('touchend', handleLongPressEnd);
-    container.addEventListener('touchcancel', handleLongPressEnd);
-    container.addEventListener('mousedown', handleLongPressStart);
-    container.addEventListener('mouseup', handleLongPressEnd);
-    container.addEventListener('mouseleave', handleLongPressEnd);
+    newContainer.addEventListener('touchstart', handleLongPressStart, { passive: false });
+    newContainer.addEventListener('touchend', handleLongPressEnd, { passive: false });
+    newContainer.addEventListener('touchcancel', handleLongPressEnd, { passive: false });
+    newContainer.addEventListener('touchmove', handleLongPressMove, { passive: false });
+    newContainer.addEventListener('mousedown', handleLongPressStart);
+    newContainer.addEventListener('mouseup', handleLongPressEnd);
+    newContainer.addEventListener('mouseleave', handleLongPressEnd);
+    newContainer.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu
+    
+    // Update container reference for the rest of the function
+    container = newContainer;
 
     // Create flag checkboxes for each position
     Object.keys(FLAG_POSITIONS).forEach(key => {
@@ -3748,12 +3791,13 @@ function generateFlagSelectors(modalType, dot, multipleDots = null) {
         const checkboxId = `${modalType}-flag-${position}`;
 
         flagDiv.innerHTML = `
-            <label for="${checkboxId}">${config.name}</label>
+            <label for="${checkboxId}" style="pointer-events: none;">${config.name}</label>
             <input type="checkbox" 
                    id="${checkboxId}" 
                    data-position="${position}"
                    ${isChecked ? 'checked' : ''}
-                   ${isIndeterminate ? 'indeterminate' : ''}>
+                   ${isIndeterminate ? 'indeterminate' : ''}
+                   style="pointer-events: auto;">
         `;
 
         container.appendChild(flagDiv);
