@@ -2308,6 +2308,42 @@ body {
     margin-bottom: 0; /* Removed margin as gap is used in modal-body */
 }
 
+/* Flag area click/tap styles */
+#edit-modal-flags,
+#group-edit-modal-flags {
+    cursor: pointer;
+    border: 2px dashed #444;
+    border-radius: 8px;
+    padding: 10px;
+    background: rgba(240, 119, 39, 0.05);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+#edit-modal-flags:hover,
+#group-edit-modal-flags:hover {
+    background: rgba(240, 119, 39, 0.1);
+    border-color: #f07727;
+}
+
+#edit-modal-flags:active,
+#group-edit-modal-flags:active {
+    background: rgba(240, 119, 39, 0.15);
+    transform: scale(0.98);
+}
+
+/* Add a small icon or text hint */
+#edit-modal-flags::after,
+#group-edit-modal-flags::after {
+    content: "⚙️ Tap to customize flags";
+    position: absolute;
+    top: -20px;
+    right: 0;
+    font-size: 9px;
+    color: #888;
+    font-style: italic;
+}
+
 .ms-form-group label {
     display: block;
     color: #ccc;

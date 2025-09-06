@@ -3685,75 +3685,34 @@ function generateFlagSelectors(modalType, dot, multipleDots = null) {
 
     container.innerHTML = '';
     
-    // Add long press handler to open flag customization modal
-    let longPressTimer = null;
-    let touchStarted = false;
-    
-    const handleLongPressStart = (e) => {
-        // Clear any existing timer
-        if (longPressTimer) {
-            clearTimeout(longPressTimer);
+    // Add click/tap handler to open flag customization modal
+    const handleFlagAreaClick = (e) => {
+        // Check if the click is on a checkbox or label
+        if (e.target.type === 'checkbox' || e.target.tagName === 'INPUT') {
+            return; // Let the checkbox handle its own click
         }
         
-        touchStarted = true;
+        // Prevent event from bubbling
+        e.preventDefault();
+        e.stopPropagation();
         
-        // Check if it's a touch event or mouse event
-        const isTouch = e.type === 'touchstart';
-        
-        // For touch events, prevent default to avoid scrolling
-        if (isTouch) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        
-        longPressTimer = setTimeout(() => {
-            if (touchStarted) {
-                // Open the modal after 500ms while still holding
-                openFlagModal();
-                touchStarted = false;
-                
-                // Clear the timer so it doesn't trigger again
-                if (longPressTimer) {
-                    clearTimeout(longPressTimer);
-                    longPressTimer = null;
-                }
-            }
-        }, 500); // 500ms for long press
-    };
-    
-    const handleLongPressEnd = (e) => {
-        touchStarted = false;
-        if (longPressTimer) {
-            clearTimeout(longPressTimer);
-            longPressTimer = null;
-        }
-    };
-    
-    const handleLongPressMove = (e) => {
-        // If finger/mouse moves too much, cancel the long press
-        if (e.type === 'touchmove') {
-            const touch = e.touches[0];
-            // You could add distance checking here if needed
-            // For now, any significant move cancels
-            if (Math.abs(touch.clientX) > 10 || Math.abs(touch.clientY) > 10) {
-                handleLongPressEnd(e);
-            }
-        }
+        // Open the flag customization modal
+        openFlagModal();
     };
     
     // Remove any existing listeners first (in case this is called multiple times)
     container.replaceWith(container.cloneNode(true));
     const newContainer = document.getElementById(containerId);
     
-    // Add both touch and mouse events for compatibility
-    newContainer.addEventListener('touchstart', handleLongPressStart, { passive: false });
-    newContainer.addEventListener('touchend', handleLongPressEnd, { passive: false });
-    newContainer.addEventListener('touchcancel', handleLongPressEnd, { passive: false });
-    newContainer.addEventListener('touchmove', handleLongPressMove, { passive: false });
-    newContainer.addEventListener('mousedown', handleLongPressStart);
-    newContainer.addEventListener('mouseup', handleLongPressEnd);
-    newContainer.addEventListener('mouseleave', handleLongPressEnd);
-    newContainer.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu
+    // Add click handler for both mouse and touch
+    newContainer.addEventListener('click', handleFlagAreaClick);
+    newContainer.addEventListener('touchend', (e) => {
+        // Only handle touchend if it wasn't on a checkbox
+        if (e.target.type !== 'checkbox' && e.target.tagName !== 'INPUT') {
+            e.preventDefault();
+            handleFlagAreaClick(e);
+        }
+    });
     
     // Update container reference for the rest of the function
     container = newContainer;
