@@ -6130,11 +6130,8 @@ function deletePhotoFromGallery(photoId) {
     
     if (!confirm('Delete this photo?')) return;
     
-    // Get the current dot
-    const dots = appState.dotsByPage.get(appState.currentPdfPage);
-    if (!dots) return;
-    
-    const dot = dots.get(currentGalleryDot.internalId);
+    // currentGalleryDot is already the dot object
+    const dot = currentGalleryDot;
     if (!dot || !dot.photos) return;
     
     // Find and remove the photo
@@ -6182,7 +6179,7 @@ function showPhotoOptions() {
     if (!currentGalleryDot) return;
     
     // Check if dot already has 4 photos
-    const dot = getCurrentPageDots().get(currentGalleryDot.internalId);
+    const dot = currentGalleryDot;
     if (dot && dot.photos && dot.photos.length >= 4) {
         alert('Maximum 4 photos per location reached.');
         return;
@@ -6385,12 +6382,8 @@ async function compressImage(blob, maxSizeKB) {
 function addPhotoToDot(base64Data) {
     if (!currentGalleryDot) return;
     
-    // Get the current dot
-    const dots = appState.dotsByPage.get(appState.currentPdfPage);
-    if (!dots) return;
-    
-    const dot = dots.get(currentGalleryDot.internalId);
-    if (!dot) return;
+    // currentGalleryDot is already the dot object, not just an ID
+    const dot = currentGalleryDot;
     
     // Initialize photos array if needed
     if (!dot.photos) {
