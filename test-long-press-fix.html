@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Long Press Fix Test - DEBUG BEAST</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                background: #f0f0f0;
+            }
+            .test-container {
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                margin: 20px 0;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+            .test-area {
+                width: 300px;
+                height: 200px;
+                background: #4caf50;
+                border: 3px solid #45a049;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+                margin: 20px 0;
+                cursor: pointer;
+                user-select: none;
+                -webkit-user-select: none;
+            }
+            .status {
+                padding: 10px;
+                border-radius: 5px;
+                margin: 10px 0;
+            }
+            .success {
+                background: #d4edda;
+                color: #155724;
+            }
+            .error {
+                background: #f8d7da;
+                color: #721c24;
+            }
+            .info {
+                background: #d1ecf1;
+                color: #0c5460;
+            }
+            .debug-output {
+                background: #333;
+                color: #0f0;
+                padding: 10px;
+                border-radius: 5px;
+                font-family: monospace;
+                font-size: 12px;
+                max-height: 300px;
+                overflow-y: auto;
+                white-space: pre-wrap;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🐛 DEBUG BEAST Long Press Fix Test</h1>
+        <p>This page tests the fixed long press functionality for tablet devices.</p>
+
+        <div class="test-container">
+            <h2>📱 Touch Long Press Test</h2>
+            <p>Hold down on this area for 500ms to trigger long press:</p>
+            <div class="test-area" id="touchTestArea">HOLD ME FOR 500ms</div>
+            <div id="touchStatus" class="status info">Ready to test...</div>
+        </div>
+
+        <div class="test-container">
+            <h2>🖱️ Mouse Long Press Test</h2>
+            <p>Hold down mouse button for 500ms to trigger long press:</p>
+            <div class="test-area" id="mouseTestArea">CLICK & HOLD ME</div>
+            <div id="mouseStatus" class="status info">Ready to test...</div>
+        </div>
+
+        <div class="test-container">
+            <h2>📊 Movement Test</h2>
+            <p>Try moving while holding (should cancel after 15px movement):</p>
+            <div class="test-area" id="movementTestArea">HOLD & MOVE ME</div>
+            <div id="movementStatus" class="status info">Ready to test...</div>
+        </div>
+
+        <div class="test-container">
+            <h2>🔍 Debug Output</h2>
+            <div id="debugOutput" class="debug-output">Debug logs will appear here...\n</div>
+            <button onclick="clearDebug()">Clear Debug Log</button>
+        </div>
+
+        <script>
+            // Intercept console.log to show debug output
+            const originalLog = console.log;
+            const debugOutput = document.getElementById('debugOutput');
+
+            console.log = function (...args) {
+                const timestamp = new Date().toLocaleTimeString();
+                const message = args
+                    .map(arg =>
+                        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                    )
+                    .join(' ');
+
+                debugOutput.textContent += `[${timestamp}] ${message}\n`;
+                debugOutput.scrollTop = debugOutput.scrollHeight;
+
+                // Still call original console.log
+                originalLog.apply(console, args);
+            };
+
+            function clearDebug() {
+                debugOutput.textContent = 'Debug logs cleared...\n';
+            }
+
+            // TEST IMPLEMENTATION - Replicate the fixed long press logic
+            function setupLongPressTest(containerId, statusId, testType) {
+                const container = document.getElementById(containerId);
+                const status = document.getElementById(statusId);
+
+                let longPressTimer = null;
+                let touchStarted = false;
+                let startTouchPosition = null;
+
+                const handleLongPressStart = e => {
+                    console.log(`DEBUG BEAST: ${testType} long press start detected`, {
+                        type: e.type,
+                        touchCount: e.touches ? e.touches.length : 0,
+                        userAgent: navigator.userAgent
+                    });
+
+                    status.className = 'status info';
+                    status.textContent = `${testType} long press started...`;
+
+                    // Clear any existing timer
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                    }
+
+                    touchStarted = true;
+
+                    // Record initial touch/mouse position for movement detection
+                    if (e.type === 'touchstart' && e.touches.length > 0) {
+                        const touch = e.touches[0];
+                        startTouchPosition = { x: touch.clientX, y: touch.clientY };
+                        console.log(
+                            'DEBUG BEAST: Initial touch position recorded',
+                            startTouchPosition
+                        );
+                    } else if (e.type === 'mousedown') {
+                        startTouchPosition = { x: e.clientX, y: e.clientY };
+                        console.log(
+                            'DEBUG BEAST: Initial mouse position recorded',
+                            startTouchPosition
+                        );
+                    }
+
+                    // For touch events, prevent default to avoid scrolling
+                    if (e.type === 'touchstart') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+
+                    longPressTimer = setTimeout(() => {
+                        if (touchStarted) {
+                            console.log('DEBUG BEAST: Long press timer triggered - SUCCESS!');
+
+                            // Trigger haptic feedback if available
+                            if (navigator.vibrate) {
+                                navigator.vibrate(50);
+                            }
+
+                            status.className = 'status success';
+                            status.textContent = `✅ ${testType} long press SUCCESS! Modal would open here.`;
+
+                            touchStarted = false;
+
+                            // Clear the timer so it doesn't trigger again
+                            if (longPressTimer) {
+                                clearTimeout(longPressTimer);
+                                longPressTimer = null;
+                            }
+                        }
+                    }, 500); // 500ms for long press
+                };
+
+                const handleLongPressEnd = e => {
+                    console.log(`DEBUG BEAST: ${testType} long press end detected`, {
+                        type: e.type,
+                        touchStarted: touchStarted,
+                        timerActive: !!longPressTimer
+                    });
+
+                    if (touchStarted && longPressTimer) {
+                        status.className = 'status error';
+                        status.textContent = `❌ ${testType} long press cancelled (released too early)`;
+                    }
+
+                    touchStarted = false;
+                    startTouchPosition = null;
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                };
+
+                const handleLongPressMove = e => {
+                    // If finger/mouse moves too much, cancel the long press
+                    if (!startTouchPosition || !touchStarted) return;
+
+                    let currentPosition = null;
+
+                    if (e.type === 'touchmove' && e.touches.length > 0) {
+                        const touch = e.touches[0];
+                        currentPosition = { x: touch.clientX, y: touch.clientY };
+                    } else if (e.type === 'mousemove') {
+                        currentPosition = { x: e.clientX, y: e.clientY };
+                    }
+
+                    if (currentPosition) {
+                        // Calculate movement delta from start position
+                        const deltaX = Math.abs(currentPosition.x - startTouchPosition.x);
+                        const deltaY = Math.abs(currentPosition.y - startTouchPosition.y);
+                        const totalMovement = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                        console.log(`DEBUG BEAST: ${testType} movement detected`, {
+                            startPos: startTouchPosition,
+                            currentPos: currentPosition,
+                            deltaX: deltaX,
+                            deltaY: deltaY,
+                            totalMovement: totalMovement,
+                            threshold: 15
+                        });
+
+                        // Cancel long press if movement exceeds threshold (15px)
+                        if (totalMovement > 15) {
+                            console.log(
+                                `DEBUG BEAST: ${testType} movement threshold exceeded, cancelling long press`
+                            );
+                            status.className = 'status error';
+                            status.textContent = `❌ ${testType} long press cancelled (moved ${Math.round(totalMovement)}px > 15px threshold)`;
+                            handleLongPressEnd(e);
+                        }
+                    }
+                };
+
+                // Add event listeners
+                container.addEventListener('touchstart', handleLongPressStart, { passive: false });
+                container.addEventListener('touchend', handleLongPressEnd, { passive: false });
+                container.addEventListener('touchcancel', handleLongPressEnd, { passive: false });
+                container.addEventListener('touchmove', handleLongPressMove, { passive: false });
+                container.addEventListener('mousedown', handleLongPressStart);
+                container.addEventListener('mouseup', handleLongPressEnd);
+                container.addEventListener('mousemove', handleLongPressMove);
+                container.addEventListener('mouseleave', handleLongPressEnd);
+                container.addEventListener('contextmenu', e => e.preventDefault());
+            }
+
+            // Setup all test areas
+            setupLongPressTest('touchTestArea', 'touchStatus', 'Touch');
+            setupLongPressTest('mouseTestArea', 'mouseStatus', 'Mouse');
+            setupLongPressTest('movementTestArea', 'movementStatus', 'Movement');
+
+            console.log('DEBUG BEAST: Long press test page loaded and ready!');
+            console.log('Device info:', {
+                userAgent: navigator.userAgent,
+                touchSupport: 'ontouchstart' in window,
+                vibrateSupport: 'vibrate' in navigator,
+                screenSize: { width: screen.width, height: screen.height },
+                viewportSize: { width: window.innerWidth, height: window.innerHeight }
+            });
+        </script>
+    </body>
+</html>
