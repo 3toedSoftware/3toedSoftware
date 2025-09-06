@@ -3353,6 +3353,21 @@ body {
     flex-direction: column;
     gap: 8px;
     padding: 8px;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.ms-modal-header-flags::after {
+    content: "Long press to customize";
+    position: absolute;
+    top: -15px;
+    right: 5px;
+    font-size: 9px;
+    color: #666;
+    font-style: italic;
 }
 
 .ms-flag-selector-item {

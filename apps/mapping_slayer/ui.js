@@ -3684,6 +3684,36 @@ function generateFlagSelectors(modalType, dot, multipleDots = null) {
     const flagConfig = initializeMarkerTypeFlags(dot.markerType); // Still works, returns global config
 
     container.innerHTML = '';
+    
+    // Add long press handler to open flag customization modal
+    let longPressTimer = null;
+    let isLongPress = false;
+    
+    const handleLongPressStart = (e) => {
+        // Prevent default touch behavior
+        e.preventDefault();
+        isLongPress = false;
+        
+        longPressTimer = setTimeout(() => {
+            isLongPress = true;
+            openFlagModal();
+        }, 500); // 500ms for long press
+    };
+    
+    const handleLongPressEnd = () => {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    };
+    
+    // Add both touch and mouse events for compatibility
+    container.addEventListener('touchstart', handleLongPressStart, { passive: false });
+    container.addEventListener('touchend', handleLongPressEnd);
+    container.addEventListener('touchcancel', handleLongPressEnd);
+    container.addEventListener('mousedown', handleLongPressStart);
+    container.addEventListener('mouseup', handleLongPressEnd);
+    container.addEventListener('mouseleave', handleLongPressEnd);
 
     // Create flag checkboxes for each position
     Object.keys(FLAG_POSITIONS).forEach(key => {
